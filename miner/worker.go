@@ -196,11 +196,7 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 
 	// Submit first work to initialize pending state.
 	if init {
-		if atomic.CompareAndSwapInt32(&worker.running, 0, 1) {
-			log.Warn("Worker constructor. init stage")
-			log.Info("The mining is started", "threads", worker.n)
-			worker.startCh <- struct{}{}
-		}
+		worker.init()
 	}
 	return worker
 }
@@ -246,13 +242,18 @@ func (w *worker) pendingBlock() *types.Block {
 
 func (w *worker) init() {
 	w.initOnce.Do(func() {
+		log.Warn("Worker constructor. init stage")
+		log.Info("The mining is started", "threads", w.n)
+
 		time.Sleep(5 * time.Second)
+
 		w.txsCh = make(chan core.NewTxsEvent, txChanSize)
 		w.chainHeadCh = make(chan core.ChainHeadEvent, chainHeadChanSize)
 		w.chainSideCh = make(chan core.ChainSideEvent, chainSideChanSize)
 
 		// Subscribe NewTxsEvent for tx pool
 		w.txsSub = w.eth.TxPool().SubscribeNewTxsEvent(w.txsCh)
+
 		// Subscribe events for blockchain
 		w.chainHeadSub = w.eth.BlockChain().SubscribeChainHeadEvent(w.chainHeadCh)
 		w.chainSideSub = w.eth.BlockChain().SubscribeChainSideEvent(w.chainSideCh)
