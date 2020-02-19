@@ -646,12 +646,15 @@ func opSstore(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memor
 	return nil, nil
 }
 
+var JumpDest = make(map[uint64]struct{})
+
 func opJump(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	pos := stack.pop()
 	if !contract.validJumpdest(pos) {
 		return nil, errInvalidJump
 	}
 	*pc = pos.Uint64()
+	JumpDest[pos.Uint64()] = struct{}{}
 
 	interpreter.intPool.put(pos)
 	return nil, nil
@@ -664,6 +667,7 @@ func opJumpi(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory
 			return nil, errInvalidJump
 		}
 		*pc = pos.Uint64()
+		JumpDest[pos.Uint64()] = struct{}{}
 	} else {
 		*pc++
 	}
@@ -914,6 +918,8 @@ func makeLog(size int) executionFunc {
 	}
 }
 
+var PushDest = make(map[uint64]struct{})
+
 // opPush1 is a specialized version of pushN
 func opPush1(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	var (
@@ -923,6 +929,7 @@ func opPush1(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory
 	*pc += 1
 	if *pc < codeLen {
 		stack.push(integer.SetUint64(uint64(contract.Code[*pc])))
+		PushDest[uint64(contract.Code[*pc])] = struct{}{}
 	} else {
 		stack.push(integer.SetUint64(0))
 	}
@@ -945,7 +952,9 @@ func makePush(size uint64, pushByteSize int) executionFunc {
 		}
 
 		integer := interpreter.intPool.get()
-		stack.push(integer.SetBytes(common.RightPadBytes(contract.Code[startMin:endMin], pushByteSize)))
+		v := integer.SetBytes(common.RightPadBytes(contract.Code[startMin:endMin], pushByteSize))
+		PushDest[v.Uint64()] = struct{}{}
+		stack.push(v)
 
 		*pc += size
 		return nil, nil

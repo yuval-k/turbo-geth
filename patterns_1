@@ -1,0 +1,224 @@
+PUSH,25089975,82.2286
+POP,2291155,7.5089
+DUP2,1340040,4.3918
+AND,845873,2.7722
+SWAP1,611245,2.0033
+SSTORE,137846,0.4518
+,73749,0.2417
+LOG1,27456,0.0900
+SWAP2,11115,0.0364
+DUP3,8550,0.0280
+DUP4,7429,0.0243
+DUP5,5714,0.0187
+SWAP3,5488,0.0180
+DUP6,4970,0.0163
+DIV,3587,0.0118
+SWAP4,3531,0.0116
+MSTORE,3076,0.0101
+SWAP6,2863,0.0094
+DUP7,2008,0.0066
+DUP8,1926,0.0063
+SHA3,1785,0.0059
+LOG3,1696,0.0056
+DUP9,1283,0.0042
+LOG2,1205,0.0039
+DUP13,1139,0.0037
+SWAP8,1125,0.0037
+DUP11,1116,0.0037
+DUP10,1002,0.0033
+SHR,972,0.0032
+SWAP5,906,0.0030
+SWAP14,808,0.0026
+SWAP10,784,0.0026
+DUP12,696,0.0023
+SWAP12,690,0.0023
+SWAP9,624,0.0020
+SWAP7,504,0.0017
+DUP14,487,0.0016
+DUP15,398,0.0013
+Missing opcode 0xfe,323,0.0011
+Missing opcode 0xa6,263,0.0009
+Missing opcode 0x4f,237,0.0008
+SWAP11,235,0.0008
+BLOCKHASH,225,0.0007
+Missing opcode 0x4e,224,0.0007
+STOP,214,0.0007
+SWAP13,206,0.0007
+CALLVALUE,199,0.0007
+Missing opcode 0xde,177,0.0006
+Missing opcode 0x5f,148,0.0005
+GASLIMIT,138,0.0005
+Missing opcode 0xc2,126,0.0004
+Missing opcode 0xef,125,0.0004
+Missing opcode 0x49,124,0.0004
+Missing opcode 0x2f,119,0.0004
+SLOAD,119,0.0004
+CALLDATACOPY,119,0.0004
+Missing opcode 0xea,117,0.0004
+COINBASE,115,0.0004
+Missing opcode 0x21,112,0.0004
+MSIZE,110,0.0004
+Missing opcode 0x1f,110,0.0004
+TIMESTAMP,109,0.0004
+LT,106,0.0003
+DUP1,105,0.0003
+ADD,104,0.0003
+SELFDESTRUCT,103,0.0003
+Missing opcode 0x4c,103,0.0003
+PC,102,0.0003
+CODESIZE,101,0.0003
+Missing opcode 0x29,101,0.0003
+CALL,99,0.0003
+Missing opcode 0xce,99,0.0003
+MULMOD,99,0.0003
+GT,99,0.0003
+JUMP,99,0.0003
+CALLDATALOAD,98,0.0003
+SUB,98,0.0003
+Missing opcode 0x2d,98,0.0003
+DUP,97,0.0003
+Missing opcode 0x23,97,0.0003
+SGT,97,0.0003
+SMOD,96,0.0003
+Missing opcode 0xb4,96,0.0003
+GASPRICE,96,0.0003
+BALANCE,95,0.0003
+LOG4,94,0.0003
+Missing opcode 0xd3,94,0.0003
+MLOAD,94,0.0003
+ADDRESS,94,0.0003
+MOD,94,0.0003
+Missing opcode 0x4d,93,0.0003
+JUMPI,93,0.0003
+Missing opcode 0x22,93,0.0003
+Missing opcode 0x28,92,0.0003
+SWAP15,92,0.0003
+NUMBER,92,0.0003
+Missing opcode 0x27,92,0.0003
+Missing opcode 0xe2,90,0.0003
+MSTORE8,90,0.0003
+Missing opcode 0xc9,90,0.0003
+EXTCODECOPY,90,0.0003
+ORIGIN,90,0.0003
+Missing opcode 0xdb,90,0.0003
+CALLDATASIZE,89,0.0003
+Missing opcode 0xab,89,0.0003
+RETURN,89,0.0003
+CODECOPY,89,0.0003
+DIFFICULTY,89,0.0003
+Missing opcode 0xec,89,0.0003
+Missing opcode 0xe0,88,0.0003
+Missing opcode 0xda,88,0.0003
+Missing opcode 0xd8,88,0.0003
+LOG0,88,0.0003
+Missing opcode 0xdc,88,0.0003
+Missing opcode 0x25,88,0.0003
+BYTE,88,0.0003
+Missing opcode 0xbd,88,0.0003
+ADDMOD,87,0.0003
+Missing opcode 0x5d,87,0.0003
+Missing opcode 0x2a,87,0.0003
+EQ,87,0.0003
+Missing opcode 0xac,86,0.0003
+Missing opcode 0xd5,86,0.0003
+Missing opcode 0xa8,86,0.0003
+CREATE,86,0.0003
+Missing opcode 0x5c,86,0.0003
+Missing opcode 0xc5,85,0.0003
+Missing opcode 0x5e,85,0.0003
+GAS,85,0.0003
+SAR,85,0.0003
+Missing opcode 0x4a,85,0.0003
+Missing opcode 0x4b,85,0.0003
+Missing opcode 0xbf,84,0.0003
+DUP16,84,0.0003
+CHAINID,84,0.0003
+SELFBALANCE,84,0.0003
+CALLER,84,0.0003
+Missing opcode 0xf6,84,0.0003
+Missing opcode 0xd1,84,0.0003
+Missing opcode 0xd0,84,0.0003
+Missing opcode 0xc1,84,0.0003
+Missing opcode 0xa5,83,0.0003
+Missing opcode 0xfc,83,0.0003
+Missing opcode 0xd7,83,0.0003
+NOT,83,0.0003
+Missing opcode 0x2c,83,0.0003
+Missing opcode 0xc,83,0.0003
+Missing opcode 0xaf,83,0.0003
+EXTCODESIZE,82,0.0003
+SIGNEXTEND,82,0.0003
+Missing opcode 0xb9,82,0.0003
+Missing opcode 0xe5,82,0.0003
+DELEGATECALL,82,0.0003
+Missing opcode 0xfb,82,0.0003
+Missing opcode 0xb3,82,0.0003
+Missing opcode 0xe8,82,0.0003
+Missing opcode 0xeb,82,0.0003
+Missing opcode 0xca,82,0.0003
+Missing opcode 0xc8,82,0.0003
+OR,82,0.0003
+SWAP16,82,0.0003
+Missing opcode 0xdf,81,0.0003
+Missing opcode 0xe9,81,0.0003
+Missing opcode 0xd,81,0.0003
+EXTCODEHASH,81,0.0003
+SWAP,81,0.0003
+Missing opcode 0xba,81,0.0003
+XOR,81,0.0003
+Missing opcode 0xb8,81,0.0003
+Missing opcode 0xb7,80,0.0003
+REVERT,80,0.0003
+Missing opcode 0xa7,80,0.0003
+Missing opcode 0x2b,80,0.0003
+RETURNDATACOPY,80,0.0003
+Missing opcode 0xed,80,0.0003
+Missing opcode 0xbe,79,0.0003
+Missing opcode 0x26,79,0.0003
+Missing opcode 0xc4,79,0.0003
+Missing opcode 0xcc,79,0.0003
+CALLCODE,79,0.0003
+Missing opcode 0xbc,78,0.0003
+Missing opcode 0xf,78,0.0003
+CREATE2,78,0.0003
+Missing opcode 0xdd,78,0.0003
+Missing opcode 0xd9,78,0.0003
+Missing opcode 0xaa,78,0.0003
+Missing opcode 0xd4,78,0.0003
+Missing opcode 0xe4,78,0.0003
+Missing opcode 0xe6,78,0.0003
+Missing opcode 0xc0,77,0.0003
+Missing opcode 0xa9,77,0.0003
+Missing opcode 0xee,77,0.0003
+STATICCALL,77,0.0003
+SHL,77,0.0003
+Missing opcode 0x48,77,0.0003
+Missing opcode 0xf7,77,0.0003
+Missing opcode 0xbb,76,0.0002
+MUL,76,0.0002
+RETURNDATASIZE,75,0.0002
+Missing opcode 0xb5,75,0.0002
+SDIV,75,0.0002
+Missing opcode 0x2e,75,0.0002
+Missing opcode 0xc3,75,0.0002
+Missing opcode 0xf8,74,0.0002
+Missing opcode 0xcd,74,0.0002
+Missing opcode 0xc7,74,0.0002
+SLT,73,0.0002
+Missing opcode 0xb6,73,0.0002
+Missing opcode 0xc6,73,0.0002
+Missing opcode 0xcb,73,0.0002
+Missing opcode 0x1e,73,0.0002
+Missing opcode 0xd2,73,0.0002
+Missing opcode 0xf9,73,0.0002
+Missing opcode 0xd6,72,0.0002
+Missing opcode 0xae,72,0.0002
+Missing opcode 0xad,71,0.0002
+Missing opcode 0x24,70,0.0002
+Missing opcode 0xe3,70,0.0002
+ISZERO,70,0.0002
+Missing opcode 0xe7,66,0.0002
+Missing opcode 0xe,66,0.0002
+Missing opcode 0xcf,65,0.0002
+Missing opcode 0xe1,63,0.0002
+EXP,63,0.0002

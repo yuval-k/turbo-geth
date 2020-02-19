@@ -20,18 +20,36 @@ package asm
 import (
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/ledgerwatch/turbo-geth/core/vm"
 )
 
 // Iterator for disassembled EVM instructions
 type instructionIterator struct {
-	code    []byte
-	pc      uint64
-	arg     []byte
-	op      vm.OpCode
-	error   error
-	started bool
+	code     []byte
+	pc       uint64
+	arg      []byte
+	op       vm.OpCode
+	error    error
+	started  bool
+	previous []Command
+}
+
+type Command struct {
+	PC  uint64
+	Arg []byte
+	Op  vm.OpCode
+}
+
+type Commands []Command
+
+func (cs Commands) String() string {
+	res := make([]string, len(cs))
+	for i, c := range cs {
+		res[i] = c.Op.String()
+	}
+	return strings.Join(res, "_")
 }
 
 // Create a new instruction iterator.
@@ -49,6 +67,13 @@ func (it *instructionIterator) Next() bool {
 	}
 
 	if it.started {
+		prevArgs := append([]byte{}, it.arg...)
+		it.previous = append(it.previous, Command{
+			it.pc,
+			prevArgs,
+			it.op,
+		})
+
 		// Since the iteration has been already started we move to the next instruction.
 		if it.arg != nil {
 			it.pc += uint64(len(it.arg))
@@ -79,6 +104,59 @@ func (it *instructionIterator) Next() bool {
 	return true
 }
 
+// Up to previous JUMPDEST
+func (it *instructionIterator) Previous(n int) []Command {
+	if !it.started {
+		return nil
+	}
+	start := len(it.previous) - n
+	if start < 0 {
+		start = 0
+	}
+
+	return it.previous[start:]
+}
+
+// Up to previous opCode
+func (it *instructionIterator) PreviousBefore(n int, code vm.OpCode) []Command {
+	if !it.started {
+		return nil
+	}
+	start := len(it.previous) - n
+	if start < 0 {
+		start = 0
+	}
+	for i:=start;i<len(it.previous);i++ {
+		if it.previous[i].Op == code {
+			start = i+1
+		}
+	}
+
+	return it.previous[start:]
+}
+
+func (it *instructionIterator) PreviousBeforeJump(n int) []Command {
+	if !it.started {
+		return nil
+	}
+	start := len(it.previous) - n
+	if start < 0 {
+		start = 0
+	}
+
+	for i:=start;i<len(it.previous);i++ {
+		if it.previous[i].Op == vm.JUMP || it.previous[i].Op == vm.JUMPI {
+			start = i+1
+		}
+	}
+
+	return it.previous[start:]
+}
+
+func (it *instructionIterator) Last() Command {
+	return it.previous[len(it.previous)-1]
+}
+
 // Returns any error that may have been encountered.
 func (it *instructionIterator) Error() error {
 	return it.error
@@ -105,9 +183,29 @@ func PrintDisassembled(code string) error {
 	if err != nil {
 		return err
 	}
+	return PrintDisassembledBytes(script)
+}
 
+// Pretty-print all disassembled EVM instructions to stdout.
+func PrintDisassembledBytes(script []byte) error {
 	it := NewInstructionIterator(script)
 	for it.Next() {
+		if it.Arg() != nil && 0 < len(it.Arg()) {
+			fmt.Printf("%05x: %v 0x%x\n", it.PC(), it.Op(), it.Arg())
+		} else {
+			fmt.Printf("%05x: %v\n", it.PC(), it.Op())
+		}
+	}
+	return it.Error()
+}
+
+// Pretty-print all disassembled EVM instructions to stdout.
+func PrintDisassembledBytesUpTo(script []byte, toPC uint64) error {
+	it := NewInstructionIterator(script)
+	for it.Next() {
+		if it.pc >= toPC {
+			return nil
+		}
 		if it.Arg() != nil && 0 < len(it.Arg()) {
 			fmt.Printf("%05x: %v 0x%x\n", it.PC(), it.Op(), it.Arg())
 		} else {

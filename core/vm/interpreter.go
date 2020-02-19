@@ -190,6 +190,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			}
 		}()
 	}
+
 	// The Interpreter main run loop (contextual). This loop runs until either an
 	// explicit STOP, RETURN or SELFDESTRUCT is executed, an error occurred during
 	// the execution of one of the operations or until the done flag is set by the
@@ -291,7 +292,25 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			pc++
 		}
 	}
+
+
+	for jump := range JumpDest {
+		if _, ok := PushDest[jump]; !ok {
+			nonPush++
+		} else {
+			fromPush++
+		}
+	}
+
+
 	return nil, nil
+}
+
+var fromPush = 0
+var nonPush = 0
+
+func GetJumps() (int, int) {
+	return fromPush, nonPush
 }
 
 // CanRun tells if the contract, passed as an argument, can be

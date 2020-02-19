@@ -1,0 +1,264 @@
+different contracts 255474
+incorrect opCodes 222543
+incorrect jumps NA
+
+==============
+different contracts 32931
+incorrect begginings 19468
+===============
+
+[PUSH1 PUSH1 MSTORE], 231822
+[ORIGIN PUSH20 EQ], 15992
+[PUSH20 ADDRESS EQ], 3716
+[CALLDATASIZE RETURNDATASIZE RETURNDATASIZE], 1454
+[PUSH20 EXTCODESIZE POP], 626
+[PUSH1 DUP1 DUP1], 496
+[PUSH1 CALLDATALOAD PUSH1], 209
+[PUSH6 POP PUSH1], 194
+[PUSH1 PUSH1 DUP2], 101
+[PUSH1 DUP1 PUSH1], 74
+[PUSH1 PUSH2 MSTORE8], 52
+[PUSH2 PUSH1 DUP1], 47
+[PUSH20 CALLER XOR], 46
+[PUSH32 PUSH1 MSTORE], 44
+[CALLDATASIZE PUSH1 DUP1], 41
+[CALLDATASIZE PUSH1 PUSH1], 31
+[STOP STOP STOP], 29
+[PUSH29 PUSH1 CALLDATALOAD], 29
+[CALLDATASIZE PUSH2 JUMPI], 24
+[PUSH1 CALLDATASIZE DUP2], 23
+[PUSH1 CALLDATASIZE LT], 19
+[PUSH2 PUSH2 JUMP], 18
+[PUSH1 PUSH1 PUSH1], 16
+[PUSH17 CALLER SUB], 13
+[PUSH2 CALLDATASIZE EQ], 11
+[PC CALLDATASIZE DUP2], 9
+[PUSH16 CALLER XOR], 9
+[PUSH4 PUSH1 PUSH1], 8
+[PUSH20 CALLER EQ], 7
+[PUSH1 PUSH1 MSTORE8], 7
+[PUSH1 PUSH1 EXP], 7
+[PUSH15 CALLER XOR], 6
+[PUSH1 PUSH1 SWAP1], 6
+[CALLVALUE ISZERO PUSH1], 6
+[RETURNDATASIZE CALLER PUSH20], 5
+[PUSH4 PUSH1 CALLDATALOAD], 4
+[PUSH1 SLOAD CALLER], 4
+[CALLVALUE ISZERO PUSH2], 4
+[CALLVALUE PUSH2 JUMPI], 4
+[PUSH18 CALLER SUB], 4
+[MSIZE MSIZE PUSH1], 4
+[CALLDATASIZE ISZERO ISZERO], 3
+[PUSH1 DUP1 CALLDATASIZE], 3
+[CALLDATASIZE CALLVALUE PUSH1], 3
+[PUSH1 PUSH20 CALLER], 3
+[PUSH3 PUSH1 PUSH3], 3
+[PUSH4 CALLER PUSH20], 3
+[PUSH32 PUSH1 CALLDATALOAD], 3
+[PUSH20 PUSH1 DUP1], 3
+[CALLDATASIZE PUSH1 EQ], 3
+[PUSH1 ADDRESS CALLVALUE], 2
+[PUSH1 NUMBER SUB], 2
+[PUSH13 PUSH1 NUMBER], 2
+[PUSH13 ADDRESS MUL], 2
+[PUSH19 PUSH15 PUSH1], 2
+[PUSH1 CALLDATASIZE ISZERO], 2
+[PUSH2 PUSH2 PUSH1], 2
+[GAS PUSH2 MSTORE], 2
+[PUSH20 ORIGIN EQ], 2
+[CALLDATASIZE ISZERO PUSH2], 2
+[PC SELFDESTRUCT Missing opcode 0x48], 2
+[PUSH1 PUSH2 EXP], 2
+[PUSH1 CALLDATALOAD PUSH29], 2
+[Missing opcode 0xd3 Missing opcode 0xaa MSTORE8], 1
+[Missing opcode 0x29 DUP14 Missing opcode 0xd0], 1
+[Missing opcode 0xcf Missing opcode 0xae Missing opcode 0xda], 1
+[Missing opcode 0xd9 PUSH9 Missing opcode 0xe7], 1
+[Missing opcode 0xdc REVERT SUB], 1
+[Missing opcode 0xd3 Missing opcode 0xc0 ISZERO], 1
+[TIMESTAMP Missing opcode 0x4e CHAINID], 1
+[LOG0 PUSH17 LOG0], 1
+[STOP RETURN JUMPI], 1
+[Missing opcode 0xda DUP9 CALLDATASIZE], 1
+[Missing opcode 0xc8 Missing opcode 0xc2 JUMPI], 1
+[CALLDATASIZE DUP1 PUSH1], 1
+[PUSH16 PUSH1 JUMPDEST], 1
+[Missing opcode 0xc6 PUSH3 SWAP1], 1
+[CALLCODE REVERT CREATE], 1
+[Missing opcode 0xc Missing opcode 0xf6 CALLDATACOPY], 1
+[SELFDESTRUCT Missing opcode 0xfe Missing opcode 0xd1], 1
+[Missing opcode 0xed Missing opcode 0xee Missing opcode 0x2f], 1
+[Missing opcode 0xbd Missing opcode 0xa8 CREATE2], 1
+[PUSH1 DUP1 REVERT], 1
+[SELFDESTRUCT DUP5 Missing opcode 0xce], 1
+[CALL Missing opcode 0xfe DUP15], 1
+[Missing opcode 0xae Missing opcode 0x2f SWAP5], 1
+[SWAP9 CODESIZE CREATE], 1
+[Missing opcode 0xc DUP2 Missing opcode 0xc5], 1
+[SWAP1 LOG3 PUSH20], 1
+[PUSH1 JUMP JUMPDEST], 1
+[AND Missing opcode 0xf7 Missing opcode 0xa9], 1
+[PUSH2 PUSH1 ADD], 1
+[Missing opcode 0xad REVERT Missing opcode 0xcd], 1
+[Missing opcode 0xe6 PUSH7 LT], 1
+[Missing opcode 0xc1 MUL Missing opcode 0x2c], 1
+[REVERT CALLVALUE Missing opcode 0xca], 1
+[JUMPDEST PUSH20 BALANCE], 1
+[SWAP8 PUSH24 Missing opcode 0xdd], 1
+[CALLDATASIZE Missing opcode 0xd SELFBALANCE], 1
+[SWAP13 Missing opcode 0xef PUSH16], 1
+[Missing opcode 0xab DUP5 PUSH24], 1
+[LOG2 LT Missing opcode 0xc6], 1
+[SWAP Missing opcode 0xd SWAP14], 1
+[JUMPDEST GAS EXTCODESIZE], 1
+[SWAP10 SGT XOR], 1
+[Missing opcode 0xd0 Missing opcode 0x4b Missing opcode 0x29], 1
+[CALLDATALOAD Missing opcode 0xd9 PUSH8], 1
+[DUP GASPRICE PUSH15], 1
+[SWAP3 RETURN Missing opcode 0x4f], 1
+[PUSH1 PUSH19 CALLER], 1
+[Missing opcode 0xfb Missing opcode 0xe6 MLOAD], 1
+[Missing opcode 0xc4 SHR JUMP], 1
+[Missing opcode 0xca BLOCKHASH SWAP14], 1
+[PUSH1 PUSH4 DUP2], 1
+[Missing opcode 0xc8 Missing opcode 0xa9 Missing opcode 0xc6], 1
+[Missing opcode 0x4a MUL ADDRESS], 1
+[Missing opcode 0xaf CHAINID SDIV], 1
+[Missing opcode 0x2c PUSH6 SELFBALANCE], 1
+[Missing opcode 0xd6 SUB DUP11], 1
+[Missing opcode 0xbc CODESIZE Missing opcode 0x29], 1
+[SLT Missing opcode 0xca MSTORE], 1
+[PUSH14 CALLER XOR], 1
+[SAR PUSH29 DUP15], 1
+[PUSH15 CALLER EQ], 1
+[Missing opcode 0x4c DUP8 Missing opcode 0xea], 1
+[Missing opcode 0x5e DIV Missing opcode 0xa9], 1
+[SELFDESTRUCT PUSH11 CREATE], 1
+[SWAP15 SSTORE STOP], 1
+[CREATE DUP3 DUP2], 1
+[Missing opcode 0xfc EXTCODESIZE NOT], 1
+[PUSH23 PUSH2 ADDRESS], 1
+[SWAP1 Missing opcode 0xd5 MLOAD], 1
+[STOP Missing opcode 0xc8 Missing opcode 0xe1], 1
+[ORIGIN STOP STOP], 1
+[CALLVALUE Missing opcode 0xaa Missing opcode 0xaf], 1
+[PUSH1 PUSH1 STOP], 1
+[Missing opcode 0xd4 CALLDATASIZE Missing opcode 0xcf], 1
+[CODECOPY PUSH30 XOR], 1
+[Missing opcode 0xc2 DUP8 SHA3], 1
+[CALLER PUSH1 MSTORE], 1
+[Missing opcode 0xd3 Missing opcode 0xe3 DUP3], 1
+[SELFDESTRUCT Missing opcode 0xd8 SELFDESTRUCT], 1
+[MULMOD PUSH16 NUMBER], 1
+[PUSH22 LOG4 Missing opcode 0xe8], 1
+[SELFDESTRUCT Missing opcode 0xfe LOG2], 1
+[LOG4 PUSH21 PUSH25], 1
+[CALLVALUE STOP STOP], 1
+[Missing opcode 0xf9 MOD Missing opcode 0xc8], 1
+[PUSH18 Missing opcode 0xcb PUSH17], 1
+[Missing opcode 0xd9 Missing opcode 0x29 SWAP15], 1
+[DUP2 SWAP16 Missing opcode 0x4f], 1
+[PC PUSH15 CALLER], 1
+[NUMBER DUP15 SDIV], 1
+[Missing opcode 0xb4 Missing opcode 0xca OR], 1
+[SWAP4 Missing opcode 0xa8 Missing opcode 0xa6], 1
+[Missing opcode 0xa8 Missing opcode 0xcc SMOD], 1
+[Missing opcode 0xd7 PUSH32 Missing opcode 0xc], 1
+[Missing opcode 0xd6 DUP7 OR], 1
+[CALLDATASIZE CODECOPY Missing opcode 0xad], 1
+[PUSH20 PUSH1 JUMPDEST], 1
+[ADD DUP1 BALANCE], 1
+[PUSH1 STOP STOP], 1
+[Missing opcode 0xb7 PUSH22 Missing opcode 0xa5], 1
+[PUSH32 POP PUSH1], 1
+[CALLDATASIZE PUSH1 JUMPI], 1
+[PUSH7 MLOAD PUSH4], 1
+[PUSH16 JUMPDEST DUP1], 1
+[CALL SWAP1 CALL], 1
+[CALLER Missing opcode 0x4d Missing opcode 0xcd], 1
+[PUSH1 DUP1 RETURN], 1
+[DUP6 Missing opcode 0x5f SGT], 1
+[Missing opcode 0xb6 DUP5 DUP4], 1
+[GAS CALL CALLCODE], 1
+[Missing opcode 0xc8 DELEGATECALL SDIV], 1
+[Missing opcode 0xd6 JUMPDEST Missing opcode 0xfb], 1
+[Missing opcode 0xb3 PUSH7 Missing opcode 0xca], 1
+[Missing opcode 0xa9 Missing opcode 0x23 GT], 1
+[EXTCODEHASH Missing opcode 0xc6 Missing opcode 0xe0], 1
+[PUSH4 PUSH20 PUSH1], 1
+[CALLVALUE Missing opcode 0xa9 MSTORE], 1
+[Missing opcode 0x4e SHL DUP11], 1
+[Missing opcode 0xe2 Missing opcode 0xa6 SUB], 1
+[STOP DELEGATECALL STOP], 1
+[PUSH1 CALLDATALOAD JUMPDEST], 1
+[DUP3 JUMPDEST Missing opcode 0xc6], 1
+[DUP7 Missing opcode 0xc5 Missing opcode 0xd1], 1
+[MSIZE DUP1 RETURN], 1
+[DUP9 Missing opcode 0xee Missing opcode 0xb4], 1
+[DIV STOP STOP], 1
+[CALLDATACOPY Missing opcode 0x4e DELEGATECALL], 1
+[Missing opcode 0xd5 SHR SELFBALANCE], 1
+[PUSH29 Missing opcode 0x22 Missing opcode 0xa7], 1
+[PUSH12 JUMPDEST PUSH28], 1
+[CALLER PUSH1 SHR], 1
+[Missing opcode 0xb5 CALLER SWAP8], 1
+[JUMPDEST JUMPDEST JUMPDEST], 1
+[SWAP4 Missing opcode 0xaa Missing opcode 0xe], 1
+[Missing opcode 0x26 SWAP11 Missing opcode 0xc5], 1
+[BYTE Missing opcode 0xc5 NUMBER], 1
+[SWAP6 Missing opcode 0xfb PUSH7], 1
+[JUMPDEST GAS SLOAD], 1
+[Missing opcode 0xf Missing opcode 0xb5 Missing opcode 0xd3], 1
+[LOG0 Missing opcode 0xd7 PUSH29], 1
+[AND Missing opcode 0x2d MSTORE8], 1
+[PUSH1 SLOAD PUSH2], 1
+[SELFDESTRUCT Missing opcode 0x48 PUSH6], 1
+[LOG4 Missing opcode 0xa9 PUSH16], 1
+[Missing opcode 0xb6 Missing opcode 0x21 COINBASE], 1
+[Missing opcode 0x4d Missing opcode 0xca Missing opcode 0xc3], 1
+[CALLDATASIZE CALLVALUE CALLVALUE], 1
+[SELFDESTRUCT Missing opcode 0xfe TIMESTAMP], 1
+[Missing opcode 0x2c DUP2 Missing opcode 0x26], 1
+[PUSH2 PUSH1 GAS], 1
+[SELFDESTRUCT Missing opcode 0xfe DUP8], 1
+[SELFDESTRUCT Missing opcode 0xfe LOG0], 1
+[PUSH1 JUMP PUSH2], 1
+[PUSH1 JUMPDEST DUP1], 1
+[CALLVALUE DUP1 SSTORE], 1
+[Missing opcode 0xb5 Missing opcode 0xd7 SDIV], 1
+[Missing opcode 0x48 CHAINID PUSH7], 1
+[PUSH1 JUMPDEST EXTCODESIZE], 1
+[PUSH2 PUSH1 MSTORE], 1
+[CODESIZE Missing opcode 0xa8 Missing opcode 0x2f], 1
+[SELFDESTRUCT Missing opcode 0xfe PUSH1], 1
+[Missing opcode 0xcc Missing opcode 0x5f Missing opcode 0xa5], 1
+[PUSH26 Missing opcode 0xd0 LOG3], 1
+[DUP9 EXP CALLCODE], 1
+[NOT SHR PUSH30], 1
+[Missing opcode 0xde EXTCODECOPY Missing opcode 0xd3], 1
+[DUP11 Missing opcode 0xe DUP16], 1
+[SELFDESTRUCT Missing opcode 0xfe Missing opcode 0xda], 1
+[Missing opcode 0xb8 Missing opcode 0x4e Missing opcode 0xc8], 1
+[ADD GAS Missing opcode 0xec], 1
+[STOP Missing opcode 0xd8 STOP], 1
+[Missing opcode 0xcc Missing opcode 0x22 EQ], 1
+[SLOAD Missing opcode 0xd4 DUP1], 1
+[Missing opcode 0x4a Missing opcode 0xb3 Missing opcode 0xc], 1
+[DUP13 Missing opcode 0x48 PUSH16], 1
+[PUSH24 Missing opcode 0x4d SUB], 1
+[TIMESTAMP Missing opcode 0xc3 DIFFICULTY], 1
+[ADDMOD DUP15 AND], 1
+[PUSH1 CALLDATALOAD SELFDESTRUCT], 1
+[SUB Missing opcode 0xd1 PUSH20], 1
+[DUP4 Missing opcode 0xe8 Missing opcode 0x4a], 1
+[Missing opcode 0xbf Missing opcode 0xd0 MSTORE], 1
+[Missing opcode 0xdb Missing opcode 0x2d LOG0], 1
+[SWAP16 Missing opcode 0xc1 JUMPI], 1
+[LOG4 PUSH28 SWAP11], 1
+[PUSH3 PUSH1 MSTORE], 1
+[Missing opcode 0xb9 SDIV JUMPDEST], 1
+[PUSH7 PUSH30 DUP5], 1
+[DUP11 LOG1 Missing opcode 0xeb], 1
+[Missing opcode 0xb5 DUP5 PUSH5], 1
+[SWAP11 DUP10 Missing opcode 0xe4], 1
+[Missing opcode 0x22 Missing opcode 0x2c Missing opcode 0x22], 1

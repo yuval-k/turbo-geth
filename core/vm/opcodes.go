@@ -396,6 +396,11 @@ func (op OpCode) String() string {
 	return str
 }
 
+func (op OpCode) IsUnknown() bool {
+	_, ok := opCodeToString[op]
+	return !ok
+}
+
 var stringToOp = map[string]OpCode{
 	"STOP":           STOP,
 	"ADD":            ADD,
