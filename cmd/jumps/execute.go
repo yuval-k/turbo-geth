@@ -2,14 +2,15 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
+	"github.com/ledgerwatch/turbo-geth/eth"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/ledgerwatch/turbo-geth/consensus/ethash"
 	"github.com/ledgerwatch/turbo-geth/core"
-	"github.com/ledgerwatch/turbo-geth/core/state"
 	"github.com/ledgerwatch/turbo-geth/core/types"
 	"github.com/ledgerwatch/turbo-geth/core/vm"
 	"github.com/ledgerwatch/turbo-geth/ethdb"
@@ -19,7 +20,7 @@ import (
 func main() {
 	sigs := make(chan os.Signal, 1)
 	interruptCh := make(chan bool, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 
 	go func() {
 		<-sigs
@@ -39,36 +40,47 @@ func main() {
 	defer w.Flush()
 
 	vmConfig := vm.Config{}
-	bc, err := core.NewBlockChain(ethDb, nil, chainConfig, ethash.NewFaker(), vmConfig, nil)
+
+	bc, err := core.NewBlockChain(ethDb, &core.CacheConfig{TrieCleanLimit: 0, Disabled: true}, chainConfig, ethash.NewFaker(), vmConfig, nil)
 	check(err)
 
 	lastBlock := bc.CurrentHeader().Number.Uint64()
 	blockNum := uint64(1)
 
 	interrupt := false
+
+	fmt.Println("started from", blockNum)
+	fmt.Println("started to", lastBlock)
 	for !interrupt {
 		block := bc.GetBlockByNumber(blockNum)
 		if block == nil {
 			break
 		}
-		dbstate := state.NewDbState(ethDb, block.NumberU64()-1)
-		statedb := state.New(dbstate)
+		parent := bc.GetBlockByNumber(blockNum-1)
+
+		statedb, dbstate := eth.ComputeIntraBlockState(bc.ChainDb(), parent)
+
+		//dbstate := state.NewDbState(ethDb, block.NumberU64()-1)
+		//statedb := state.New(dbstate)
 		signer := types.MakeSigner(chainConfig, block.Number())
 		for _, tx := range block.Transactions() {
 			// Assemble the transaction call message and return if the requested offset
 			msg, _ := tx.AsMessage(signer)
-			context := core.NewEVMContext(msg, block.Header(), bc, nil)
+			ctx := core.NewEVMContext(msg, block.Header(), bc, nil)
 			// Not yet the searched for transaction, execute on top of the current state
-			vmenv := vm.NewEVM(context, statedb, chainConfig, vmConfig)
+			vmenv := vm.NewEVM(ctx, statedb, chainConfig, vmConfig)
 			if _, _, _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
 				panic(fmt.Errorf("tx %x failed: %v", tx.Hash(), err))
 			}
+
+			err = statedb.FinalizeTx(vmenv.ChainConfig().WithEIPsFlags(context.Background(), block.Number()), dbstate)
+			check(err)
 		}
 
 		blockNum++
 		if blockNum%1000 == 0 {
 			push, nonpush := vm.GetJumps()
-			fmt.Fprintf(w, "Processed %d blocks, jumps from PUSHes %d, not from PUSHes %d\n", blockNum, push, nonpush)
+			fmt.Printf("Processed %d blocks, jumps from PUSHes %d, not from PUSHes %d\n", blockNum, push, nonpush)
 		}
 
 		// Check for interrupts
