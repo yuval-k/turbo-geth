@@ -26,7 +26,7 @@ func main() {
 		interruptCh <- true
 	}()
 
-	ethDb, err := ethdb.NewBoltDatabase("/Volumes/tb41/turbo-geth-10/geth/chaindata")
+	ethDb, err := ethdb.NewBoltDatabase("/media/b00ris/ssd/ethchain/thin_1/geth/chaindata")
 	check(err)
 	defer ethDb.Close()
 
