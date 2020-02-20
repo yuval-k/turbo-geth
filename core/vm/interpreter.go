@@ -131,6 +131,7 @@ func NewEVMInterpreter(evm *EVM, cfg Config) *EVMInterpreter {
 // considered a revert-and-consume-all-gas operation except for
 // errExecutionReverted which means revert-and-keep-gas-left.
 func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (ret []byte, err error) {
+	fmt.Println("1111111111111111111111111111")
 	PushDest = make(map[uint64]struct{})
 	JumpDest = make(map[uint64]struct{})
 
@@ -181,6 +182,16 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 
 	// Reclaim the stack as an int pool when the execution stops
 	defer func() { in.intPool.put(stack.data...) }()
+
+	defer func() {
+		for jump := range JumpDest {
+			if _, ok := PushDest[jump]; !ok {
+				nonPush++
+			} else {
+				fromPush++
+			}
+		}
+	}()
 
 	if in.cfg.Debug {
 		defer func() {
@@ -295,16 +306,6 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			pc++
 		}
 	}
-
-
-	for jump := range JumpDest {
-		if _, ok := PushDest[jump]; !ok {
-			nonPush++
-		} else {
-			fromPush++
-		}
-	}
-
 
 	return nil, nil
 }
