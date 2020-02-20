@@ -31,7 +31,7 @@ func main() {
 	defer ethDb.Close()
 
 	chainConfig := params.MainnetChainConfig
-	srwFile, err := os.OpenFile("/Volumes/tb41/turbo-geth/storage_read_writes.csv", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	srwFile, err := os.OpenFile("storage_read_writes.csv", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	check(err)
 	defer srwFile.Close()
 
@@ -68,7 +68,7 @@ func main() {
 		blockNum++
 		if blockNum%1000 == 0 {
 			push, nonpush := vm.GetJumps()
-			fmt.Printf("Processed %d blocks, jumps from PUSHes %d, not from PUSHes %d\n", blockNum, push, nonpush)
+			fmt.Fprintf(w, "Processed %d blocks, jumps from PUSHes %d, not from PUSHes %d\n", blockNum, push, nonpush)
 		}
 
 		// Check for interrupts
@@ -84,7 +84,7 @@ func main() {
 	}
 
 	push, nonpush := vm.GetJumps()
-	fmt.Printf("Processed %d blocks, jumps from PUSHes %d, not from PUSHes %d\n", blockNum, push, nonpush)
+	fmt.Fprintf(w,"Processed %d blocks, jumps from PUSHes %d, not from PUSHes %d\n", blockNum, push, nonpush)
 }
 
 func check(err error) {

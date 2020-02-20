@@ -654,7 +654,9 @@ func opJump(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory 
 		return nil, errInvalidJump
 	}
 	*pc = pos.Uint64()
-	JumpDest[pos.Uint64()] = struct{}{}
+	if pos.Uint64() > 2 {
+		JumpDest[pos.Uint64()] = struct{}{}
+	}
 
 	interpreter.intPool.put(pos)
 	return nil, nil
@@ -667,7 +669,9 @@ func opJumpi(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory
 			return nil, errInvalidJump
 		}
 		*pc = pos.Uint64()
-		JumpDest[pos.Uint64()] = struct{}{}
+		if pos.Uint64() > 2 {
+			JumpDest[pos.Uint64()] = struct{}{}
+		}
 	} else {
 		*pc++
 	}
