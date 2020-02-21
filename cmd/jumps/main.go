@@ -21,8 +21,6 @@ func main() {
 	// begginings()
 }
 
-func getUptolastPush(n int) []command { return nil }
-
 type command struct {
 	pc  uint64
 	op  vm.OpCode

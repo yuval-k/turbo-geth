@@ -50,6 +50,7 @@ func (st *Stack) pushN(ds ...*big.Int) {
 func (st *Stack) pop() (ret *big.Int) {
 	ret = st.data[len(st.data)-1]
 	st.data = st.data[:len(st.data)-1]
+
 	return
 }
 
