@@ -76,14 +76,14 @@ var Commands = map[OpCode]Command{
 	RETURNDATACOPY: NewCommand(3, 0, Static),    // fixme
 	EXTCODEHASH:    NewCommand(1, 1, NotStaticIfOneNotStatic),
 
-	BLOCKHASH:   {},
-	COINBASE:    {},
-	TIMESTAMP:   {},
-	NUMBER:      {},
-	DIFFICULTY:  {},
-	GASLIMIT:    {},
-	CHAINID:     {},
-	SELFBALANCE: {},
+	BLOCKHASH:   NewCommand(1, 1, NotStatic),
+	COINBASE:    NewCommand(0, 1, NotStatic),
+	TIMESTAMP:   NewCommand(0, 1, NotStatic),
+	NUMBER:      NewCommand(0, 1, NotStatic),
+	DIFFICULTY:  NewCommand(0, 1, NotStatic),
+	GASLIMIT:    NewCommand(0, 1, NotStatic),
+	CHAINID:     NewCommand(0, 1, Static), //fixme
+	SELFBALANCE: NewCommand(0, 1, NotStatic),
 
 	POP:      NewCommand(1, 0, NotStaticIfOneNotStatic),
 	MLOAD:    NewCommand(1, 1, NotStatic),
@@ -131,22 +131,22 @@ var Commands = map[OpCode]Command{
 	PUSH31: NewCommand(0, 31, Static),
 	PUSH32: NewCommand(0, 32, Static),
 
-	DUP1:   NewCommand(1, 2, NotStaticIfOneNotStatic),
-	DUP2:   NewCommand(2, 3, NotStaticIfOneNotStatic),
-	DUP3:   NewCommand(3, 4, NotStaticIfOneNotStatic),
-	DUP4:   NewCommand(4, 5, NotStaticIfOneNotStatic),
-	DUP5:   NewCommand(5, 6, NotStaticIfOneNotStatic),
-	DUP6:   NewCommand(6, 7, NotStaticIfOneNotStatic),
-	DUP7:   NewCommand(7, 8, NotStaticIfOneNotStatic),
-	DUP8:   NewCommand(8, 9, NotStaticIfOneNotStatic),
-	DUP9:   NewCommand(9, 10, NotStaticIfOneNotStatic),
-	DUP10:  NewCommand(10, 11, NotStaticIfOneNotStatic),
-	DUP11:  NewCommand(11, 12, NotStaticIfOneNotStatic),
-	DUP12:  NewCommand(12, 13, NotStaticIfOneNotStatic),
-	DUP13:  NewCommand(13, 14, NotStaticIfOneNotStatic),
-	DUP14:  NewCommand(14, 15, NotStaticIfOneNotStatic),
-	DUP15:  NewCommand(15, 16, NotStaticIfOneNotStatic),
-	DUP16:  NewCommand(16, 17, NotStaticIfOneNotStatic),
+	DUP1:  NewCommand(1, 2, NotStaticIfOneNotStatic),
+	DUP2:  NewCommand(2, 3, NotStaticIfOneNotStatic),
+	DUP3:  NewCommand(3, 4, NotStaticIfOneNotStatic),
+	DUP4:  NewCommand(4, 5, NotStaticIfOneNotStatic),
+	DUP5:  NewCommand(5, 6, NotStaticIfOneNotStatic),
+	DUP6:  NewCommand(6, 7, NotStaticIfOneNotStatic),
+	DUP7:  NewCommand(7, 8, NotStaticIfOneNotStatic),
+	DUP8:  NewCommand(8, 9, NotStaticIfOneNotStatic),
+	DUP9:  NewCommand(9, 10, NotStaticIfOneNotStatic),
+	DUP10: NewCommand(10, 11, NotStaticIfOneNotStatic),
+	DUP11: NewCommand(11, 12, NotStaticIfOneNotStatic),
+	DUP12: NewCommand(12, 13, NotStaticIfOneNotStatic),
+	DUP13: NewCommand(13, 14, NotStaticIfOneNotStatic),
+	DUP14: NewCommand(14, 15, NotStaticIfOneNotStatic),
+	DUP15: NewCommand(15, 16, NotStaticIfOneNotStatic),
+	DUP16: NewCommand(16, 17, NotStaticIfOneNotStatic),
 
 	// special cases!
 	SWAP1:  NewCommand(1, 1, NotStaticIfOneNotStatic),
@@ -176,11 +176,11 @@ var Commands = map[OpCode]Command{
 	DUP:  NewCommand(1, 2, NotStaticIfOneNotStatic),
 	SWAP: NewCommand(1, 1, NotStaticIfOneNotStatic),
 
-	CREATE:       {},
-	CALL:         {},
-	CALLCODE:     {},
-	RETURN:       {},
-	DELEGATECALL: {},
+	CREATE:       NewCommand(3, 1, NotStatic), // fixme
+	CALL:         NewCommand(7, 1, NotStatic), // fixme
+	CALLCODE:     NewCommand(7, 1, NotStatic), // fixme
+	RETURN:       NewCommand(2, 0, Static),
+	DELEGATECALL: NewCommand(6, 1, NotStatic), // fixme
 	CREATE2:      NewCommand(4, 1, NotStatic),
 	STATICCALL:   NewCommand(6, 1, NotStatic), // fixme
 
