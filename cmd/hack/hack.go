@@ -1934,7 +1934,6 @@ func validateTxLookups2(db *ethdb.BoltDatabase, startBlock uint64, interruptCh c
 }
 
 func indexSize(chaindata string) {
-	//db, err := bolt.Open(chaindata, 0600, &bolt.Options{ReadOnly: true})
 	db, err := ethdb.NewBoltDatabase(chaindata)
 	check(err)
 	defer db.Close()
@@ -1994,6 +1993,47 @@ func indexSize(chaindata string) {
 	fmt.Println("Results:")
 	fmt.Println("maxLenAcc:", maxLenAcc)
 	fmt.Println("maxLenSt:", maxLenSt)
+}
+
+func fillDbWithDifferentIndex() {
+	addr := common.FromHex("f89dda32df5cacab633922e3f3843e72dfad6f426efccb688c21ce1f8e502d07")
+	os.RemoveAll("bolt-1record")
+	os.RemoveAll("bolt-noprefix")
+	os.RemoveAll("bolt-hasprefix")
+	db1 := ethdb.NewBolt().Path("bolt-1record").MustOpen(context.Background())
+	defer db1.Close()
+	db2 := ethdb.NewBolt().Path("bolt-noprefix").MustOpen(context.Background())
+	defer db2.Close()
+	db3 := ethdb.NewBolt().Path("bolt-hasprefix").MustOpen(context.Background())
+	defer db3.Close()
+
+	db1.Update(context.Background(), func(tx ethdb.Tx) error {
+		val := make([]byte, 4*1_000_000)
+		for i := 0; i < 1_000_000; i++ {
+			binary.BigEndian.PutUint32(val[i*4:(i+1)*4], uint32(i))
+		}
+
+		return tx.Bucket(dbutils.AccountsHistoryBucket).Put(addr, val)
+	})
+	db2.Update(context.Background(), func(tx ethdb.Tx) error {
+		b := tx.Bucket(dbutils.AccountsHistoryBucket)
+		for i := 0; i < 1_000_000; i++ {
+			key := make([]byte, 4)
+			binary.BigEndian.PutUint32(key, uint32(i))
+			b.Put(key, []byte{})
+		}
+		return nil
+	})
+
+	db3.Update(context.Background(), func(tx ethdb.Tx) error {
+		b := tx.Bucket(dbutils.AccountsHistoryBucket)
+		for i := 0; i < 1_000_000; i++ {
+			key := make([]byte, 4)
+			binary.BigEndian.PutUint32(key, uint32(i))
+			b.Put(append(addr, key...), []byte{})
+		}
+		return nil
+	})
 }
 
 func main() {
@@ -2118,5 +2158,8 @@ func main() {
 	}
 	if *action == "indexSize" {
 		indexSize(*chaindata)
+	}
+	if *action == "fillDbWithDifferentIndex" {
+		fillDbWithDifferentIndex()
 	}
 }
