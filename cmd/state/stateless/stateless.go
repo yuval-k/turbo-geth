@@ -267,7 +267,7 @@ func Stateless(
 		default:
 		}
 
-		trace := blockNum == 50492 // false // blockNum == 545080
+		trace := blockNum == 1 // false // blockNum == 545080
 		tds.SetResolveReads(blockNum >= witnessThreshold)
 		block := bcb.GetBlockByNumber(blockNum)
 		if block == nil {

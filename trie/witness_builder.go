@@ -188,13 +188,16 @@ func (b *WitnessBuilder) makeBlockWitness(
 		if limiter != nil {
 			hashOnly = limiter.HashOnly
 		}
+		if err := b.addAccountLeafOp(key, n); err != nil {
+			return err
+		}
 		if err := b.processAccountCode(n, hashOnly); err != nil {
 			return err
 		}
 		if err := b.processAccountStorage(n, storageKey, limiter); err != nil {
 			return err
 		}
-		return b.addAccountLeafOp(key, n)
+		return nil
 	}
 
 	switch n := nd.(type) {
@@ -217,11 +220,10 @@ func (b *WitnessBuilder) makeBlockWitness(
 		case *accountNode:
 			return processAccountNode(n.Key, hexVal, v)
 		default:
-			if err := b.makeBlockWitness(n.Val, hexVal, limiter, false); err != nil {
+			if err := b.addExtensionOp(n.Key); err != nil {
 				return err
 			}
-
-			return b.addExtensionOp(n.Key)
+			return b.makeBlockWitness(n.Val, hexVal, limiter, false)
 		}
 	case *duoNode:
 		hashOnly := limiter != nil && limiter.HashOnly.HashOnly(hex) // Save this because rs can move on to other keys during the recursive invocation
@@ -236,6 +238,10 @@ func (b *WitnessBuilder) makeBlockWitness(
 			return b.addHashOp(hn)
 		}
 
+		if err := b.addBranchOp(n.mask); err != nil {
+			return err
+		}
+
 		i1, i2 := n.childrenIdx()
 
 		if err := b.makeBlockWitness(n.child1, expandKeyHex(hex, i1), limiter, false); err != nil {
@@ -244,7 +250,7 @@ func (b *WitnessBuilder) makeBlockWitness(
 		if err := b.makeBlockWitness(n.child2, expandKeyHex(hex, i2), limiter, false); err != nil {
 			return err
 		}
-		return b.addBranchOp(n.mask)
+		return nil
 
 	case *fullNode:
 		hashOnly := limiter != nil && limiter.HashOnly.HashOnly(hex) // Save this because rs can move on to other keys during the recursive invocation
@@ -259,13 +265,23 @@ func (b *WitnessBuilder) makeBlockWitness(
 		var mask uint32
 		for i, child := range n.Children {
 			if child != nil {
-				if err := b.makeBlockWitness(child, expandKeyHex(hex, byte(i)), limiter, false); err != nil {
-					return err
-				}
 				mask |= (uint32(1) << uint(i))
 			}
 		}
-		return b.addBranchOp(mask)
+
+		if err := b.addBranchOp(mask); err != nil {
+			return err
+		}
+
+		for i, child := range n.Children {
+			if child != nil {
+				if err := b.makeBlockWitness(child, expandKeyHex(hex, byte(i)), limiter, false); err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
 
 	case hashNode:
 		hashOnly := limiter == nil || limiter.HashOnly.HashOnly(hex)

@@ -8,8 +8,10 @@ import (
 )
 
 func BuildTrieFromWitness(witness *Witness, isBinary bool, trace bool) (*Trie, error) {
-	hb := NewHashBuilder(false)
-	for _, operator := range witness.Operators {
+	hb := NewHashBuilder(trace)
+	for i := range witness.Operators {
+		// traversing back -> front
+		operator := witness.ReversedOpAt(i)
 		switch op := operator.(type) {
 		case *OperatorLeafValue:
 			if trace {
@@ -29,9 +31,10 @@ func BuildTrieFromWitness(witness *Witness, isBinary bool, trace bool) (*Trie, e
 			}
 		case *OperatorBranch:
 			if trace {
-				fmt.Printf("BRANCH ")
+				fmt.Printf("BRANCH %b ", op.Mask)
 			}
-			if err := hb.branch(uint16(op.Mask)); err != nil {
+			// account for travesing backwards
+			if err := hb.branchR(uint16(op.Mask), true); err != nil {
 				return nil, err
 			}
 		case *OperatorHash:
@@ -69,7 +72,8 @@ func BuildTrieFromWitness(witness *Witness, isBinary bool, trace bool) (*Trie, e
 			// db structure. Stateless clients don't access the DB so we can just pass 0 here.
 			incarnaton := uint64(0)
 
-			if err := hb.accountLeaf(len(op.Key), op.Key, 0, balance, nonce, incarnaton, fieldSet); err != nil {
+			// account for traversing backwards
+			if err := hb.accountLeafR(len(op.Key), op.Key, 0, balance, nonce, incarnaton, fieldSet, true); err != nil {
 				return nil, err
 			}
 		case *OperatorEmptyRoot:

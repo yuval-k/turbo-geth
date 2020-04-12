@@ -138,6 +138,12 @@ func NewWitnessFromReader(input io.Reader, trace bool) (*Witness, error) {
 	return &Witness{Header: header, Operators: operands}, nil
 }
 
+// ReversedOpAt returns i-th position in the reversed array of operators
+func (w *Witness) ReversedOpAt(idx int) WitnessOperator {
+	idx = len(w.Operators) - 1 - idx
+	return w.Operators[idx]
+}
+
 func (w *Witness) WriteDiff(w2 *Witness, output io.Writer) {
 	if w.Header.Version != w2.Header.Version {
 		fmt.Fprintf(output, "w1 header %d; w2 header %d\n", w.Header.Version, w2.Header.Version)

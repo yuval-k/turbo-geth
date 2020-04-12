@@ -185,8 +185,12 @@ func (hb *HashBuilder) leafHash(length int, keyHex []byte, val rlphacks.RlpSeria
 }
 
 func (hb *HashBuilder) accountLeaf(length int, keyHex []byte, storageSize uint64, balance *big.Int, nonce uint64, incarnation uint64, fieldSet uint32) (err error) {
+	return hb.accountLeafR(length, keyHex, storageSize, balance, nonce, incarnation, fieldSet, false)
+}
+
+func (hb *HashBuilder) accountLeafR(length int, keyHex []byte, storageSize uint64, balance *big.Int, nonce uint64, incarnation uint64, fieldSet uint32, reversed bool) (err error) {
 	if hb.trace {
-		fmt.Printf("ACCOUNTLEAF %d (%b)\n", length, fieldSet)
+		fmt.Printf("ACCOUNTLEAF R=%v %d (%b)\n", reversed, length, fieldSet)
 	}
 	key := keyHex[len(keyHex)-length:]
 	copy(hb.acc.Root[:], EmptyRoot[:])
@@ -200,7 +204,11 @@ func (hb *HashBuilder) accountLeaf(length int, keyHex []byte, storageSize uint64
 
 	popped := 0
 	var root node
+	var accountCode codeNode
 	if fieldSet&uint32(4) != 0 {
+		if reversed {
+			popped++
+		}
 		copy(hb.acc.Root[:], hb.hashStack[len(hb.hashStack)-popped*hashStackStride-common.HashLength:len(hb.hashStack)-popped*hashStackStride])
 		if hb.acc.Root != EmptyRoot {
 			// Root is on top of the stack
@@ -209,9 +217,12 @@ func (hb *HashBuilder) accountLeaf(length int, keyHex []byte, storageSize uint64
 				root = hashNode(common.CopyBytes(hb.acc.Root[:]))
 			}
 		}
-		popped++
+		if reversed {
+			popped--
+		} else {
+			popped++
+		}
 	}
-	var accountCode codeNode
 	if fieldSet&uint32(8) != 0 {
 		copy(hb.acc.CodeHash[:], hb.hashStack[len(hb.hashStack)-popped*hashStackStride-common.HashLength:len(hb.hashStack)-popped*hashStackStride])
 		ok := false
@@ -225,7 +236,14 @@ func (hb *HashBuilder) accountLeaf(length int, keyHex []byte, storageSize uint64
 				}
 			}
 		}
+		if reversed && fieldSet&uint32(4) != 0 {
+			popped++
+		}
 		popped++
+	}
+
+	if hb.trace {
+		fmt.Printf(">>> setting acc storage to=%T code to=%T\n", root, accountCode)
 	}
 	var accCopy accounts.Account
 	accCopy.Copy(&hb.acc)
@@ -318,6 +336,9 @@ func (hb *HashBuilder) accountLeafHashWithKey(key []byte, popped int) error {
 		return err
 	}
 
+	if hb.trace {
+		fmt.Printf(">> popped -> %v\n", popped)
+	}
 	if popped > 0 {
 		hb.hashStack = hb.hashStack[:len(hb.hashStack)-popped*hashStackStride]
 		hb.nodeStack = hb.nodeStack[:len(hb.nodeStack)-popped]
@@ -424,8 +445,12 @@ func (hb *HashBuilder) extensionHash(key []byte) error {
 }
 
 func (hb *HashBuilder) branch(set uint16) error {
+	return hb.branchR(set, false)
+}
+
+func (hb *HashBuilder) branchR(set uint16, reversed bool) error {
 	if hb.trace {
-		fmt.Printf("BRANCH (%b)\n", set)
+		fmt.Printf("BRANCH R=%v (%b)\n", reversed, set)
 	}
 	f := &fullNode{}
 	digits := bits.OnesCount16(set)
@@ -434,20 +459,30 @@ func (hb *HashBuilder) branch(set uint16) error {
 	}
 	nodes := hb.nodeStack[len(hb.nodeStack)-digits:]
 	hashes := hb.hashStack[len(hb.hashStack)-hashStackStride*digits:]
-	var i int
+
+	indexes := make([]uint, 0)
 	for digit := uint(0); digit < 16; digit++ {
 		if ((uint16(1) << digit) & set) != 0 {
-			if nodes[i] == nil {
-				f.Children[digit] = hashNode(common.CopyBytes(hashes[hashStackStride*i+1 : hashStackStride*(i+1)]))
-			} else {
-				f.Children[digit] = nodes[i]
-			}
-			i++
+			indexes = append(indexes, digit)
 		}
+	}
+
+	var i int
+	for zz := 0; zz < len(indexes); zz++ {
+		digit := indexes[zz]
+		if reversed {
+			digit = indexes[len(indexes)-1-zz]
+		}
+		if nodes[i] == nil {
+			f.Children[digit] = hashNode(common.CopyBytes(hashes[hashStackStride*i+1 : hashStackStride*(i+1)]))
+		} else {
+			f.Children[digit] = nodes[i]
+		}
+		i++
 	}
 	hb.nodeStack = hb.nodeStack[:len(hb.nodeStack)-digits+1]
 	hb.nodeStack[len(hb.nodeStack)-1] = f
-	if err := hb.branchHash(set); err != nil {
+	if err := hb.branchHashR(set, reversed); err != nil {
 		return err
 	}
 	copy(f.ref.data[:], hb.hashStack[len(hb.hashStack)-common.HashLength:])
@@ -459,9 +494,9 @@ func (hb *HashBuilder) branch(set uint16) error {
 	return nil
 }
 
-func (hb *HashBuilder) branchHash(set uint16) error {
+func (hb *HashBuilder) branchHashR(set uint16, reversed bool) error {
 	if hb.trace {
-		fmt.Printf("BRANCHHASH (%b)\n", set)
+		fmt.Printf("BRANCHHASH R=%v (%b)\n", reversed, set)
 	}
 	digits := bits.OnesCount16(set)
 	if len(hb.hashStack) < hashStackStride*digits {
@@ -470,8 +505,12 @@ func (hb *HashBuilder) branchHash(set uint16) error {
 	hashes := hb.hashStack[len(hb.hashStack)-hashStackStride*digits:]
 	// Calculate the size of the resulting RLP
 	totalSize := 17 // These are 17 length prefixes
-	var i int
+	var zz int
 	for digit := uint(0); digit < 16; digit++ {
+		i := zz
+		if reversed {
+			i = digits - 1 - zz
+		}
 		if ((uint16(1) << digit) & set) != 0 {
 			if hashes[hashStackStride*i] == 0x80+common.HashLength {
 				totalSize += common.HashLength
@@ -479,7 +518,7 @@ func (hb *HashBuilder) branchHash(set uint16) error {
 				// Embedded node
 				totalSize += int(hashes[hashStackStride*i] - rlp.EmptyListCode)
 			}
-			i++
+			zz++
 		}
 	}
 	hb.sha.Reset()
@@ -488,9 +527,13 @@ func (hb *HashBuilder) branchHash(set uint16) error {
 		return err
 	}
 	// Output children hashes or embedded RLPs
-	i = 0
+	zz = 0
 	hb.b[0] = rlp.EmptyStringCode
 	for digit := uint(0); digit < 17; digit++ {
+		i := zz
+		if reversed {
+			i = digits - 1 - zz
+		}
 		if ((uint16(1) << digit) & set) != 0 {
 			if hashes[hashStackStride*i] == byte(0x80+common.HashLength) {
 				if _, err := hb.sha.Write(hashes[hashStackStride*i : hashStackStride*i+hashStackStride]); err != nil {
@@ -503,7 +546,7 @@ func (hb *HashBuilder) branchHash(set uint16) error {
 					return err
 				}
 			}
-			i++
+			zz++
 		} else {
 			if _, err := hb.sha.Write(hb.b[:]); err != nil {
 				return err
@@ -523,6 +566,10 @@ func (hb *HashBuilder) branchHash(set uint16) error {
 		hb.nodeStack[len(hb.nodeStack)-1] = nil
 	}
 	return nil
+}
+
+func (hb *HashBuilder) branchHash(set uint16) error {
+	return hb.branchHashR(set, false)
 }
 
 func (hb *HashBuilder) hash(hash []byte) error {
