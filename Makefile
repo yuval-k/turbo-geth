@@ -219,3 +219,9 @@ geth-windows-amd64:
 
 bindings:
 	go generate ./tests/contracts/
+
+clear-code:
+	rm /mnt/sdb/contract_codes_*
+	rm -Rdf /mnt/sdb/go/src/github.com/ledgerwatch/turbo-geth/cmd/jumps/prints/errors
+	mkdir /mnt/sdb/go/src/github.com/ledgerwatch/turbo-geth/cmd/jumps/prints/errors
+	go run cmd/jumps/main.go

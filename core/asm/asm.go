@@ -26,7 +26,7 @@ import (
 )
 
 // Iterator for disassembled EVM instructions
-type instructionIterator struct {
+type InstructionIterator struct {
 	code     []byte
 	pc       uint64
 	arg      []byte
@@ -52,15 +52,25 @@ func (cs Commands) String() string {
 	return strings.Join(res, "_")
 }
 
+func (c Command) String() string {
+	var res string
+	if c.Arg != nil && 0 < len(c.Arg) {
+		res += fmt.Sprintf("%05x: %v 0x%x\n", c.PC, c.Op, c.Arg)
+	} else {
+		res += fmt.Sprintf("%05x: %v\n", c.PC, c.Op)
+	}
+	return res
+}
+
 // Create a new instruction iterator.
-func NewInstructionIterator(code []byte) *instructionIterator {
-	it := new(instructionIterator)
+func NewInstructionIterator(code []byte) *InstructionIterator {
+	it := new(InstructionIterator)
 	it.code = code
 	return it
 }
 
 // Returns true if there is a next instruction and moves on.
-func (it *instructionIterator) Next() bool {
+func (it *InstructionIterator) Next() bool {
 	if it.error != nil || uint64(len(it.code)) <= it.pc {
 		// We previously reached an error or the end.
 		return false
@@ -104,8 +114,64 @@ func (it *instructionIterator) Next() bool {
 	return true
 }
 
-// Up to previous JUMPDEST
-func (it *instructionIterator) Previous(n int) []Command {
+func OpsToString(ops []vm.OpCode) string {
+	str := ""
+	for _, op := range ops {
+		str = fmt.Sprintf("%s_%s", str, op.String())
+	}
+	return str
+}
+
+func (it *InstructionIterator) HasPrefix(prefix []vm.OpCode) ([]vm.OpCode, bool) {
+	var actualPrefix []vm.OpCode
+	for _, op := range prefix {
+		if it.started {
+			// Since the iteration has been already started we move to the next instruction.
+			if it.arg != nil {
+				it.pc += uint64(len(it.arg))
+			}
+			it.pc++
+		} else {
+			// We start the iteration from the first instruction.
+			it.started = true
+		}
+
+		if uint64(len(it.code)) <= it.pc {
+			// We reached the end.
+			return actualPrefix, false
+		}
+
+		it.op = vm.OpCode(it.code[it.pc])
+		actualPrefix = append(actualPrefix, it.op)
+
+		if it.op.IsPush() {
+			a := uint64(it.op) - uint64(vm.PUSH1) + 1
+			u := it.pc + 1 + a
+			if uint64(len(it.code)) <= it.pc || uint64(len(it.code)) < u {
+				it.error = fmt.Errorf("incomplete push instruction at %v", it.pc)
+				return actualPrefix, false
+			}
+			it.arg = it.code[it.pc+1 : u]
+		} else {
+			it.arg = nil
+		}
+
+		if it.op != op {
+			return actualPrefix, false
+		}
+	}
+
+	it.op = 0
+	it.arg = nil
+	it.pc = 0
+	it.previous = nil
+	it.error = nil
+	it.started = false
+
+	return nil, true
+}
+
+func (it *InstructionIterator) Previous(n int) []Command {
 	if !it.started {
 		return nil
 	}
@@ -115,10 +181,121 @@ func (it *instructionIterator) Previous(n int) []Command {
 	}
 
 	return it.previous[start:]
+}
+
+func (it *InstructionIterator) PreviousOpCode() *Command {
+	if !it.started {
+		return nil
+	}
+	return &it.previous[len(it.previous)-1]
+}
+
+// Up to previous OpCode
+func (it *InstructionIterator) PreviousOp(n int, code vm.OpCode) {
+	if !it.started {
+		return
+	}
+
+	count := 0
+	var prev Command
+	for i := len(it.previous) - 1; i >= 0; i-- {
+		prev = it.previous[len(it.previous)-1]
+		it.previous = it.previous[:len(it.previous)-1]
+
+		it.pc = prev.PC
+		it.arg = prev.Arg
+		it.op = prev.Op
+
+		if it.previous[i].Op == code {
+			count++
+			if count == n {
+				return
+			}
+		}
+	}
+
+	return
+}
+
+/*
+func (it *InstructionIterator) PreviousUntilStackValue(stackV int) ([]Command, bool) {
+	if !it.started {
+		return nil, false
+	}
+
+	var (
+		count int
+		found bool
+		prev  Command
+		cmd   vm.Command
+	)
+	history := make([]Command, 0, 5)
+
+loop:
+	for i := len(it.previous) - 1; i >= 0; i-- {
+		prev = it.previous[i]
+		cmd = vm.Commands[prev.Op]
+
+		history = append(history, prev)
+
+		if prev.Op == vm.JUMPDEST || IsStop(prev.Op) {
+			found = false
+			break loop
+		}
+
+		count = count - cmd.In + cmd.Out
+		if stackV > 0 {
+			if count >= stackV {
+				found = true
+				break loop
+			}
+		}
+		if stackV == 0 {
+			if count == stackV {
+				found = true
+				break loop
+			}
+		}
+		if stackV < 0 {
+			if count < stackV {
+				found = true
+				break loop
+			}
+		}
+	}
+
+	for i := len(history)/2 - 1; i >= 0; i-- {
+		opp := len(history) - 1 - i
+		history[i], history[opp] = history[opp], history[i]
+	}
+
+	return history, found
+}
+
+ */
+
+func IsDup(op vm.OpCode) bool {
+	switch op {
+	case vm.DUP1, vm.DUP2, vm.DUP3, vm.DUP4, vm.DUP5, vm.DUP6, vm.DUP7, vm.DUP8, vm.DUP9, vm.DUP10, vm.DUP11, vm.DUP12, vm.DUP13, vm.DUP14, vm.DUP15, vm.DUP16:
+		return true
+	}
+	return false
+}
+
+func (it *InstructionIterator) Current() *Command {
+	if !it.started {
+		return nil
+	}
+
+	return &Command{
+		it.pc,
+		it.arg,
+		it.op,
+	}
 }
 
 // Up to previous opCode
-func (it *instructionIterator) PreviousBefore(n int, code vm.OpCode) []Command {
+func (it *InstructionIterator) PreviousBefore(n int, code vm.OpCode) []Command {
 	if !it.started {
 		return nil
 	}
@@ -126,16 +303,16 @@ func (it *instructionIterator) PreviousBefore(n int, code vm.OpCode) []Command {
 	if start < 0 {
 		start = 0
 	}
-	for i:=start;i<len(it.previous);i++ {
+	for i := start; i < len(it.previous); i++ {
 		if it.previous[i].Op == code {
-			start = i+1
+			start = i + 1
 		}
 	}
 
 	return it.previous[start:]
 }
 
-func (it *instructionIterator) PreviousBeforeJump(n int) []Command {
+func (it *InstructionIterator) PreviousBeforeJump(n int) []Command {
 	if !it.started {
 		return nil
 	}
@@ -144,36 +321,48 @@ func (it *instructionIterator) PreviousBeforeJump(n int) []Command {
 		start = 0
 	}
 
-	for i:=start;i<len(it.previous);i++ {
+	for i := start; i < len(it.previous); i++ {
 		if it.previous[i].Op == vm.JUMP || it.previous[i].Op == vm.JUMPI {
-			start = i+1
+			start = i + 1
 		}
 	}
 
 	return it.previous[start:]
 }
 
-func (it *instructionIterator) Last() Command {
-	return it.previous[len(it.previous)-1]
+func (it *InstructionIterator) Last() *Command {
+	idx := len(it.previous) - 1
+	if idx < 0 {
+		return nil
+	}
+	return &it.previous[idx]
+}
+
+func (it *InstructionIterator) Prev(n int) *Command {
+	idx := len(it.previous) - n
+	if idx < 0 {
+		return nil
+	}
+	return &it.previous[len(it.previous)-1]
 }
 
 // Returns any error that may have been encountered.
-func (it *instructionIterator) Error() error {
+func (it *InstructionIterator) Error() error {
 	return it.error
 }
 
 // Returns the PC of the current instruction.
-func (it *instructionIterator) PC() uint64 {
+func (it *InstructionIterator) PC() uint64 {
 	return it.pc
 }
 
 // Returns the opcode of the current instruction.
-func (it *instructionIterator) Op() vm.OpCode {
+func (it *InstructionIterator) Op() vm.OpCode {
 	return it.op
 }
 
 // Returns the argument of the current instruction.
-func (it *instructionIterator) Arg() []byte {
+func (it *InstructionIterator) Arg() []byte {
 	return it.arg
 }
 
@@ -187,6 +376,15 @@ func PrintDisassembled(code string) error {
 }
 
 // Pretty-print all disassembled EVM instructions to stdout.
+func Disassembled(code string) (string, error) {
+	script, err := hex.DecodeString(code)
+	if err != nil {
+		return "", err
+	}
+	return DisassembledBytes(script)
+}
+
+// Pretty-print all disassembled EVM instructions to stdout.
 func PrintDisassembledBytes(script []byte) error {
 	it := NewInstructionIterator(script)
 	for it.Next() {
@@ -197,6 +395,20 @@ func PrintDisassembledBytes(script []byte) error {
 		}
 	}
 	return it.Error()
+}
+
+// Pretty-print all disassembled EVM instructions to stdout.
+func DisassembledBytes(script []byte) (string, error) {
+	var res string
+	it := NewInstructionIterator(script)
+	for it.Next() {
+		if it.Arg() != nil && 0 < len(it.Arg()) {
+			res += fmt.Sprintf("%05x: %v 0x%x\n", it.PC(), it.Op(), it.Arg())
+		} else {
+			res += fmt.Sprintf("%05x: %v\n", it.PC(), it.Op())
+		}
+	}
+	return res, it.Error()
 }
 
 // Pretty-print all disassembled EVM instructions to stdout.

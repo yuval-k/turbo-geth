@@ -397,6 +397,14 @@ func (op OpCode) String() string {
 }
 
 func (op OpCode) IsUnknown() bool {
+	switch op {
+	case 0xfe:
+		// used in `assert`
+		return false
+	case 0xfd:
+		// used in `require`
+		return false
+	}
 	_, ok := opCodeToString[op]
 	return !ok
 }

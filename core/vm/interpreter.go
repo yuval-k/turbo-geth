@@ -131,7 +131,6 @@ func NewEVMInterpreter(evm *EVM, cfg Config) *EVMInterpreter {
 // considered a revert-and-consume-all-gas operation except for
 // errExecutionReverted which means revert-and-keep-gas-left.
 func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (ret []byte, err error) {
-	fmt.Println("1111111111111111111111111111")
 	PushDest = make(map[uint64]struct{})
 	JumpDest = make(map[uint64]struct{})
 
