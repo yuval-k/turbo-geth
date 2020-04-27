@@ -12,13 +12,13 @@ import (
 )
 
 var (
-	errInvalidJump           = errors.New("evm: invalid jump destination")
-	errNonStatic             = errors.New("non static jump")
-	errNoValueStatic             = errors.New("no value")
-	errReturn = errors.New("op.RETURN")
-	errRevert = errors.New("op.REVERT")
-	errSelfDestruct = errors.New("op.SELFDESTRUCT")
-	errStop = errors.New("op.STOP")
+	errInvalidJump   = errors.New("evm: invalid jump destination")
+	errNonStatic     = errors.New("non static jump")
+	errNoValueStatic = errors.New("no value")
+	errReturn        = errors.New("op.RETURN")
+	errRevert        = errors.New("op.REVERT")
+	errSelfDestruct  = errors.New("op.SELFDESTRUCT")
+	errStop          = errors.New("op.STOP")
 )
 
 func NotStaticIfOneNotStatic(cmds ...*cell) bool {
@@ -31,21 +31,47 @@ func NotStaticIfOneNotStatic(cmds ...*cell) bool {
 }
 
 func opAdd(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
+	x, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+
+	y, err := stack.peek()
+	if err != nil {
+		return nil, err
+	}
+
 	y.static = NotStaticIfOneNotStatic(x, y)
 
 	return nil, nil
 }
 
 func opSub(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
+	x, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+
+	y, err := stack.peek()
+	if err != nil {
+		return nil, err
+	}
+
 	y.static = NotStaticIfOneNotStatic(x, y)
 
 	return nil, nil
 }
 
 func opMul(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.pop()
+	x, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	y, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+
 	y.static = NotStaticIfOneNotStatic(x, y)
 
 	return nil, nil
@@ -53,14 +79,30 @@ func opMul(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *St
 
 // fixme: UNSAFE!!! Possibly it's wrong to use NotStaticIfOneNotStatic. Check original opDiv
 func opDiv(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
+	x, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+
+	y, err := stack.peek()
+	if err != nil {
+		return nil, err
+	}
 	y.static = NotStaticIfOneNotStatic(x, y)
 
 	return nil, nil
 }
 
 func opSdiv(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.pop()
+	x, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	y, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+
 	res := NewCell(NotStaticIfOneNotStatic(x, y))
 	stack.push(res)
 
@@ -68,7 +110,15 @@ func opSdiv(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 }
 
 func opMod(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.pop()
+	x, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	y, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+
 	x.static = NotStaticIfOneNotStatic(x, y)
 	stack.push(x)
 
@@ -76,7 +126,15 @@ func opMod(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *St
 }
 
 func opSmod(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.pop()
+	x, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	y, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+
 	res := NewCell(NotStaticIfOneNotStatic(x, y))
 	stack.push(res)
 
@@ -84,7 +142,15 @@ func opSmod(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 }
 
 func opExp(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	base, exponent := stack.pop(), stack.pop()
+	base, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	exponent, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+
 	stack.push(NewCell(NotStaticIfOneNotStatic(base, exponent)))
 
 	return nil, nil
@@ -109,7 +175,10 @@ func opSignExtend(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, st
 		}
 	*/
 
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
 	return nil, nil
 }
 
@@ -118,21 +187,45 @@ func opNot(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, _ *Stack)
 }
 
 func opLt(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
+	x, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+
+	y, err := stack.peek()
+	if err != nil {
+		return nil, err
+	}
 	y.static = NotStaticIfOneNotStatic(x, y) // it could be TRUE, but let's decide a bit more strict
 
 	return nil, nil
 }
 
 func opGt(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
+	x, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+
+	y, err := stack.peek()
+	if err != nil {
+		return nil, err
+	}
 	y.static = NotStaticIfOneNotStatic(x, y) // it could be TRUE, but let's decide a bit more strict
 
 	return nil, nil
 }
 
 func opSlt(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
+	x, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+
+	y, err := stack.peek()
+	if err != nil {
+		return nil, err
+	}
 
 	x.static = NotStaticIfOneNotStatic(x, y) // it could be TRUE, but let's decide a bit more strict
 	y.static = NotStaticIfOneNotStatic(x, y) // it could be TRUE, but let's decide a bit more strict
@@ -141,7 +234,15 @@ func opSlt(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *St
 }
 
 func opSgt(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
+	x, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+
+	y, err := stack.peek()
+	if err != nil {
+		return nil, err
+	}
 
 	x.static = NotStaticIfOneNotStatic(x, y) // it could be TRUE, but let's decide a bit more strict
 	y.static = NotStaticIfOneNotStatic(x, y) // it could be TRUE, but let's decide a bit more strict
@@ -150,7 +251,15 @@ func opSgt(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *St
 }
 
 func opEq(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
+	x, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+
+	y, err := stack.peek()
+	if err != nil {
+		return nil, err
+	}
 	y.static = NotStaticIfOneNotStatic(x, y) // it could be TRUE, but let's decide a bit more strict
 
 	return nil, nil
@@ -161,7 +270,15 @@ func opIszero(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, _ *Sta
 }
 
 func opAnd(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.pop()
+	x, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	y, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+
 	x.static = NotStaticIfOneNotStatic(x, y)
 	stack.push(x)
 
@@ -169,7 +286,15 @@ func opAnd(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *St
 }
 
 func opOr(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
+	x, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+
+	y, err := stack.peek()
+	if err != nil {
+		return nil, err
+	}
 	y.static = NotStaticIfOneNotStatic(x, y)
 	stack.push(y)
 
@@ -177,7 +302,15 @@ func opOr(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Sta
 }
 
 func opXor(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
+	x, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+
+	y, err := stack.peek()
+	if err != nil {
+		return nil, err
+	}
 	y.static = NotStaticIfOneNotStatic(x, y)
 	stack.push(y)
 
@@ -185,22 +318,50 @@ func opXor(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *St
 }
 
 func opByte(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	th, val := stack.pop(), stack.peek()
+	th, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	val, err := stack.peek()
+	if err != nil {
+		return nil, err
+	}
 	val.static = NotStaticIfOneNotStatic(th, val) // it could be TRUE, but let's decide a bit more strict
 
 	return nil, nil
 }
 
 func opAddmod(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	x, y, z := stack.pop(), stack.pop(), stack.pop()
-
+	x, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	y, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	z, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
 	x.static = NotStaticIfOneNotStatic(x, y, z) // it could be (x, z), but let's decide a bit more strict
 
 	return nil, nil
 }
 
 func opMulmod(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	x, y, z := stack.pop(), stack.pop(), stack.pop()
+	x, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	y, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	z, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
 	x.static = NotStaticIfOneNotStatic(x, y, z) // it could be (x, z), but let's decide a bit more strict
 
 	return nil, nil
@@ -211,7 +372,14 @@ func opMulmod(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack 
 // and pushes on the stack arg2 shifted to the left by arg1 number of bits.
 func opSHL(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	// Note, second operand is left in the stack; accumulate result into it, and no need to push it afterwards
-	shift, value := stack.pop(), stack.peek()
+	shift, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	value, err := stack.peek()
+	if err != nil {
+		return nil, err
+	}
 
 	value.static = NotStaticIfOneNotStatic(shift, value) // it could be SAME, but let's decide a bit more strict
 
@@ -223,7 +391,15 @@ func opSHL(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *St
 // and pushes on the stack arg2 shifted to the right by arg1 number of bits with zero fill.
 func opSHR(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	// Note, second operand is left in the stack; accumulate result into it, and no need to push it afterwards
-	shift, value := stack.pop(), stack.peek()
+	shift, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	value, err := stack.peek()
+	if err != nil {
+		return nil, err
+	}
+
 	value.static = NotStaticIfOneNotStatic(shift, value) // it could be SAME, but let's decide a bit more strict
 	return nil, nil
 }
@@ -233,15 +409,29 @@ func opSHR(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *St
 // and pushes on the stack arg2 shifted to the right by arg1 number of bits with sign extension.
 func opSAR(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	// Note, S256 returns (potentially) a new bigint, so we're popping, not peeking this one
-	shift, value := stack.pop(), stack.pop()
+	shift, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	value, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+
 	value.static = NotStaticIfOneNotStatic(shift, value) // it could be SAME, but let's decide a bit more strict
 	stack.push(value)
 	return nil, nil
 }
 
 func opSha3(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	stack.pop()
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
 	stack.push(NewNonStaticCell()) // fixme it's stricter than it could be
 
@@ -254,7 +444,10 @@ func opAddress(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack
 }
 
 func opBalance(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	slot := stack.peek()
+	slot, err := stack.peek()
+	if err != nil {
+		return nil, err
+	}
 	slot.static = false
 	return nil, nil
 }
@@ -275,7 +468,10 @@ func opCallValue(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, sta
 }
 
 func opCallDataLoad(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
 	stack.push(NewNonStaticCell())
 
 	return nil, nil
@@ -288,9 +484,18 @@ func opCallDataSize(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, 
 }
 
 func opCallDataCopy(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	stack.pop()
-	stack.pop()
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
 	return nil, nil
 }
@@ -302,15 +507,28 @@ func opReturnDataSize(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory
 }
 
 func opReturnDataCopy(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	stack.pop()
-	stack.pop()
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
 	return nil, nil
 }
 
 func opExtCodeSize(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	slot := stack.peek()
+	slot, err := stack.peek()
+	if err != nil {
+		return nil, err
+	}
+
 	slot.static = false // fixme: stricter than it could be
 
 	return nil, nil
@@ -323,18 +541,39 @@ func opCodeSize(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stac
 }
 
 func opCodeCopy(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	stack.pop()
-	stack.pop()
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
 	return nil, nil
 }
 
 func opExtCodeCopy(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	stack.pop()
-	stack.pop()
-	stack.pop()
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
 	return nil, nil
 }
@@ -366,7 +605,10 @@ func opExtCodeCopy(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, s
 //   (6) Caller tries to get the code hash for an account which is marked as deleted,
 // this account should be regarded as a non-existent account and zero should be returned.
 func opExtCodeHash(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	slot := stack.peek()
+	slot, err := stack.peek()
+	if err != nil {
+		return nil, err
+	}
 	slot.static = true
 	return nil, nil
 }
@@ -377,7 +619,10 @@ func opGasprice(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stac
 }
 
 func opBlockhash(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
 	stack.push(NewNonStaticCell())
 
@@ -410,44 +655,76 @@ func opGasLimit(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stac
 }
 
 func opPop(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
 	return nil, nil
 }
 
 func opMload(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	v := stack.peek()
+	v, err := stack.peek()
+	if err != nil {
+		return nil, err
+	}
+
 	v.static = false // fixme: not true if we introduce momory type
 	return nil, nil
 }
 
 func opMstore(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	stack.pop()
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
 	return nil, nil
 }
 
 func opMstore8(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	stack.pop()
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
 	return nil, nil
 }
 
 func opSload(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	loc := stack.peek()
+	loc, err := stack.peek()
+	if err != nil {
+		return nil, err
+	}
 	loc.static = false // fixme: not true if we introduce momory type
 	return nil, nil
 }
 
 func opSstore(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	stack.pop()
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
 	return nil, nil
 }
 
 func opJump(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	pos := stack.pop()
+	pos, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+
 	if !pos.static || !pos.IsValue() {
 		return nil, fmt.Errorf("%w on %v", errNonStatic, spew.Sdump(pc))
 	}
@@ -460,7 +737,14 @@ func opJump(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory, 
 }
 
 func opJumpi(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	pos, cond := stack.pop(), stack.pop()
+	pos, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	cond, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
 	if !pos.static {
 		return nil, fmt.Errorf("jumpi: %w on %v", errNonStatic, spew.Sdump(pc))
@@ -482,7 +766,14 @@ func opJumpi(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory,
 }
 
 func opJumpiJUMP(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	pos, _ := stack.pop(), stack.pop()
+	pos, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
 	if !pos.static {
 		return nil, fmt.Errorf("jumpi: %w on %v", errNonStatic, spew.Sdump(pc))
@@ -500,7 +791,14 @@ func opJumpiJUMP(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Mem
 }
 
 func opJumpiNotJUMP(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	pos, _ := stack.pop(), stack.pop()
+	pos, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
 	if !pos.static {
 		return nil, fmt.Errorf("jumpi: %w on %v", errNonStatic, spew.Sdump(pc))
@@ -534,9 +832,18 @@ func opGas(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *St
 }
 
 func opCreate(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	stack.pop()
-	stack.pop()
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
 	stack.push(NewNonStaticCell())
 
@@ -544,10 +851,22 @@ func opCreate(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack 
 }
 
 func opCreate2(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	stack.pop()
-	stack.pop()
-	stack.pop()
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
 	stack.push(NewNonStaticCell())
 	return nil, nil
@@ -555,14 +874,35 @@ func opCreate2(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack
 
 func opCall(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	// Pop gas. The actual gas in interpreter.evm.callGasTemp.
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
-	stack.pop()
-	stack.pop()
-	stack.pop()
-	stack.pop()
-	stack.pop()
-	stack.pop()
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
 	stack.push(NewNonStaticCell())
 
@@ -571,14 +911,35 @@ func opCall(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 
 func opCallCode(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	// Pop gas. The actual gas is in interpreter.evm.callGasTemp.
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
-	stack.pop()
-	stack.pop()
-	stack.pop()
-	stack.pop()
-	stack.pop()
-	stack.pop()
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
 	stack.push(NewNonStaticCell())
 
@@ -587,13 +948,31 @@ func opCallCode(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stac
 
 func opDelegateCall(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	// Pop gas. The actual gas is in interpreter.evm.callGasTemp.
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
-	stack.pop()
-	stack.pop()
-	stack.pop()
-	stack.pop()
-	stack.pop()
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
 	stack.push(NewNonStaticCell())
 
@@ -602,13 +981,31 @@ func opDelegateCall(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, 
 
 func opStaticCall(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	// Pop gas. The actual gas is in interpreter.evm.callGasTemp.
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
-	stack.pop()
-	stack.pop()
-	stack.pop()
-	stack.pop()
-	stack.pop()
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
 	stack.push(NewNonStaticCell())
 
@@ -616,15 +1013,27 @@ func opStaticCall(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, st
 }
 
 func opReturn(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	stack.pop()
-	stack.pop()
-	
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
+
 	return nil, errReturn
 }
 
 func opRevert(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	stack.pop()
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
+	_, err = stack.pop()
+	if err != nil {
+		return nil, err
+	}
 
 	return nil, errRevert
 }
@@ -634,7 +1043,10 @@ func opStop(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 }
 
 func opSuicide(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	stack.pop()
+	_, err := stack.pop()
+	if err != nil {
+		return nil, err
+	}
 	return nil, errSelfDestruct
 }
 
@@ -644,17 +1056,26 @@ type executionFunc func(pc *uint64, interpreter *vm.EVMInterpreter, contract *Co
 // make log instruction function
 func makeLog(size int) executionFunc {
 	return func(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-		stack.pop()
-		stack.pop()
+		_, err := stack.pop()
+		if err != nil {
+			return nil, err
+		}
+		_, err = stack.pop()
+		if err != nil {
+			return nil, err
+		}
 		for i := 0; i < size; i++ {
-			stack.pop()
+			_, err = stack.pop()
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		return nil, nil
 	}
 }
 
-var PushDest = make(map[uint64]struct{})
+// var PushDest = make(map[uint64]struct{})
 
 // opPush1 is a specialized version of pushN
 func opPush1(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
@@ -666,8 +1087,7 @@ func opPush1(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory,
 	c := NewStaticCell()
 	if *pc < codeLen {
 		c.SetValue(integer.SetUint64(uint64(contract.Code[*pc])))
-
-		PushDest[uint64(contract.Code[*pc])] = struct{}{}
+		//PushDest[uint64(contract.Code[*pc])] = struct{}{}
 	} else {
 		c.SetValue(integer.SetUint64(0))
 	}
@@ -694,7 +1114,7 @@ func makePush(size uint64, pushByteSize int) executionFunc {
 		integer := big.NewInt(0)
 		integer.SetBytes(common.RightPadBytes(contract.Code[startMin:endMin], pushByteSize))
 
-		PushDest[integer.Uint64()] = struct{}{}
+		//PushDest[integer.Uint64()] = struct{}{}
 
 		c := NewStaticCell()
 		c.SetValue(integer)
@@ -708,7 +1128,10 @@ func makePush(size uint64, pushByteSize int) executionFunc {
 // make dup instruction function
 func makeDup(size int64) executionFunc {
 	return func(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-		stack.dup(int(size))
+		err := stack.dup(int(size))
+		if err != nil {
+			return nil, err
+		}
 		return nil, nil
 	}
 }
@@ -718,7 +1141,10 @@ func makeSwap(size int64) executionFunc {
 	// switch n + 1 otherwise n would be swapped with n
 	size++
 	return func(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-		stack.swap(int(size))
+		err := stack.swap(int(size))
+		if err != nil {
+			return nil, err
+		}
 		return nil, nil
 	}
 }

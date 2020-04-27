@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -9,6 +10,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/davecgh/go-spew/spew"
 
@@ -247,7 +250,7 @@ func (p *processor) jumpsPathsBackwards() {
 
 	spew.Dump(res)
 }
- */
+*/
 
 func (p *processor) jumpsPaths() {
 	fmt.Printf("jumpsPaths started. From %q to %q\n", p.from, p.to)
@@ -259,55 +262,109 @@ func (p *processor) jumpsPaths() {
 	}
 	defer db.Close()
 
-	jumps := 0
-	i := 0
-	unknownJumpDest := 0
-	nilJumpDest := 0
+	i := new(uint64)
 
-	errJumpDest := 0
-	okJumpDest := 0
-	nilPrev := 0
+	res := struct {
+		*sync.RWMutex
 
-	var codeAddress common.Hash
-	res := struct{
-		contracts map[bool]int
-		ifsTotal map[bool]int
-	} {
-		contracts: make(map[bool]int),
-		ifsTotal: make(map[bool]int),
+		static    map[common.Hash]struct{}
+		notstatic map[common.Hash]struct{}
+
+		errJump         map[common.Hash]struct{}
+		novalueStatic   map[common.Hash]struct{}
+		errTooManyJumps map[common.Hash]struct{}
+	}{
+		RWMutex:   new(sync.RWMutex),
+		static:    make(map[common.Hash]struct{}, 100_000),
+		notstatic: make(map[common.Hash]struct{}, 100_000),
+
+		errJump:         make(map[common.Hash]struct{}, 100_000),
+		novalueStatic:   make(map[common.Hash]struct{}, 100_000),
+		errTooManyJumps: make(map[common.Hash]struct{}, 100_000),
 	}
 
-	isStatic := true
-	err = db.Walk(dbutils.CodeBucket, make([]byte, 32), 0, func(k, v []byte) (bool, error) {
-		i++
-		if i%10000 == 0 {
-			fmt.Println("done", i)
+	type job struct {
+		fn   func(k, v []byte) error
+		k, v []byte
+	}
+	ch := make(chan job, 10000)
+
+	var numWorkers = runtime.NumCPU()
+	wg := sync.WaitGroup{}
+	for n := 0; n < numWorkers; n++ {
+		wg.Add(1)
+
+		go func() {
+			for jb := range ch {
+
+				done := atomic.AddUint64(i, 1)
+				if done%1000 == 0 {
+					fmt.Println("done", done)
+				}
+
+				jb.fn(jb.k, jb.v)
+			}
+			defer wg.Done()
+		}()
+	}
+
+	err = db.Walk(dbutils.CodeBucket, make([]byte, 32), 0, func(key, value []byte) (bool, error) {
+		ch <- job{
+			fn: func(k, v []byte) error {
+				codeAddress := common.BytesToHash(k)
+				runner := NewContractRunner(v, false)
+				err := runner.Run()
+
+				res.Lock()
+				defer res.Unlock()
+				if errors.Is(err, errInvalidJump) {
+					res.errJump[codeAddress] = struct{}{}
+					res.static[codeAddress] = struct{}{}
+					return nil
+				}
+				if errors.Is(err, errNonStatic) {
+					res.notstatic[codeAddress] = struct{}{}
+					return nil
+				}
+				if errors.Is(err, errNoValueStatic) {
+					res.novalueStatic[codeAddress] = struct{}{}
+					return nil
+				}
+
+				if errors.Is(err, errUnknownOpcode) {
+					// nothing to do
+				}
+
+				if errors.Is(err, errMaxJumps) {
+					res.errTooManyJumps[codeAddress] = struct{}{}
+				}
+
+				res.static[codeAddress] = struct{}{}
+				return nil
+			},
+			k: key,
+			v: value,
 		}
-
-		codeAddress = common.BytesToHash(k)
-
-		runner := NewContractRunner(v, true)
-		runner.Run()
-		panic(err)
-
-		res.contracts[isStatic]++
 
 		return true, nil
 	})
+	close(ch)
+
 	if err != nil {
 		log.Println("err", err)
 	}
-	fmt.Println("done", i)
 
-	fmt.Println("different contracts", i)
-	fmt.Println("different jumps", jumps)
-	fmt.Println("errJumpDest", errJumpDest)
-	fmt.Println("nilJumpDest", nilJumpDest)
-	fmt.Println("unknownJumpDest", unknownJumpDest)
-	fmt.Println("nilPrev", nilPrev)
-	fmt.Println("okJumpDest", okJumpDest)
+	wg.Wait()
 
-	spew.Dump(res)
+	fmt.Println("done contracts", i)
+
+	fmt.Println("static contracts", len(res.static))
+	fmt.Println("notstatic contracts", len(res.notstatic))
+	fmt.Println("errJump contracts", len(res.errJump))
+	fmt.Println("novalueStatic contracts", len(res.novalueStatic))
+	fmt.Println("errTooManyJumps contracts", len(res.errTooManyJumps))
+
+	//spew.Dump(res)
 }
 
 func (p *processor) getJumpDests(code []byte) (map[uint64]struct{}, uint64, map[uint64]struct{}, error) {

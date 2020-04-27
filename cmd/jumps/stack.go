@@ -17,9 +17,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 )
+
+var errNotEnoughStack = errors.New("not enough stack")
 
 type cell struct {
 	v      *big.Int
@@ -76,11 +79,17 @@ func (st *Stack) push(d *cell) {
 	//st.data = append(st.data, stackItem)
 	st.data = append(st.data, d)
 }
+
 func (st *Stack) pushN(ds ...*cell) {
 	st.data = append(st.data, ds...)
 }
 
-func (st *Stack) pop() (ret *cell) {
+func (st *Stack) pop() (ret *cell, err error) {
+	if st.len() == 0 {
+		err = errNotEnoughStack
+		return
+	}
+
 	ret = st.data[len(st.data)-1]
 	st.data = st.data[:len(st.data)-1]
 
@@ -95,27 +104,48 @@ func (st *Stack) Len() int {
 	return len(st.data)
 }
 
-func (st *Stack) swap(n int) {
+func (st *Stack) swap(n int) error {
+	if st.len() < n || st.len() == 0 {
+		return errNotEnoughStack
+	}
+
 	st.data[st.len()-n], st.data[st.len()-1] = st.data[st.len()-1], st.data[st.len()-n]
+
+	return nil
 }
 
-func (st *Stack) dup(n int) {
+func (st *Stack) dup(n int) error {
+	if st.len() < n || st.len() == 0 {
+		return errNotEnoughStack
+	}
+
 	v := st.data[st.len()-n]
 
 	var vcopy *big.Int
 	if v.v != nil {
 		vcopy = big.NewInt(0).Set(v.v)
 	}
+
 	st.push(&cell{vcopy, v.static})
+
+	return nil
 }
 
-func (st *Stack) peek() *cell {
-	return st.data[st.len()-1]
+func (st *Stack) peek() (*cell, error) {
+	if st.len() == 0 {
+		return nil, errNotEnoughStack
+	}
+
+	return st.data[st.len()-1], nil
 }
 
 // Back returns the n'th item in stack
-func (st *Stack) Back(n int) *cell {
-	return st.data[st.len()-n-1]
+func (st *Stack) Back(n int) (*cell, error) {
+	if st.len() < n+1 || st.len() == 0 {
+		return nil, errNotEnoughStack
+	}
+
+	return st.data[st.len()-n-1], nil
 }
 
 // Print dumps the content of the stack
