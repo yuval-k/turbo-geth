@@ -308,12 +308,26 @@ func (p *processor) jumpsPaths() {
 		}()
 	}
 
-	err = db.Walk(dbutils.CodeBucket, make([]byte, 32), 0, func(key, value []byte) (bool, error) {
+	testContracts := [][]byte{
+		{0, 0, 52, 48, 27, 92, 143, 64, 73, 215, 89, 9, 44, 209, 25, 4, 245, 137, 215, 62, 98, 131, 188, 46, 161, 226, 125, 62, 173, 184, 74, 132},        // 5
+		{0, 0, 68, 62, 128, 192, 9, 218, 248, 40, 202, 58, 152, 195, 40, 42, 3, 188, 148, 228, 49, 3, 249, 220, 123, 120, 55, 216, 123, 62, 249, 32},      // 201
+		{15, 83, 113, 94, 36, 52, 138, 104, 41, 166, 140, 58, 101, 223, 8, 20, 71, 149, 163, 216, 193, 228, 127, 125, 15, 211, 2, 134, 34, 228, 141, 182}, // 6
+
+		{0, 1, 140, 92, 146, 30, 249, 244, 87, 138, 251, 103, 93, 32, 165, 225, 9, 180, 66, 140, 16, 23, 95, 162, 74, 60, 191, 202, 149, 100, 36, 208}, // 90
+		{0, 0, 165, 215, 192, 253, 46, 213, 109, 128, 46, 84, 136, 231, 159, 200, 139, 170, 38, 65, 251, 138, 79, 165, 16, 132, 186, 47, 42, 106, 245, 124}, // 322
+	}
+	_ = testContracts
+
+	err = db.Walk(dbutils.CodeBucket, testContracts[4], 32, func(key, value []byte) (bool, error) {
+	//err = db.Walk(dbutils.CodeBucket, make([]byte, 32), 0, func(key, value []byte) (bool, error) {
 		ch <- job{
 			fn: func(k, v []byte) error {
 				codeAddress := common.BytesToHash(k)
 				runner := NewContractRunner(v, false)
+
+				fmt.Println(codeAddress.String(), "start", len(runner.jumpi), key)
 				err := runner.Run()
+				fmt.Println(codeAddress.String(), "end")
 
 				res.Lock()
 				defer res.Unlock()
