@@ -28,27 +28,27 @@ func (ps *paths) add(p path) {
 	fmt.Println("path", p)
 
 	/*
-	sort.SliceStable(p, func(i, j int) bool {
-		return p[i].jumpPC < p[j].jumpPC
-	})
+		sort.SliceStable(p, func(i, j int) bool {
+			return p[i].jumpPC < p[j].jumpPC
+		})
 	*/
 
 	/*
-	var lastStep step
-	var toCut int
-	for i := len(p) - 1; i >= 0; i-- {
-		if i == len(p) - 1 {
-			lastStep = p[i]
-		} else {
-			if p[i].jumpPC == lastStep.jumpPC {
-				p[i] = lastStep
-				toCut++
+		var lastStep step
+		var toCut int
+		for i := len(p) - 1; i >= 0; i-- {
+			if i == len(p) - 1 {
+				lastStep = p[i]
 			} else {
-				break
+				if p[i].jumpPC == lastStep.jumpPC {
+					p[i] = lastStep
+					toCut++
+				} else {
+					break
+				}
 			}
 		}
-	}
-	p = p[:len(p)-toCut]
+		p = p[:len(p)-toCut]
 	*/
 
 	*ps = append(*ps, p)
@@ -68,17 +68,13 @@ func (ps paths) next() (path, bool) {
 
 	last := ps[len(ps)-1]
 
+	last.removeCycle()
 	nextPath, wasChanged := last.next()
-	//fmt.Println("!!! 1", len(last), len(nextPath), nextPath.hasCycle())
-	nextPath.removeCycle()
-	nextPath, wasChanged = last.next()
-	//fmt.Println("!!! 2", len(last), len(nextPath), nextPath.hasCycle())
-	//fmt.Println()
 
 	/*
-	spew.Println(last)
-	spew.Println(nextPath)
-	 */
+		spew.Println(last)
+		spew.Println(nextPath)
+	*/
 
 	return nextPath, wasChanged
 }
@@ -119,6 +115,7 @@ func (p path) next() (path, bool) {
 
 func (p *path) removeCycle() {
 	// remove repeats. save "jumped" state
+	p.deduplicate()
 
 	// remove loops starting the end
 	m := make(map[int]struct{}, len(*p))
@@ -142,6 +139,34 @@ func (p *path) removeCycle() {
 	}
 
 	return
+}
+
+func (p *path) deduplicate() {
+	if len(*p) <= 1 {
+		return
+	}
+
+	toIdx := len(*p) - 1
+	last := (*p)[toIdx]
+	var hasCycle bool
+	for i := len(*p) - 2; i >= 0; i-- {
+		if last.jumpPC == (*p)[i].jumpPC {
+			hasCycle = true
+			if (*p)[i].jumped {
+				last.jumped = true
+			}
+		} else {
+			if hasCycle {
+				*p = append((*p)[:i+1], (*p)[toIdx:]...)
+			}
+			last = (*p)[i]
+			toIdx = i
+			hasCycle = false
+		}
+	}
+	if hasCycle {
+		*p = (*p)[toIdx:]
+	}
 }
 
 type step struct {
@@ -189,7 +214,7 @@ func (c *ContractRunner) Run() error {
 	firstRun := true
 	paths := 0
 
-	pathsLoop:
+pathsLoop:
 	for {
 		currentCodePath, ok := jumpPaths.next()
 		if !ok && !firstRun {
@@ -241,7 +266,7 @@ func (c *ContractRunner) Run() error {
 					panic(fmt.Sprintln(found, c.jumpi[found], pc))
 				}
 
-				if jumpiIdx >= len(currentCodePath)  {
+				if jumpiIdx >= len(currentCodePath) {
 					onThePath = false
 				}
 
