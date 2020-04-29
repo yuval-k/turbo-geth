@@ -386,12 +386,22 @@ pathsLoop:
 					innerCancel()
 					break pathsLoop
 				}
+
 				jumpPaths.Add(gotPath)
-				//spew.Println("Path current - err", Paths, currentCodePath, gotPath, err)
+
+				// if we found a non-static jump we can stop
+				if errors.Is(err, ErrNonStatic) {
+					innerCancel()
+					break pathsLoop
+				}
+				if errors.Is(err, ErrNoValueStatic) {
+					innerCancel()
+					break pathsLoop
+				}
+
 
 				innerCancel()
 				continue pathsLoop
-				//return err
 			}
 		}
 	}
