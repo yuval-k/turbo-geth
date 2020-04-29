@@ -1,9 +1,11 @@
-package main
+package static
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 
@@ -13,96 +15,69 @@ import (
 
 type ContractRunner struct {
 	*Contract
-	jumpi []int // all jumpi positions, sorted
+	Jumpi []int // all jumpi positions, sorted
 }
 
-// slice of sorted by PC paths
+// slice of sorted by PC Paths
 // we don't jump as default
-type paths []path
+type Paths []Path
 
-func (ps *paths) add(p path) {
+func (ps *Paths) Add(p Path) {
 	if len(p) == 0 {
 		return
 	}
-
-	fmt.Println("path", p)
-
-	/*
-		sort.SliceStable(p, func(i, j int) bool {
-			return p[i].jumpPC < p[j].jumpPC
-		})
-	*/
-
-	/*
-		var lastStep step
-		var toCut int
-		for i := len(p) - 1; i >= 0; i-- {
-			if i == len(p) - 1 {
-				lastStep = p[i]
-			} else {
-				if p[i].jumpPC == lastStep.jumpPC {
-					p[i] = lastStep
-					toCut++
-				} else {
-					break
-				}
-			}
-		}
-		p = p[:len(p)-toCut]
-	*/
+	//fmt.Println("Path 1", p)
+	p.RemoveCycle()
+	//fmt.Println("Path 2", p)
 
 	*ps = append(*ps, p)
 }
 
-func (ps paths) last() path {
+func (ps Paths) Last() Path {
 	return ps[len(ps)-1]
 }
 
-func (ps paths) next() (path, bool) {
+func (ps Paths) Next() (Path, bool) {
 	if len(ps) == 0 {
-		return path{}, false
+		return Path{}, false
 	}
 	if len(ps) == 1 {
-		return ps.last(), true
+		return ps.Last(), true
 	}
 
 	last := ps[len(ps)-1]
 
-	last.removeCycle()
-	nextPath, wasChanged := last.next()
-
-	/*
-		spew.Println(last)
-		spew.Println(nextPath)
-	*/
+	last.RemoveCycle()
+	nextPath, wasChanged := last.Next()
 
 	return nextPath, wasChanged
 }
 
-type path []step
+type Path []Step
 
-func (p path) hasCycle() bool {
+func (p Path) HasCycle() bool {
 	m := make(map[int]struct{}, len(p))
+
 	var ok bool
 	for _, st := range p {
-		if _, ok = m[st.jumpPC]; ok {
+		if _, ok = m[st.JumpPC]; ok {
 			return true
 		}
-		m[st.jumpPC] = struct{}{}
+		m[st.JumpPC] = struct{}{}
 	}
 
 	return false
 }
 
-func (p path) next() (path, bool) {
-	nextPath := path(make([]step, len(p)))
-	var pathStep step
+func (p Path) Next() (Path, bool) {
+	nextPath := Path(make([]Step, len(p)))
+	var pathStep Step
 	var wasChanged bool
 	var wasChangedIdx int
 	for i := len(p) - 1; i >= 0; i-- {
 		pathStep = p[i]
-		if !pathStep.jumped && !wasChanged {
-			pathStep.jumped = true
+		if !pathStep.Jumped && !wasChanged {
+			pathStep.Jumped = true
 			wasChanged = true
 			wasChangedIdx = i
 		}
@@ -113,35 +88,92 @@ func (p path) next() (path, bool) {
 	return nextPath, wasChanged
 }
 
-func (p *path) removeCycle() {
+func (p *Path) RemoveCycle() {
+	p.RemoveTrailingCycles()
+
 	// remove repeats. save "jumped" state
-	p.deduplicate()
-
-	// remove loops starting the end
-	m := make(map[int]struct{}, len(*p))
-	var ok bool
-	var cycleHead int
-	for _, st := range *p {
-		if _, ok = m[st.jumpPC]; ok {
-			cycleHead = st.jumpPC
-			break
-		}
-		m[st.jumpPC] = struct{}{}
-	}
-
-	if ok {
-		for i, st := range *p {
-			if st.jumpPC == cycleHead {
-				*p = (*p)[:i+1]
-				break
-			}
-		}
-	}
+	p.Deduplicate()
 
 	return
 }
 
-func (p *path) deduplicate() {
+func (p *Path) RemoveTrailingCycles() {
+	if len(*p) < 3 {
+		// 3 is the min code size with 2 cycles and an additional step
+		return
+	}
+
+	// remove loops starting the end
+	var st Step
+	possibleCycle := Path(make([]Step, 0, 10))
+
+	tail := (*p)[len(*p)-1]
+	possibleCycle = append(possibleCycle, tail)
+
+	// fixme: it's not all the cases, but we can try dynamic programming later
+	for i := len(*p) - 2; i >= len(*p)/2; i-- {
+		st = (*p)[i]
+
+		if tail.JumpPC == st.JumpPC {
+			break
+		}
+
+		possibleCycle = append(possibleCycle, st)
+	}
+
+	// fmt.Println("!1", len(possibleCycle), len(*p)/2, possibleCycle)
+	if len(possibleCycle) != 0 {
+		// to form a cycle it should be Jumped=true
+		possibleCycle[0].Jumped = true
+
+		fromIdx := len(*p) - 1
+		var toIdx int
+
+		n := 0
+		for i := len(*p) - 1 - len(possibleCycle); i >= 0; i-- {
+			j := n % len(possibleCycle)
+
+			if (*p)[i].JumpPC != possibleCycle[j].JumpPC {
+				break
+			}
+
+			toIdx = i
+			n++
+		}
+
+		//fmt.Println("N=", n, len(possibleCycle))
+		if n < len(possibleCycle) {
+			// fmt.Println("N=", n, len(possibleCycle))
+			return
+		}
+
+		if fromIdx != toIdx {
+			//fmt.Println("!!!", fromIdx, toIdx, len(*p), possibleCycle)
+
+			*p = (*p)[:toIdx]
+
+			toIdx = 0
+			//fmt.Println("possible", possibleCycle)
+			for i := 0; i < len(possibleCycle); i++ {
+				if !possibleCycle[i].Jumped {
+					//fmt.Println("ADD", possibleCycle[i], i)
+					break
+				} else {
+					toIdx++
+				}
+			}
+			possibleCycle = possibleCycle[toIdx:]
+
+			for i := len(possibleCycle) - 1; i >= 0; i-- {
+				*p = append(*p, possibleCycle[i])
+			}
+
+			(*p)[len(*p)-1].Jumped = true
+		}
+	}
+}
+
+func (p *Path) Deduplicate() {
 	if len(*p) <= 1 {
 		return
 	}
@@ -150,10 +182,10 @@ func (p *path) deduplicate() {
 	last := (*p)[toIdx]
 	var hasCycle bool
 	for i := len(*p) - 2; i >= 0; i-- {
-		if last.jumpPC == (*p)[i].jumpPC {
+		if last.JumpPC == (*p)[i].JumpPC {
 			hasCycle = true
-			if (*p)[i].jumped {
-				last.jumped = true
+			if (*p)[i].Jumped {
+				last.Jumped = true
 			}
 		} else {
 			if hasCycle {
@@ -169,13 +201,13 @@ func (p *path) deduplicate() {
 	}
 }
 
-type step struct {
-	jumpPC int
-	jumped bool
+type Step struct {
+	JumpPC int
+	Jumped bool
 }
 
-var errUnknownOpcode = errors.New("unknown opcode")
-var errMaxJumps = errors.New("max jumps or recursion")
+var ErrUnknownOpcode = errors.New("unknown opcode")
+var ErrMaxJumps = errors.New("max jumps or recursion")
 
 const maxJumps = 1000 // works the same as 1_000_000
 
@@ -198,25 +230,34 @@ func NewContractRunner(code []byte, debug bool) *ContractRunner {
 	}
 }
 
-func (c *ContractRunner) Run() error {
+func (c *ContractRunner) Run(ctx context.Context) (int, error) {
 	if len(c.Code) == 0 {
-		return nil
+		return 0, nil
 	}
 
-	jumpPaths := &paths{}
+	jumpPaths := &Paths{}
 
-	if len(c.jumpi) > 0 {
-		jumpPaths.add(path{
-			{c.jumpi[0], false},
+	if len(c.Jumpi) > 0 {
+		jumpPaths.Add(Path{
+			{c.Jumpi[0], false},
 		})
 	}
 
 	firstRun := true
 	paths := 0
+	var err error
 
 pathsLoop:
 	for {
-		currentCodePath, ok := jumpPaths.next()
+		select {
+		case <-ctx.Done():
+			err = ErrTimeout
+			break
+		default:
+			//nothing to do
+		}
+
+		currentCodePath, ok := jumpPaths.Next()
 		if !ok && !firstRun {
 			break
 		}
@@ -225,9 +266,9 @@ pathsLoop:
 		firstRun = false
 		paths++
 
-		//fmt.Println("111", paths, spew.Sdump(currentCodePath))
+		//fmt.Println("111", Paths, spew.Sdump(currentCodePath))
 
-		gotPath := path(make([]step, 0, len(currentCodePath)))
+		gotPath := Path(make([]Step, 0, len(currentCodePath)))
 
 		var (
 			operation Command
@@ -235,12 +276,25 @@ pathsLoop:
 			stack     = newstack() // local stack
 			pc        = uint64(0)  // program counter
 			//res       []byte       // result of the opcode execution function
-			err error
 		)
 
 		jumpiIdx := -1
 		onThePath := true
+
+		innerCtx, innerCancel := context.WithTimeout(context.Background(), time.Minute)
+
 		for {
+			select {
+			case <-ctx.Done():
+				err = ErrTimeout
+				break pathsLoop
+			case <-innerCtx.Done():
+				innerCancel()
+				continue pathsLoop
+			default:
+				//nothing to do
+			}
+
 			op = c.GetOp(pc)
 			operation = Commands[op]
 
@@ -250,9 +304,11 @@ pathsLoop:
 			if op == vm.JUMP || op == vm.JUMPI {
 				if jumps >= maxJumps {
 					// too much to analyze
-					jumpPaths.add(gotPath)
-					spew.Println("path current - too much to analize", pc, op.String(), paths, len(c.jumpi), currentCodePath, gotPath)
+					jumpPaths.Add(gotPath)
+
+					//spew.Println("Path current - too much to analize", pc, op.String(), paths, len(c.Jumpi), currentCodePath, gotPath)
 					// return errMaxJumps
+					innerCancel()
 					continue pathsLoop
 				}
 				jumps++
@@ -261,9 +317,10 @@ pathsLoop:
 			if op == vm.JUMPI {
 				jumpiIdx++
 
-				found := sort.SearchInts(c.jumpi, int(pc))
-				if found >= len(c.jumpi) {
-					panic(fmt.Sprintln(found, c.jumpi[found], pc))
+				found := sort.SearchInts(c.Jumpi, int(pc))
+				if found >= len(c.Jumpi) {
+					innerCancel()
+					panic(fmt.Sprintln(found, c.Jumpi[found], pc))
 				}
 
 				if jumpiIdx >= len(currentCodePath) {
@@ -276,8 +333,8 @@ pathsLoop:
 				if onThePath {
 					currentJumpi := currentCodePath[jumpiIdx]
 
-					if currentJumpi.jumpPC == int(pc) {
-						if currentJumpi.jumped {
+					if currentJumpi.JumpPC == int(pc) {
+						if currentJumpi.Jumped {
 							willJump = true
 							operation.execute = opJumpiJUMP
 						}
@@ -286,21 +343,16 @@ pathsLoop:
 					onThePath = false
 				}
 
-				gotPath = append(gotPath, step{int(pc), willJump})
+				gotPath = append(gotPath, Step{int(pc), willJump})
+				//fmt.Println("g-th", gotPath)
 			}
 
 			if operation.execute == nil {
-				jumpPaths.add(gotPath)
-				//spew.Println("path current - operation.execute == nil", paths, currentCodePath, gotPath)
+				jumpPaths.Add(gotPath)
+				//spew.Println("Path current - operation.execute == nil", Paths, currentCodePath, gotPath)
+
+				innerCancel()
 				continue pathsLoop
-				//return errUnknownOpcode
-				/*
-					return fmt.Errorf("%w: operation is nil PC %[2]d(%[2]x), OP %d\nCode hash:\n%v",
-						errUnknownOpcode,
-						pc,
-						op,
-						c.CodeHash.String())
-				*/
 			}
 
 			prevPc := pc
@@ -310,36 +362,39 @@ pathsLoop:
 			}
 
 			if pc == prevPc {
-				fmt.Println("!!!!!!!!!!!", pc, op.String())
 				// it's a self-loop
-				gotPath.removeCycle()
+				gotPath.RemoveCycle()
 
 				if len(gotPath) > 0 {
 					for i := len(gotPath) - 1; i >= 0; i-- {
-						if !gotPath[i].jumped {
-							gotPath[i].jumped = true
+						if !gotPath[i].Jumped {
+							gotPath[i].Jumped = true
 							break
 						}
 					}
 				}
-				jumpPaths.add(gotPath)
+				jumpPaths.Add(gotPath)
+
+				innerCancel()
 				continue pathsLoop
 			}
 
 			if err != nil {
 				if len(gotPath) == 0 {
 					// can't reach even first jumpi
+
+					innerCancel()
 					break pathsLoop
 				}
-				jumpPaths.add(gotPath)
-				//spew.Println("path current - err", paths, currentCodePath, gotPath, err)
+				jumpPaths.Add(gotPath)
+				//spew.Println("Path current - err", Paths, currentCodePath, gotPath, err)
+
+				innerCancel()
 				continue pathsLoop
 				//return err
 			}
 		}
 	}
 
-	fmt.Println("total paths", paths)
-
-	return nil
+	return paths, err
 }

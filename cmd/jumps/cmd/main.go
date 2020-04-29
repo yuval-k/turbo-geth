@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -12,9 +13,11 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 
+	static "github.com/ledgerwatch/turbo-geth/cmd/jumps"
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/core/asm"
@@ -284,7 +287,7 @@ func (p *processor) jumpsPaths() {
 	}
 
 	type job struct {
-		fn   func(k, v []byte) error
+		fn   func(ctx context.Context, k, v []byte) error
 		k, v []byte
 	}
 	ch := make(chan job, 10000)
@@ -298,11 +301,13 @@ func (p *processor) jumpsPaths() {
 			for jb := range ch {
 
 				done := atomic.AddUint64(i, 1)
-				if done%1000 == 0 {
+				if done%100 == 0 {
 					fmt.Println("done", done)
 				}
 
-				jb.fn(jb.k, jb.v)
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+				jb.fn(ctx, jb.k, jb.v)
+				cancel()
 			}
 			defer wg.Done()
 		}()
@@ -315,41 +320,49 @@ func (p *processor) jumpsPaths() {
 
 		{0, 1, 140, 92, 146, 30, 249, 244, 87, 138, 251, 103, 93, 32, 165, 225, 9, 180, 66, 140, 16, 23, 95, 162, 74, 60, 191, 202, 149, 100, 36, 208}, // 90
 		{0, 0, 165, 215, 192, 253, 46, 213, 109, 128, 46, 84, 136, 231, 159, 200, 139, 170, 38, 65, 251, 138, 79, 165, 16, 132, 186, 47, 42, 106, 245, 124}, // 322
+		{0, 50, 69, 225, 158, 184, 55, 168, 227, 196, 43, 30, 246, 157, 69, 46, 88, 234, 22, 162, 72, 82, 76, 245, 152, 0, 231, 73, 43, 148, 207, 240}, //33
 	}
 	_ = testContracts
 
-	err = db.Walk(dbutils.CodeBucket, testContracts[4], 32, func(key, value []byte) (bool, error) {
-	//err = db.Walk(dbutils.CodeBucket, make([]byte, 32), 0, func(key, value []byte) (bool, error) {
+	//err = db.Walk(dbutils.CodeBucket, testContracts[5], 32, func(key, value []byte) (bool, error) {
+	err = db.Walk(dbutils.CodeBucket, make([]byte, 32), 0, func(key, value []byte) (bool, error) {
 		ch <- job{
-			fn: func(k, v []byte) error {
+			fn: func(ctx context.Context, k, v []byte) error {
 				codeAddress := common.BytesToHash(k)
-				runner := NewContractRunner(v, false)
+				runner := static.NewContractRunner(v, false)
 
-				fmt.Println(codeAddress.String(), "start", len(runner.jumpi), key)
-				err := runner.Run()
-				fmt.Println(codeAddress.String(), "end")
+				pathsDone, err := runner.Run(ctx)
+				//fmt.Println(codeAddress.String(), "end")
 
 				res.Lock()
 				defer res.Unlock()
-				if errors.Is(err, errInvalidJump) {
+
+				if errors.Is(err, static.ErrTimeout) {
+					fmt.Printf("timeout error. code address %s. jumpi %d. paths done %d. key %v\ncode:\n%v\n\n",
+						codeAddress.String(), len(runner.Jumpi), pathsDone, key, value)
+				}
+
+				if errors.Is(err, static.ErrInvalidJump) {
 					res.errJump[codeAddress] = struct{}{}
 					res.static[codeAddress] = struct{}{}
 					return nil
 				}
-				if errors.Is(err, errNonStatic) {
+
+				if errors.Is(err, static.ErrNonStatic) {
 					res.notstatic[codeAddress] = struct{}{}
 					return nil
 				}
-				if errors.Is(err, errNoValueStatic) {
+
+				if errors.Is(err, static.ErrNoValueStatic) {
 					res.novalueStatic[codeAddress] = struct{}{}
 					return nil
 				}
 
-				if errors.Is(err, errUnknownOpcode) {
+				if errors.Is(err, static.ErrUnknownOpcode) {
 					// nothing to do
 				}
 
-				if errors.Is(err, errMaxJumps) {
+				if errors.Is(err, static.ErrMaxJumps) {
 					res.errTooManyJumps[codeAddress] = struct{}{}
 				}
 
@@ -1043,7 +1056,7 @@ var stopping = []vm.OpCode{
 }
 
 func (p *processor) isStop(op vm.OpCode, arg uint64, jumpDests map[uint64]struct{}, latest uint64) bool {
-	if IsStop(op) {
+	if static.IsStop(op) {
 		return true
 	}
 	if op == vm.JUMP || op == vm.JUMPI {

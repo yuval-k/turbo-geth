@@ -1,4 +1,4 @@
-package main
+package static
 
 import "github.com/ledgerwatch/turbo-geth/core/vm"
 

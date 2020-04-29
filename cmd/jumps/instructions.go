@@ -1,4 +1,4 @@
-package main
+package static
 
 import (
 	"errors"
@@ -12,13 +12,15 @@ import (
 )
 
 var (
-	errInvalidJump   = errors.New("evm: invalid jump destination")
-	errNonStatic     = errors.New("non static jump")
-	errNoValueStatic = errors.New("no value")
-	errReturn        = errors.New("op.RETURN")
-	errRevert        = errors.New("op.REVERT")
-	errSelfDestruct  = errors.New("op.SELFDESTRUCT")
-	errStop          = errors.New("op.STOP")
+	ErrInvalidJump   = errors.New("evm: invalid jump destination")
+	ErrNonStatic     = errors.New("non static jump")
+	ErrNoValueStatic = errors.New("no value")
+	ErrReturn        = errors.New("op.RETURN")
+	ErrRevert        = errors.New("op.REVERT")
+	ErrSelfDestruct  = errors.New("op.SELFDESTRUCT")
+	ErrStop          = errors.New("op.STOP")
+
+	ErrTimeout = errors.New("execution timeout")
 )
 
 func NotStaticIfOneNotStatic(cmds ...*cell) bool {
@@ -726,10 +728,10 @@ func opJump(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory, 
 	}
 
 	if !pos.static || !pos.IsValue() {
-		return nil, fmt.Errorf("%w on %v", errNonStatic, spew.Sdump(pc))
+		return nil, fmt.Errorf("%w on %v", ErrNonStatic, spew.Sdump(pc))
 	}
 	if !contract.validJumpdest(pos.v) {
-		return nil, fmt.Errorf("%w on %v", errInvalidJump, spew.Sdump(pc))
+		return nil, fmt.Errorf("%w on %v", ErrInvalidJump, spew.Sdump(pc))
 	}
 	*pc = pos.v.Uint64()
 
@@ -747,15 +749,15 @@ func opJumpi(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory,
 	}
 
 	if !pos.static {
-		return nil, fmt.Errorf("jumpi: %w on %v", errNonStatic, spew.Sdump(pc))
+		return nil, fmt.Errorf("jumpi: %w on %v", ErrNonStatic, spew.Sdump(pc))
 	}
 	if pos.static && !pos.IsValue() {
-		return nil, fmt.Errorf("jumpi: %w on %v", errNoValueStatic, spew.Sdump(pc))
+		return nil, fmt.Errorf("jumpi: %w on %v", ErrNoValueStatic, spew.Sdump(pc))
 	}
 
 	if cond.v.Sign() != 0 {
 		if !contract.validJumpdest(pos.v) {
-			return nil, errInvalidJump
+			return nil, ErrInvalidJump
 		}
 		*pc = pos.v.Uint64()
 	} else {
@@ -776,14 +778,14 @@ func opJumpiJUMP(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Mem
 	}
 
 	if !pos.static {
-		return nil, fmt.Errorf("jumpi: %w on %v", errNonStatic, spew.Sdump(pc))
+		return nil, fmt.Errorf("jumpi: %w on %v", ErrNonStatic, spew.Sdump(pc))
 	}
 	if pos.static && !pos.IsValue() {
-		return nil, fmt.Errorf("jumpi: %w on %v", errNoValueStatic, spew.Sdump(pc))
+		return nil, fmt.Errorf("jumpi: %w on %v", ErrNoValueStatic, spew.Sdump(pc))
 	}
 
 	if !contract.validJumpdest(pos.v) {
-		return nil, fmt.Errorf("%w on %v", errInvalidJump, spew.Sdump(pc))
+		return nil, fmt.Errorf("%w on %v", ErrInvalidJump, spew.Sdump(pc))
 	}
 	*pc = pos.v.Uint64()
 
@@ -801,10 +803,10 @@ func opJumpiNotJUMP(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory,
 	}
 
 	if !pos.static {
-		return nil, fmt.Errorf("jumpi: %w on %v", errNonStatic, spew.Sdump(pc))
+		return nil, fmt.Errorf("jumpi: %w on %v", ErrNonStatic, spew.Sdump(pc))
 	}
 	if pos.static && !pos.IsValue() {
-		return nil, fmt.Errorf("jumpi: %w on %v", errNoValueStatic, spew.Sdump(pc))
+		return nil, fmt.Errorf("jumpi: %w on %v", ErrNoValueStatic, spew.Sdump(pc))
 	}
 
 	*pc++
@@ -1022,7 +1024,7 @@ func opReturn(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack 
 		return nil, err
 	}
 
-	return nil, errReturn
+	return nil, ErrReturn
 }
 
 func opRevert(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
@@ -1035,11 +1037,11 @@ func opRevert(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack 
 		return nil, err
 	}
 
-	return nil, errRevert
+	return nil, ErrRevert
 }
 
 func opStop(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	return nil, errStop
+	return nil, ErrStop
 }
 
 func opSuicide(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
@@ -1047,7 +1049,7 @@ func opSuicide(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack
 	if err != nil {
 		return nil, err
 	}
-	return nil, errSelfDestruct
+	return nil, ErrSelfDestruct
 }
 
 // following functions are used by the instruction jump  table

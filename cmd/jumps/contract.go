@@ -1,4 +1,4 @@
-package main
+package static
 
 import (
 	"math/big"
