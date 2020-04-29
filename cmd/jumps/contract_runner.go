@@ -254,7 +254,7 @@ pathsLoop:
 			err = ErrTimeout
 			break
 		default:
-			//nothing to do
+			// nothing to do
 		}
 
 		currentCodePath, ok := jumpPaths.Next()
@@ -266,8 +266,6 @@ pathsLoop:
 		firstRun = false
 		paths++
 
-		//fmt.Println("111", Paths, spew.Sdump(currentCodePath))
-
 		gotPath := Path(make([]Step, 0, len(currentCodePath)))
 
 		var (
@@ -275,7 +273,6 @@ pathsLoop:
 			op        vm.OpCode    // current opcode
 			stack     = newstack() // local stack
 			pc        = uint64(0)  // program counter
-			//res       []byte       // result of the opcode execution function
 		)
 
 		jumpiIdx := -1
@@ -292,13 +289,11 @@ pathsLoop:
 				innerCancel()
 				continue pathsLoop
 			default:
-				//nothing to do
+				// nothing to do
 			}
 
 			op = c.GetOp(pc)
 			operation = Commands[op]
-
-			//fmt.Println(pc, op.String())
 
 			// we don't count consumed gas so we need something to stop
 			if op == vm.JUMP || op == vm.JUMPI {
@@ -306,7 +301,6 @@ pathsLoop:
 					// too much to analyze
 					jumpPaths.Add(gotPath)
 
-					//spew.Println("Path current - too much to analize", pc, op.String(), paths, len(c.Jumpi), currentCodePath, gotPath)
 					// return errMaxJumps
 					innerCancel()
 					continue pathsLoop
@@ -398,7 +392,6 @@ pathsLoop:
 					innerCancel()
 					break pathsLoop
 				}
-
 
 				innerCancel()
 				continue pathsLoop
