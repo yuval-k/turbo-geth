@@ -26,11 +26,11 @@ func (ps *Paths) Add(p Path) {
 	if len(p) == 0 {
 		return
 	}
-	//fmt.Println("Path 1", p)
-	p.RemoveCycle()
-	//fmt.Println("Path 2", p)
 
 	*ps = append(*ps, p)
+
+	//fmt.Println("add:", p)
+	//fmt.Println()
 }
 
 func (ps Paths) Last() Path {
@@ -41,14 +41,17 @@ func (ps Paths) Next() (Path, bool) {
 	if len(ps) == 0 {
 		return Path{}, false
 	}
+
+	last := ps.Last()
 	if len(ps) == 1 {
-		return ps.Last(), true
+		return last, true
 	}
 
-	last := ps[len(ps)-1]
-
 	last.RemoveCycle()
+
+	//fmt.Println("last", last)
 	nextPath, wasChanged := last.Next()
+	//fmt.Println("next", nextPath)
 
 	return nextPath, wasChanged
 }
@@ -278,7 +281,9 @@ pathsLoop:
 		jumpiIdx := -1
 		onThePath := true
 
-		innerCtx, innerCancel := context.WithTimeout(context.Background(), time.Minute)
+		innerCtx, innerCancel := context.WithTimeout(context.Background(), time.Second)
+
+		var lastDestPC uint64
 
 		for {
 			select {
@@ -324,6 +329,7 @@ pathsLoop:
 				// default case
 				operation.execute = opJumpiNotJUMP
 				var willJump bool
+
 				if onThePath {
 					currentJumpi := currentCodePath[jumpiIdx]
 
@@ -338,12 +344,10 @@ pathsLoop:
 				}
 
 				gotPath = append(gotPath, Step{int(pc), willJump})
-				//fmt.Println("g-th", gotPath)
 			}
 
 			if operation.execute == nil {
 				jumpPaths.Add(gotPath)
-				//spew.Println("Path current - operation.execute == nil", Paths, currentCodePath, gotPath)
 
 				innerCancel()
 				continue pathsLoop
@@ -355,7 +359,20 @@ pathsLoop:
 				pc++
 			}
 
-			if pc == prevPc {
+			nextOp := c.GetOp(pc)
+			if nextOp == vm.JUMPDEST {
+				if lastDestPC == pc {
+					// it's a cycle
+					gotPath[len(gotPath)-1].Jumped = true
+					jumpPaths.Add(gotPath)
+					innerCancel()
+					continue pathsLoop
+				} else {
+					lastDestPC = pc
+				}
+			}
+
+			if err == nil && pc == prevPc {
 				// it's a self-loop
 				gotPath.RemoveCycle()
 

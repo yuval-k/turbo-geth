@@ -733,6 +733,7 @@ func opJump(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory, 
 	if !contract.validJumpdest(pos.v) {
 		return nil, fmt.Errorf("%w on %v", ErrInvalidJump, spew.Sdump(pc))
 	}
+
 	*pc = pos.v.Uint64()
 
 	return nil, nil
@@ -787,6 +788,7 @@ func opJumpiJUMP(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Mem
 	if !contract.validJumpdest(pos.v) {
 		return nil, fmt.Errorf("%w on %v", ErrInvalidJump, spew.Sdump(pc))
 	}
+
 	*pc = pos.v.Uint64()
 
 	return nil, nil
@@ -809,7 +811,7 @@ func opJumpiNotJUMP(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory,
 		return nil, fmt.Errorf("jumpi: %w on %v", ErrNoValueStatic, spew.Sdump(pc))
 	}
 
-	*pc++
+	*pc = *pc + 1
 
 	return nil, nil
 }

@@ -305,7 +305,7 @@ func (p *processor) jumpsPaths() {
 					fmt.Println("done", done)
 				}
 
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				jb.fn(ctx, jb.k, jb.v)
 				cancel()
 			}
