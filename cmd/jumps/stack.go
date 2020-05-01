@@ -20,6 +20,8 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+
+	"github.com/ledgerwatch/turbo-geth/core/vm"
 )
 
 var errNotEnoughStack = errors.New("not enough stack")
@@ -27,18 +29,30 @@ var errNotEnoughStack = errors.New("not enough stack")
 type cell struct {
 	v      *big.Int
 	static bool
+	history []Operation
+}
+
+type Operation struct {
+	Op vm.OpCode
+	Pc uint64
+	StaticRes bool
+}
+
+func (c *cell) AddHistory(op vm.OpCode, pc uint64, isStatic bool) *cell {
+	c.history = append(c.history, Operation{op, pc, isStatic})
+	return c
 }
 
 func NewStaticCell() *cell {
-	return &cell{nil, true}
+	return &cell{nil, true, nil}
 }
 
 func NewNonStaticCell() *cell {
-	return &cell{nil, false}
+	return &cell{nil, false, nil}
 }
 
 func NewCell(isStatic bool) *cell {
-	return &cell{nil, isStatic}
+	return &cell{nil, isStatic, nil}
 }
 
 func (c cell) IsStatic() bool {
@@ -47,6 +61,15 @@ func (c cell) IsStatic() bool {
 
 func (c cell) IsValue() bool {
 	return c.v != nil
+}
+
+func (c cell) Sign() bool {
+	if c.static && c.IsValue() {
+		if c.v.Sign() == 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (c cell) Equals(n *big.Int) bool {
@@ -58,6 +81,10 @@ func (c cell) Equals(n *big.Int) bool {
 
 func (c *cell) SetValue(n *big.Int) {
 	c.v = big.NewInt(0).Set(n)
+}
+
+func (c cell) History() []Operation {
+	return c.history
 }
 
 type Stack struct {
@@ -104,17 +131,20 @@ func (st *Stack) Len() int {
 	return len(st.data)
 }
 
-func (st *Stack) swap(n int) error {
+func (st *Stack) swap(n int, op vm.OpCode, pc uint64) error {
 	if st.len() < n || st.len() == 0 {
 		return errNotEnoughStack
 	}
 
 	st.data[st.len()-n], st.data[st.len()-1] = st.data[st.len()-1], st.data[st.len()-n]
 
+	st.data[st.len()-n].AddHistory(op, pc, st.data[st.len()-n].static)
+	st.data[st.len()-1].AddHistory(op, pc, st.data[st.len()-1].static)
+
 	return nil
 }
 
-func (st *Stack) dup(n int) error {
+func (st *Stack) dup(n int, op vm.OpCode, pc uint64) error {
 	if st.len() < n || st.len() == 0 {
 		return errNotEnoughStack
 	}
@@ -126,7 +156,7 @@ func (st *Stack) dup(n int) error {
 		vcopy = big.NewInt(0).Set(v.v)
 	}
 
-	st.push(&cell{vcopy, v.static})
+	st.push(&cell{vcopy, v.static, append(v.history, Operation{op, pc, v.static})})
 
 	return nil
 }
