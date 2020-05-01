@@ -276,14 +276,15 @@ func (p *processor) jumpsPaths() {
 		errJump         map[common.Hash]struct{}
 		novalueStatic   map[common.Hash]struct{}
 		errTooManyJumps map[common.Hash]struct{}
+		timeout         map[common.Hash]struct{}
 	}{
 		RWMutex:   new(sync.RWMutex),
-		static:    make(map[common.Hash]struct{}, 100_000),
-		notstatic: make(map[common.Hash]struct{}, 100_000),
+		static:    make(map[common.Hash]struct{}, 200_000),
+		notstatic: make(map[common.Hash]struct{}, 2_000),
 
-		errJump:         make(map[common.Hash]struct{}, 100_000),
-		novalueStatic:   make(map[common.Hash]struct{}, 100_000),
-		errTooManyJumps: make(map[common.Hash]struct{}, 100_000),
+		errJump:       make(map[common.Hash]struct{}, 1_000),
+		novalueStatic: make(map[common.Hash]struct{}, 1_000),
+		timeout:       make(map[common.Hash]struct{}, 1_000),
 	}
 
 	type job struct {
@@ -292,8 +293,9 @@ func (p *processor) jumpsPaths() {
 	}
 	ch := make(chan job, 10000)
 
-	var numWorkers = runtime.NumCPU()
+	var numWorkers = 2*runtime.NumCPU()
 	wg := sync.WaitGroup{}
+
 	for n := 0; n < numWorkers; n++ {
 		wg.Add(1)
 
@@ -318,18 +320,20 @@ func (p *processor) jumpsPaths() {
 		{0, 0, 68, 62, 128, 192, 9, 218, 248, 40, 202, 58, 152, 195, 40, 42, 3, 188, 148, 228, 49, 3, 249, 220, 123, 120, 55, 216, 123, 62, 249, 32},      // 201
 		{15, 83, 113, 94, 36, 52, 138, 104, 41, 166, 140, 58, 101, 223, 8, 20, 71, 149, 163, 216, 193, 228, 127, 125, 15, 211, 2, 134, 34, 228, 141, 182}, // 6
 
-		{0, 1, 140, 92, 146, 30, 249, 244, 87, 138, 251, 103, 93, 32, 165, 225, 9, 180, 66, 140, 16, 23, 95, 162, 74, 60, 191, 202, 149, 100, 36, 208}, // 90
+		{0, 1, 140, 92, 146, 30, 249, 244, 87, 138, 251, 103, 93, 32, 165, 225, 9, 180, 66, 140, 16, 23, 95, 162, 74, 60, 191, 202, 149, 100, 36, 208},      // 90
 		{0, 0, 165, 215, 192, 253, 46, 213, 109, 128, 46, 84, 136, 231, 159, 200, 139, 170, 38, 65, 251, 138, 79, 165, 16, 132, 186, 47, 42, 106, 245, 124}, // 322
-		{0, 50, 69, 225, 158, 184, 55, 168, 227, 196, 43, 30, 246, 157, 69, 46, 88, 234, 22, 162, 72, 82, 76, 245, 152, 0, 231, 73, 43, 148, 207, 240}, //33
+		{0, 50, 69, 225, 158, 184, 55, 168, 227, 196, 43, 30, 246, 157, 69, 46, 88, 234, 22, 162, 72, 82, 76, 245, 152, 0, 231, 73, 43, 148, 207, 240},      //33
 	}
 	_ = testContracts
+
+	const debug = false
 
 	//err = db.Walk(dbutils.CodeBucket, testContracts[5], 32, func(key, value []byte) (bool, error) {
 	err = db.Walk(dbutils.CodeBucket, make([]byte, 32), 0, func(key, value []byte) (bool, error) {
 		ch <- job{
 			fn: func(ctx context.Context, k, v []byte) error {
 				codeAddress := common.BytesToHash(k)
-				runner := static.NewContractRunner(v, false)
+				runner := static.NewContractRunner(v, debug)
 
 				pathsDone, err := runner.Run(ctx)
 				//fmt.Println(codeAddress.String(), "end")
@@ -338,13 +342,12 @@ func (p *processor) jumpsPaths() {
 				defer res.Unlock()
 
 				if errors.Is(err, static.ErrTimeout) {
-					fmt.Printf("timeout error. code address %s. jumpi %d. paths done %d. key %v\ncode:\n%v\n\n",
-						codeAddress.String(), len(runner.Jumpi), pathsDone, key, value)
-				}
+					res.timeout[codeAddress] = struct{}{}
 
-				if errors.Is(err, static.ErrInvalidJump) {
-					res.errJump[codeAddress] = struct{}{}
-					res.static[codeAddress] = struct{}{}
+					if debug {
+						fmt.Printf("timeout error. code address %s. jumpi %d. paths done %d. key %v\ncode:\n%v\n\n",
+							codeAddress.String(), len(runner.Jumpi), pathsDone, key, value)
+					}
 					return nil
 				}
 
@@ -355,6 +358,13 @@ func (p *processor) jumpsPaths() {
 
 				if errors.Is(err, static.ErrNoValueStatic) {
 					res.novalueStatic[codeAddress] = struct{}{}
+					return nil
+				}
+
+				// good cases
+				if errors.Is(err, static.ErrInvalidJump) {
+					res.errJump[codeAddress] = struct{}{}
+					res.static[codeAddress] = struct{}{}
 					return nil
 				}
 
@@ -390,6 +400,7 @@ func (p *processor) jumpsPaths() {
 	fmt.Println("errJump contracts", len(res.errJump))
 	fmt.Println("novalueStatic contracts", len(res.novalueStatic))
 	fmt.Println("errTooManyJumps contracts", len(res.errTooManyJumps))
+	fmt.Println("timeout contracts", len(res.timeout))
 
 	//spew.Dump(res)
 }

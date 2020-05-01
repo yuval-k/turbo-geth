@@ -7,8 +7,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
-
 	"github.com/ledgerwatch/turbo-geth/core/asm"
 	"github.com/ledgerwatch/turbo-geth/core/vm"
 )
@@ -16,28 +14,33 @@ import (
 type ContractRunner struct {
 	*Contract
 	Jumpi []int // all jumpi positions, sorted
+	debug bool
+
+	errPath Path
 }
 
 // slice of sorted by PC Paths
 // we don't jump as default
 type Paths []Path
 
-func (ps *Paths) Add(p Path) {
+func (ps *Paths) Add(p Path, debug bool) {
 	if len(p) == 0 {
 		return
 	}
 
 	*ps = append(*ps, p)
 
-	//fmt.Println("add:", p)
-	//fmt.Println()
+	if debug {
+		fmt.Println("add:", p)
+		fmt.Println()
+	}
 }
 
 func (ps Paths) Last() Path {
 	return ps[len(ps)-1]
 }
 
-func (ps Paths) Next() (Path, bool) {
+func (ps Paths) Next(debug bool) (Path, bool) {
 	if len(ps) == 0 {
 		return Path{}, false
 	}
@@ -47,30 +50,22 @@ func (ps Paths) Next() (Path, bool) {
 		return last, true
 	}
 
-	last.RemoveCycle()
+	// last.RemoveCycle()
 
-	//fmt.Println("last", last)
+	if debug {
+		fmt.Println("last", last)
+	}
+
 	nextPath, wasChanged := last.Next()
-	//fmt.Println("next", nextPath)
+
+	if debug {
+		fmt.Println("next", nextPath)
+	}
 
 	return nextPath, wasChanged
 }
 
 type Path []Step
-
-func (p Path) HasCycle() bool {
-	m := make(map[int]struct{}, len(p))
-
-	var ok bool
-	for _, st := range p {
-		if _, ok = m[st.JumpPC]; ok {
-			return true
-		}
-		m[st.JumpPC] = struct{}{}
-	}
-
-	return false
-}
 
 func (p Path) Next() (Path, bool) {
 	nextPath := Path(make([]Step, len(p)))
@@ -91,19 +86,23 @@ func (p Path) Next() (Path, bool) {
 	return nextPath, wasChanged
 }
 
-func (p *Path) RemoveCycle() {
-	p.RemoveTrailingCycles()
+func (p *Path) RemoveCycle() bool {
+	removed := p.RemoveTrailingCycles()
 
 	// remove repeats. save "jumped" state
-	p.Deduplicate()
+	removedDupl := p.Deduplicate()
 
-	return
+	if removed || removedDupl {
+		fmt.Println("!!!!!!!!!!!!!!!!!!", removed || removedDupl, removed, removedDupl)
+	}
+
+	return removed || removedDupl
 }
 
-func (p *Path) RemoveTrailingCycles() {
+func (p *Path) RemoveTrailingCycles() bool {
 	if len(*p) < 3 {
 		// 3 is the min code size with 2 cycles and an additional step
-		return
+		return false
 	}
 
 	// remove loops starting the end
@@ -125,6 +124,8 @@ func (p *Path) RemoveTrailingCycles() {
 	}
 
 	// fmt.Println("!1", len(possibleCycle), len(*p)/2, possibleCycle)
+
+	var hasCycle bool
 	if len(possibleCycle) != 0 {
 		// to form a cycle it should be Jumped=true
 		possibleCycle[0].Jumped = true
@@ -147,10 +148,11 @@ func (p *Path) RemoveTrailingCycles() {
 		//fmt.Println("N=", n, len(possibleCycle))
 		if n < len(possibleCycle) {
 			// fmt.Println("N=", n, len(possibleCycle))
-			return
+			return false
 		}
 
-		if fromIdx != toIdx {
+		hasCycle = fromIdx != toIdx
+		if hasCycle {
 			//fmt.Println("!!!", fromIdx, toIdx, len(*p), possibleCycle)
 
 			*p = (*p)[:toIdx]
@@ -174,11 +176,13 @@ func (p *Path) RemoveTrailingCycles() {
 			(*p)[len(*p)-1].Jumped = true
 		}
 	}
+
+	return hasCycle
 }
 
-func (p *Path) Deduplicate() {
+func (p *Path) Deduplicate() bool {
 	if len(*p) <= 1 {
-		return
+		return false
 	}
 
 	toIdx := len(*p) - 1
@@ -202,6 +206,8 @@ func (p *Path) Deduplicate() {
 	if hasCycle {
 		*p = (*p)[toIdx:]
 	}
+
+	return hasCycle
 }
 
 type Step struct {
@@ -219,17 +225,21 @@ func NewContractRunner(code []byte, debug bool) *ContractRunner {
 
 	jumpis := codeOpCodesPositions(code, vm.JUMPI)
 
-	if debug {
-		fmt.Println("JUMPIs")
-		for i, jump := range jumpis {
-			fmt.Printf("%d: %[2]d %[2]x\n", i, jump)
+	/*
+		if debug {
+			fmt.Println("JUMPIs")
+			for i, jump := range jumpis {
+				fmt.Printf("%d: %[2]d %[2]x\n", i, jump)
+			}
+			spew.Dump(asm.PrintDisassembledBytes(code))
 		}
-		spew.Dump(asm.PrintDisassembledBytes(code))
-	}
+	*/
 
 	return &ContractRunner{
 		contract,
 		jumpis,
+		debug,
+		Path{},
 	}
 }
 
@@ -243,7 +253,7 @@ func (c *ContractRunner) Run(ctx context.Context) (int, error) {
 	if len(c.Jumpi) > 0 {
 		jumpPaths.Add(Path{
 			{c.Jumpi[0], false},
-		})
+		}, c.debug)
 	}
 
 	firstRun := true
@@ -260,7 +270,10 @@ pathsLoop:
 			// nothing to do
 		}
 
-		currentCodePath, ok := jumpPaths.Next()
+		var fullPath []string
+		fmt.Println("======================================================================\n\n\n")
+
+		currentCodePath, ok := jumpPaths.Next(c.debug)
 		if !ok && !firstRun {
 			break
 		}
@@ -289,6 +302,7 @@ pathsLoop:
 			select {
 			case <-ctx.Done():
 				err = ErrTimeout
+
 				break pathsLoop
 			case <-innerCtx.Done():
 				innerCancel()
@@ -300,11 +314,15 @@ pathsLoop:
 			op = c.GetOp(pc)
 			operation = Commands[op]
 
+			if c.debug {
+				fullPath = append(fullPath, asm.PrintCommand(op, pc, nil))
+			}
+
 			// we don't count consumed gas so we need something to stop
 			if op == vm.JUMP || op == vm.JUMPI {
 				if jumps >= maxJumps {
 					// too much to analyze
-					jumpPaths.Add(gotPath)
+					jumpPaths.Add(gotPath, c.debug)
 
 					// return errMaxJumps
 					innerCancel()
@@ -347,7 +365,7 @@ pathsLoop:
 			}
 
 			if operation.execute == nil {
-				jumpPaths.Add(gotPath)
+				jumpPaths.Add(gotPath, c.debug)
 
 				innerCancel()
 				continue pathsLoop
@@ -364,7 +382,7 @@ pathsLoop:
 				if lastDestPC == pc {
 					// it's a cycle
 					gotPath[len(gotPath)-1].Jumped = true
-					jumpPaths.Add(gotPath)
+					jumpPaths.Add(gotPath, c.debug)
 					innerCancel()
 					continue pathsLoop
 				} else {
@@ -384,10 +402,19 @@ pathsLoop:
 						}
 					}
 				}
-				jumpPaths.Add(gotPath)
+				jumpPaths.Add(gotPath, c.debug)
 
 				innerCancel()
 				continue pathsLoop
+			} else if err == nil && prevPc > pc && nextOp == vm.JUMPDEST {
+				// cycle
+				hasCycle := gotPath.RemoveCycle()
+
+				if hasCycle {
+					jumpPaths.Add(gotPath, c.debug)
+					innerCancel()
+					continue pathsLoop
+				}
 			}
 
 			if err != nil {
@@ -395,18 +422,28 @@ pathsLoop:
 					// can't reach even first jumpi
 
 					innerCancel()
+
 					break pathsLoop
 				}
 
-				jumpPaths.Add(gotPath)
+				jumpPaths.Add(gotPath, c.debug)
 
 				// if we found a non-static jump we can stop
 				if errors.Is(err, ErrNonStatic) {
 					innerCancel()
+
+					c.errPath = gotPath
+					if c.debug {
+						fmt.Printf("Full path\n%v\n\n", fullPath)
+					}
+
 					break pathsLoop
 				}
 				if errors.Is(err, ErrNoValueStatic) {
 					innerCancel()
+
+					c.errPath = gotPath
+
 					break pathsLoop
 				}
 
@@ -417,4 +454,8 @@ pathsLoop:
 	}
 
 	return paths, err
+}
+
+func (c ContractRunner) ErrPath() Path {
+	return c.errPath
 }

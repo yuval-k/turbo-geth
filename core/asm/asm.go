@@ -272,7 +272,7 @@ loop:
 	return history, found
 }
 
- */
+*/
 
 func IsDup(op vm.OpCode) bool {
 	switch op {
@@ -395,6 +395,14 @@ func PrintDisassembledBytes(script []byte) error {
 		}
 	}
 	return it.Error()
+}
+
+func PrintCommand(op vm.OpCode, pc uint64, arg []byte) string {
+	if arg != nil && 0 < len(arg) {
+		return fmt.Sprintf("%05x: %v 0x%x\n", pc, op, arg)
+	} else {
+		return fmt.Sprintf("%05x: %v\n", pc, op)
+	}
 }
 
 // Pretty-print all disassembled EVM instructions to stdout.

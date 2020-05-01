@@ -727,8 +727,12 @@ func opJump(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory, 
 		return nil, err
 	}
 
+	if pos.static {
+		fmt.Printf("jumpiT: on %x to %x\n", *pc, pos.v.Uint64())
+	}
+
 	if !pos.static || !pos.IsValue() {
-		return nil, fmt.Errorf("%w on %v", ErrNonStatic, spew.Sdump(pc))
+		return nil, fmt.Errorf("opJump: %w on %v", ErrNonStatic, spew.Sdump(pc))
 	}
 	if !contract.validJumpdest(pos.v) {
 		return nil, fmt.Errorf("%w on %v", ErrInvalidJump, spew.Sdump(pc))
@@ -749,14 +753,18 @@ func opJumpi(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory,
 		return nil, err
 	}
 
-	if !pos.static {
-		return nil, fmt.Errorf("jumpi: %w on %v", ErrNonStatic, spew.Sdump(pc))
-	}
-	if pos.static && !pos.IsValue() {
-		return nil, fmt.Errorf("jumpi: %w on %v", ErrNoValueStatic, spew.Sdump(pc))
+	if pos.static {
+		fmt.Printf("jumpiT: on %x to %x\n", *pc, pos.v.Uint64())
 	}
 
 	if cond.v.Sign() != 0 {
+		if !pos.static {
+			return nil, fmt.Errorf("opJumpi: %w on %v", ErrNonStatic, spew.Sdump(pc))
+		}
+		if pos.static && !pos.IsValue() {
+			return nil, fmt.Errorf("jumpi: %w on %v", ErrNoValueStatic, spew.Sdump(pc))
+		}
+
 		if !contract.validJumpdest(pos.v) {
 			return nil, ErrInvalidJump
 		}
@@ -778,11 +786,15 @@ func opJumpiJUMP(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Mem
 		return nil, err
 	}
 
+	if pos.static {
+		fmt.Printf("jumpiT: on %x to %x\n", *pc, pos.v.Uint64())
+	}
+
 	if !pos.static {
-		return nil, fmt.Errorf("jumpi: %w on %v", ErrNonStatic, spew.Sdump(pc))
+		return nil, fmt.Errorf("opJumpiJUMP: %w on %v", ErrNonStatic, spew.Sdump(pc))
 	}
 	if pos.static && !pos.IsValue() {
-		return nil, fmt.Errorf("jumpi: %w on %v", ErrNoValueStatic, spew.Sdump(pc))
+		return nil, fmt.Errorf("jumpi: %w on %v. jump to %x", ErrNoValueStatic, spew.Sdump(pc), pos.v.Uint64())
 	}
 
 	if !contract.validJumpdest(pos.v) {
@@ -795,20 +807,13 @@ func opJumpiJUMP(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Mem
 }
 
 func opJumpiNotJUMP(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	pos, err := stack.pop()
+	_, err := stack.pop()
 	if err != nil {
 		return nil, err
 	}
 	_, err = stack.pop()
 	if err != nil {
 		return nil, err
-	}
-
-	if !pos.static {
-		return nil, fmt.Errorf("jumpi: %w on %v", ErrNonStatic, spew.Sdump(pc))
-	}
-	if pos.static && !pos.IsValue() {
-		return nil, fmt.Errorf("jumpi: %w on %v", ErrNoValueStatic, spew.Sdump(pc))
 	}
 
 	*pc = *pc + 1
