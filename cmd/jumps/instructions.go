@@ -877,9 +877,11 @@ func opJump(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory, 
 		return nil, err
 	}
 
+	/*
 	if pos.static {
-		fmt.Printf("jumpiT: on %x to %x\nValue history %v\n", *pc, pos.v.Uint64(), pos.History())
+		fmt.Printf("jumpiT: on %x to %v\nValue history %v\n", *pc, pos.v, pos.History())
 	}
+	*/
 
 	if !pos.static || !pos.IsValue() {
 		return nil, fmt.Errorf("opJump: %w on %v\nValue history %v\n", ErrNonStatic, spew.Sdump(pc), pos.History())
@@ -903,9 +905,11 @@ func opJumpi(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory,
 		return nil, err
 	}
 
+	/*
 	if pos.static {
-		fmt.Printf("jumpiT: on %x to %x\nValue history %v\n", *pc, pos.v.Uint64(), pos.History())
+		fmt.Printf("jumpiT: on %x to %v\nValue history %v\n", *pc, pos.v, pos.History())
 	}
+	*/
 
 	if cond.v.Sign() != 0 {
 		if !pos.static {
@@ -936,9 +940,11 @@ func opJumpiJUMP(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Mem
 		return nil, err
 	}
 
+	/*
 	if pos.static {
-		fmt.Printf("jumpiT: on %x to %x\n", *pc, pos.v.Uint64())
+		fmt.Printf("jumpiT: on %x to %v\nValue history %v\n", *pc, pos.v, pos.History())
 	}
+	*/
 
 	if !pos.static {
 		return nil, fmt.Errorf("opJumpiJUMP: %w on %v\nValue history %v\n", ErrNonStatic, spew.Sdump(pc), pos.History())

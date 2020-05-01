@@ -29,6 +29,7 @@ const dbPath = "/mnt/sdb/contract_codes_cleanupBeggining_trimMetadata_cleanupErr
 
 func main() {
 	/*
+	// uncomment to prepare the contracts database
 		p := &processor{from: "/mnt/sdb/contract_codes"}
 		p.cleanupBeggining().
 			trimMetadata().

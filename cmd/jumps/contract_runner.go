@@ -92,9 +92,11 @@ func (p *Path) RemoveCycle() bool {
 	// remove repeats. save "jumped" state
 	removedDupl := p.Deduplicate()
 
+	/*
 	if removed || removedDupl {
 		fmt.Println("!!!!!!!!!!!!!!!!!!", removed || removedDupl, removed, removedDupl)
 	}
+	*/
 
 	return removed || removedDupl
 }
@@ -271,7 +273,9 @@ pathsLoop:
 		}
 
 		var fullPath []string
-		fmt.Println("======================================================================\n\n\n")
+		if c.debug {
+			fmt.Println("======================================================================\n\n\n")
+		}
 
 		currentCodePath, ok := jumpPaths.Next(c.debug)
 		if !ok && !firstRun {
