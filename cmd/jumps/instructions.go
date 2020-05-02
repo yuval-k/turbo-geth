@@ -8,6 +8,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 
 	"github.com/ledgerwatch/turbo-geth/common"
+	"github.com/ledgerwatch/turbo-geth/common/math"
 	"github.com/ledgerwatch/turbo-geth/core/vm"
 )
 
@@ -21,6 +22,9 @@ var (
 	ErrStop          = errors.New("op.STOP")
 
 	ErrTimeout = errors.New("execution timeout")
+
+	tt255   = math.BigPow(2, 255)
+	bigZero = new(big.Int)
 )
 
 func NotStaticIfOneNotStatic(cmds ...*cell) bool {
@@ -44,6 +48,13 @@ func opAdd(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 	}
 
 	y.static = NotStaticIfOneNotStatic(x, y)
+
+	if y.static && y.IsValue() && x.IsValue() {
+		math.U256(y.v.Add(x.v, y.v))
+	} else {
+		y.v = nil
+	}
+
 	y.AddHistory(vm.ADD, *pc, y.static)
 
 	return nil, nil
@@ -61,6 +72,13 @@ func opSub(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 	}
 
 	y.static = NotStaticIfOneNotStatic(x, y)
+
+	if y.static && y.IsValue() && x.IsValue() {
+		math.U256(y.v.Sub(x.v, y.v))
+	} else {
+		y.v = nil
+	}
+
 	y.AddHistory(vm.SUB, *pc, y.static)
 
 	return nil, nil
@@ -76,8 +94,16 @@ func opMul(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 		return nil, err
 	}
 
-	y.static = NotStaticIfOneNotStatic(x, y)
-	y.AddHistory(vm.MUL, *pc, y.static)
+	x.static = NotStaticIfOneNotStatic(x, y)
+
+	if x.static && y.IsValue() && x.IsValue() {
+		x.v = math.U256(x.v.Mul(x.v, y.v))
+	} else {
+		x.v = nil
+	}
+	stack.push(x)
+
+	x.AddHistory(vm.MUL, *pc, x.static)
 
 	return nil, nil
 }
@@ -93,12 +119,16 @@ func opDiv(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 		return nil, err
 	}
 
-	if y.static && y.IsValue() {
-		if y.v.Sign() == 0 {
-			y.static = true
-		}
+	if y.static && y.v.Sign() == 0 {
+		y.v = big.NewInt(0)
+		y.static = true
 	} else {
 		y.static = NotStaticIfOneNotStatic(x, y)
+		if y.static && y.IsValue() && x.IsValue() {
+			math.U256(y.v.Div(x.v, y.v))
+		} else {
+			y.v = nil
+		}
 	}
 
 	y.AddHistory(vm.DIV, *pc, y.static)
@@ -116,11 +146,35 @@ func opSdiv(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *
 		return nil, err
 	}
 
-	var res *cell
-	if y.Sign() || x.Sign() {
-		res = NewStaticCell()
+	if x.static && x.IsValue() {
+		x.v = math.U256(x.v)
+	}
+	if y.static && y.IsValue() {
+		y.v = math.U256(y.v)
+	}
+
+	res := &cell{big.NewInt(0), NotStaticIfOneNotStatic(x, y), nil}
+
+	ySign := y.Sign()
+	xSign := x.Sign()
+	if (ySign != nil && *ySign == 0) || (xSign != nil && *xSign == 0) {
+		res.static = true
 	} else {
-		res = NewCell(NotStaticIfOneNotStatic(x, y))
+		if xSign == nil || ySign == nil {
+			res.static = false
+			res.v = nil
+		} else {
+			if x.Sign() != y.Sign() {
+				res.v.Div(x.v.Abs(x.v), y.v.Abs(y.v))
+				res.v.Neg(res.v)
+			} else {
+				res.v.Div(x.v.Abs(x.v), y.v.Abs(y.v))
+			}
+		}
+
+		if res.IsValue() {
+			res.v = math.U256(res.v)
+		}
 	}
 
 	res.AddHistory(vm.SDIV, *pc, res.static)
@@ -139,10 +193,19 @@ func opMod(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 		return nil, err
 	}
 
-	if y.Sign() {
+	ySign := y.Sign()
+	if ySign != nil && *ySign == 0 {
 		x.static = true
+		x.v = big.NewInt(0)
 	} else {
 		x.static = NotStaticIfOneNotStatic(x, y)
+		if !x.static {
+			x.v = nil
+		}
+
+		if x.static && x.IsValue() && y.IsValue() {
+			x.v = math.U256(x.v.Mod(x.v, y.v))
+		}
 	}
 
 	x.AddHistory(vm.MOD, *pc, x.static)
@@ -161,11 +224,27 @@ func opSmod(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *
 		return nil, err
 	}
 
-	var res *cell
-	if y.Sign() {
-		res = NewStaticCell()
+	res := &cell{big.NewInt(0), NotStaticIfOneNotStatic(x, y), nil}
+
+	ySign := y.Sign()
+	if ySign != nil && *ySign == 0 {
+		x.static = true
 	} else {
-		res = NewCell(NotStaticIfOneNotStatic(x, y))
+		if !res.static {
+			res.v = nil
+		} else {
+			if x.IsValue() && y.IsValue() {
+				xSign := x.Sign()
+				if xSign != nil && *xSign < 0 {
+					res.v.Mod(x.v.Abs(x.v), y.v.Abs(y.v))
+					res.v.Neg(res.v)
+				} else {
+					res.v.Mod(x.v.Abs(x.v), y.v.Abs(y.v))
+				}
+
+				res.v = math.U256(res.v)
+			}
+		}
 	}
 
 	res.AddHistory(vm.SMOD, *pc, res.static)
@@ -184,27 +263,47 @@ func opExp(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 		return nil, err
 	}
 
-	var res *cell
-	if base.Sign() {
-		res = NewStaticCell()
-	} else {
-		res = NewCell(NotStaticIfOneNotStatic(base, exponent))
+	if exponent.static && exponent.IsValue() {
+		cmpToOne := exponent.v.Cmp(big.NewInt(1))
+
+		if cmpToOne <= 0 {
+			if cmpToOne < 0 { // Exponent is zero
+				// x ^ 0 == 1
+				base.v = big.NewInt(1)
+				base.static = true
+			}
+			/*
+				// nothing to do if cmpToOne == 0
+				if cmpToOne == 0 { // Exponent is one
+					// x ^ 1 == x
+				}
+			*/
+
+			base.AddHistory(vm.EXP, *pc, base.static)
+			stack.push(base)
+			return nil, nil
+		}
 	}
 
-	/*
-		//fixme skipped until we dont calculate exact values on stack
-		// some shortcuts
-		cmpToOne := exponent.Cmp(big1)
-		if cmpToOne < 0 { // Exponent is zero
-			// x ^ 0 == 1
-			stack.push(base.SetUint64(1))
-		} else if cmpToOne == 0 { // Exponent is one
-			// x ^ 1 == x
-			stack.push(base)
-		} else {
-			stack.push(math.Exp(base, exponent))
-		}
-	*/
+	baseSign := base.Sign()
+	if baseSign != nil && *baseSign == 0 {
+		// 0 ^ y, if y != 0, == 0
+		base.v = big.NewInt(0)
+		base.static = true
+
+		base.AddHistory(vm.EXP, *pc, base.static)
+		stack.push(base)
+
+		return nil, nil
+	}
+
+	res := NewNonStaticCell()
+
+	exponentSign := exponent.Sign()
+	if exponentSign != nil && baseSign != nil {
+		res.v = math.Exp(base.v, exponent.v)
+		res.static = true
+	}
 
 	res.AddHistory(vm.EXP, *pc, res.static)
 	stack.push(res)
@@ -212,38 +311,64 @@ func opExp(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 	return nil, nil
 }
 
-// fixme: isStatic depends on code and data
-func opSignExtend(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	/*
-		back := stack.pop()
-		if back.Cmp(big.NewInt(31)) < 0 {
-			bit := uint(back.Uint64()*8 + 7)
-			num := stack.pop()
-			mask := back.Lsh(common.Big1, bit)
-			mask.Sub(mask, common.Big1)
-			if num.Bit(int(bit)) > 0 {
-				num.Or(num, mask.Not(mask))
-			} else {
-				num.And(num, mask)
-			}
-
-			stack.push(math.U256(num))
-		}
-	*/
-
-	_, err := stack.pop()
+func opSignExtend(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+	back, err := stack.pop()
 	if err != nil {
 		return nil, err
 	}
+
+	// fixme it might be that we should push a NonStatic value in else branch
+	if back.static && back.IsValue() && back.v.Cmp(big.NewInt(31)) < 0 {
+		num, err := stack.pop()
+		if err != nil {
+			return nil, err
+		}
+
+		if !num.static || !num.IsValue() {
+			num.static = false
+			num.v = nil
+		} else {
+			bit := uint(back.v.Uint64()*8 + 7)
+
+			mask := back.v.Lsh(common.Big1, bit)
+			mask.Sub(mask, common.Big1)
+			if num.v.Bit(int(bit)) > 0 {
+				num.v.Or(num.v, mask.Not(mask))
+			} else {
+				num.v.And(num.v, mask)
+			}
+
+			num.v = math.U256(num.v)
+			num.static = true
+		}
+
+		num.AddHistory(vm.EXP, *pc, num.static)
+		stack.push(num)
+	}
+
 	return nil, nil
 }
 
-func opNot(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, _ *Stack) ([]byte, error) {
+func opNot(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+	x, err := stack.peek()
+	if err != nil {
+		return nil, err
+	}
+
+	if x.static && x.IsValue() {
+		math.U256(x.v.Not(x.v))
+	} else {
+		x.static = false
+		x.v = nil
+	}
+
+	x.AddHistory(vm.EXP, *pc, x.static)
+
 	return nil, nil
 }
 
 func opLt(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	_, err := stack.pop()
+	x, err := stack.pop()
 	if err != nil {
 		return nil, err
 	}
@@ -252,14 +377,27 @@ func opLt(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *St
 	if err != nil {
 		return nil, err
 	}
-	y.static = true
+
+	if x.static && x.IsValue() && y.static && y.IsValue() {
+		if x.v.Cmp(y.v) < 0 {
+			y.v = big.NewInt(1)
+		} else {
+			y.v = big.NewInt(0)
+		}
+
+		y.static = true
+	} else {
+		y.static = false
+		y.v = nil
+	}
+
 	y.AddHistory(vm.LT, *pc, y.static)
 
 	return nil, nil
 }
 
 func opGt(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	_, err := stack.pop()
+	x, err := stack.pop()
 	if err != nil {
 		return nil, err
 	}
@@ -268,14 +406,27 @@ func opGt(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *St
 	if err != nil {
 		return nil, err
 	}
-	y.static = true
-	y.AddHistory(vm.LT, *pc, y.static)
+
+	if x.static && x.IsValue() && y.static && y.IsValue() {
+		if x.v.Cmp(y.v) < 0 {
+			y.v = big.NewInt(1)
+		} else {
+			y.v = big.NewInt(0)
+		}
+
+		y.static = true
+	} else {
+		y.static = false
+		y.v = nil
+	}
+
+	y.AddHistory(vm.GT, *pc, y.static)
 
 	return nil, nil
 }
 
 func opSlt(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	_, err := stack.pop()
+	x, err := stack.pop()
 	if err != nil {
 		return nil, err
 	}
@@ -285,14 +436,38 @@ func opSlt(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 		return nil, err
 	}
 
-	y.static = true
+	if x.static && x.IsValue() && y.static && y.IsValue() {
+		xSign := x.v.Cmp(tt255)
+		ySign := y.v.Cmp(tt255)
+
+		switch {
+		case xSign >= 0 && ySign < 0:
+			y.v = big.NewInt(1)
+
+		case xSign < 0 && ySign >= 0:
+			y.v = big.NewInt(0)
+
+		default:
+			if x.v.Cmp(y.v) < 0 {
+				y.v = big.NewInt(1)
+			} else {
+				y.v = big.NewInt(0)
+			}
+		}
+
+		y.static = true
+	} else {
+		y.static = false
+		y.v = nil
+	}
+
 	y.AddHistory(vm.SLT, *pc, y.static)
 
 	return nil, nil
 }
 
 func opSgt(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	_, err := stack.pop()
+	x, err := stack.pop()
 	if err != nil {
 		return nil, err
 	}
@@ -302,14 +477,38 @@ func opSgt(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 		return nil, err
 	}
 
-	y.static = true
+	if x.static && x.IsValue() && y.static && y.IsValue() {
+		xSign := x.v.Cmp(tt255)
+		ySign := y.v.Cmp(tt255)
+
+		switch {
+		case xSign >= 0 && ySign < 0:
+			y.v = big.NewInt(0)
+
+		case xSign < 0 && ySign >= 0:
+			y.v = big.NewInt(1)
+
+		default:
+			if x.v.Cmp(y.v) > 0 {
+				y.v = big.NewInt(1)
+			} else {
+				y.v = big.NewInt(0)
+			}
+		}
+
+		y.static = true
+	} else {
+		y.static = false
+		y.v = nil
+	}
+
 	y.AddHistory(vm.SGT, *pc, y.static)
 
 	return nil, nil
 }
 
 func opEq(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	_, err := stack.pop()
+	x, err := stack.pop()
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +518,19 @@ func opEq(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *St
 		return nil, err
 	}
 
-	y.static = true
+	if x.static && x.IsValue() && y.static && y.IsValue() {
+		if x.v.Cmp(y.v) == 0 {
+			y.v = big.NewInt(1)
+		} else {
+			y.v = big.NewInt(0)
+		}
+
+		y.static = true
+	} else {
+		y.static = false
+		y.v = nil
+	}
+
 	y.AddHistory(vm.EQ, *pc, y.static)
 
 	return nil, nil
@@ -331,7 +542,19 @@ func opIszero(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack
 		return nil, err
 	}
 
-	x.static = true
+	if x.static && x.IsValue() {
+		if x.v.Sign() > 0 {
+			x.v = big.NewInt(0)
+		} else {
+			x.v = big.NewInt(1)
+		}
+
+		x.static = true
+	} else {
+		x.static = false
+		x.v = nil
+	}
+
 	x.AddHistory(vm.ISZERO, *pc, x.static)
 
 	return nil, nil
@@ -348,6 +571,12 @@ func opAnd(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 	}
 
 	x.static = NotStaticIfOneNotStatic(x, y)
+	if x.static {
+		x.v = x.v.And(x.v, y.v)
+	} else {
+		x.v = nil
+	}
+
 	x.AddHistory(vm.AND, *pc, x.static)
 	stack.push(x)
 
@@ -366,8 +595,14 @@ func opOr(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *St
 	}
 
 	y.static = NotStaticIfOneNotStatic(x, y)
+
+	if y.static {
+		y.v.Or(x.v, y.v)
+	} else {
+		y.v = nil
+	}
+
 	y.AddHistory(vm.OR, *pc, y.static)
-	stack.push(y)
 
 	return nil, nil
 }
@@ -384,8 +619,14 @@ func opXor(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 	}
 
 	y.static = NotStaticIfOneNotStatic(x, y)
+
+	if y.static {
+		y.v.Xor(x.v, y.v)
+	} else {
+		y.v = nil
+	}
+
 	y.AddHistory(vm.XOR, *pc, y.static)
-	stack.push(y)
 
 	return nil, nil
 }
@@ -400,17 +641,26 @@ func opByte(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *
 		return nil, err
 	}
 
-	val.static = NotStaticIfOneNotStatic(th, val) // it could be TRUE, but let's decide a bit more strict
-	val.AddHistory(vm.BYTE, *pc, val.static)
-
-	/*
-		if th.Cmp(common.Big32) < 0 {
-			b := math.Byte(val, 32, int(th.Int64()))
-			val.SetUint64(uint64(b))
+	if th.static && th.IsValue() {
+		if th.v.Cmp(common.Big32) < 0 {
+			if val.static && val.IsValue() {
+				b := math.Byte(val.v, 32, int(th.v.Int64()))
+				val.v = big.NewInt(0).SetUint64(uint64(b))
+				val.static = true
+			} else {
+				val.v = nil
+				val.static = false
+			}
 		} else {
-			val.SetUint64(0)
+			val.v = big.NewInt(0)
+			val.static = true
 		}
-	*/
+	} else {
+		val.v = nil
+		val.static = false
+	}
+
+	val.AddHistory(vm.BYTE, *pc, val.static)
 
 	return nil, nil
 }
@@ -429,7 +679,25 @@ func opAddmod(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack
 		return nil, err
 	}
 
-	x.static = NotStaticIfOneNotStatic(x, y, z) // it could be (x, z), but let's decide a bit more strict
+	if z.static && z.IsValue() {
+		if z.v.Cmp(bigZero) > 0 {
+			if x.static && x.IsValue() && y.static && y.IsValue() {
+				x.v.Add(x.v, y.v)
+				x.v.Mod(x.v, z.v)
+				x.static = true
+			} else {
+				x.v = nil
+				x.static = false
+			}
+		} else {
+			x.v = big.NewInt(0)
+			x.static = true
+		}
+	} else {
+		x.v = nil
+		x.static = false
+	}
+
 	x.AddHistory(vm.ADDMOD, *pc, x.static)
 	stack.push(x)
 
@@ -450,7 +718,25 @@ func opMulmod(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack
 		return nil, err
 	}
 
-	x.static = NotStaticIfOneNotStatic(x, y, z) // it could be (x, z), but let's decide a bit more strict
+	if z.static && z.IsValue() {
+		if z.v.Cmp(bigZero) > 0 {
+			if x.static && x.IsValue() && y.static && y.IsValue() {
+				x.v.Mul(x.v, y.v)
+				x.v.Mod(x.v, z.v)
+				x.static = true
+			} else {
+				x.v = nil
+				x.static = false
+			}
+		} else {
+			x.v = big.NewInt(0)
+			x.static = true
+		}
+	} else {
+		x.v = nil
+		x.static = false
+	}
+
 	x.AddHistory(vm.MULMOD, *pc, x.static)
 	stack.push(x)
 
@@ -471,7 +757,32 @@ func opSHL(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 		return nil, err
 	}
 
-	value.static = NotStaticIfOneNotStatic(shift, value) // it could be SAME, but let's decide a bit more strict
+	if shift.static && shift.IsValue() {
+		math.U256(shift.v)
+	}
+	if value.static && value.IsValue() {
+		math.U256(value.v)
+	}
+
+	if shift.static && shift.IsValue() {
+		if shift.v.Cmp(common.Big256) >= 0 {
+			value.v = big.NewInt(0)
+			value.static = true
+		} else {
+			if value.static && value.IsValue() {
+				n := uint(shift.v.Uint64())
+				math.U256(value.v.Lsh(value.v, n))
+				value.static = true
+			} else {
+				value.v = nil
+				value.static = false
+			}
+		}
+	} else {
+		value.v = nil
+		value.static = false
+	}
+
 	value.AddHistory(vm.SHL, *pc, value.static)
 
 	return nil, nil
@@ -491,7 +802,32 @@ func opSHR(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 		return nil, err
 	}
 
-	value.static = NotStaticIfOneNotStatic(shift, value) // it could be SAME, but let's decide a bit more strict
+	if shift.static && shift.IsValue() {
+		math.U256(shift.v)
+	}
+	if value.static && value.IsValue() {
+		math.U256(value.v)
+	}
+
+	if shift.static && shift.IsValue() {
+		if shift.v.Cmp(common.Big256) >= 0 {
+			value.v = big.NewInt(0)
+			value.static = true
+		} else {
+			if value.static && value.IsValue() {
+				n := uint(shift.v.Uint64())
+				math.U256(value.v.Rsh(value.v, n))
+				value.static = true
+			} else {
+				value.v = nil
+				value.static = false
+			}
+		}
+	} else {
+		value.v = nil
+		value.static = false
+	}
+
 	value.AddHistory(vm.SHR, *pc, value.static)
 
 	return nil, nil
@@ -501,7 +837,6 @@ func opSHR(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 // The SAR instruction (arithmetic shift right) pops 2 values from the stack, first arg1 and then arg2,
 // and pushes on the stack arg2 shifted to the right by arg1 number of bits with sign extension.
 func opSAR(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	// Note, S256 returns (potentially) a new bigint, so we're popping, not peeking this one
 	shift, err := stack.pop()
 	if err != nil {
 		return nil, err
@@ -511,8 +846,34 @@ func opSAR(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 		return nil, err
 	}
 
-	value.static = NotStaticIfOneNotStatic(shift, value) // it could be SAME, but let's decide a bit more strict
+	if shift.static && shift.IsValue() {
+		math.U256(shift.v)
+	}
+	if value.static && value.IsValue() {
+		math.U256(value.v)
+	}
+
+	if shift.static && shift.IsValue() && value.static && value.IsValue() {
+		if shift.v.Cmp(common.Big256) >= 0 {
+			if value.v.Sign() >= 0 {
+				value.v = big.NewInt(0)
+			} else {
+				value.v.SetInt64(-1)
+			}
+		} else {
+			n := uint(shift.v.Uint64())
+			value.v.Rsh(value.v, n)
+		}
+
+		math.U256(value.v)
+		value.static = true
+	} else {
+		value.v = nil
+		value.static = false
+	}
+
 	value.AddHistory(vm.SAR, *pc, value.static)
+
 	stack.push(value)
 
 	return nil, nil
@@ -535,8 +896,9 @@ func opSha3(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *
 	return nil, nil
 }
 
-func opAddress(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+func opAddress(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	value := NewStaticCell()
+	value.v = big.NewInt(0).SetBytes(contract.CodeAddr.Bytes())
 	value.AddHistory(vm.ADDRESS, *pc, value.static)
 
 	stack.push(value)
@@ -549,6 +911,7 @@ func opBalance(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stac
 		return nil, err
 	}
 	slot.static = false
+	slot.v = nil
 	slot.AddHistory(vm.BALANCE, *pc, slot.static)
 
 	return nil, nil
@@ -646,7 +1009,9 @@ func opExtCodeSize(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, 
 
 	if slot.IsStatic() {
 		slot.static = true
+		// fixme we can set value here if we get extContract by address
 	} else {
+		slot.v = nil
 		slot.static = false
 	}
 	slot.AddHistory(vm.EXTCODECOPY, *pc, slot.static)
@@ -656,6 +1021,7 @@ func opExtCodeSize(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, 
 
 func opCodeSize(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	value := NewStaticCell()
+	// fixme we can set value here if we get the contract untrimmed code size
 	value.AddHistory(vm.CODESIZE, *pc, value.static)
 	stack.push(value)
 
@@ -732,11 +1098,22 @@ func opExtCodeHash(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, 
 		return nil, err
 	}
 
-	if slot.IsStatic() {
+	if slot.static && slot.IsValue() {
+		slot.v = nil
 		slot.static = true
+		/*
+		address := common.BigToAddress(slot.v)
+		if interpreter.evm.IntraBlockState.Empty(address) {
+			slot = big.NewInt(0)
+		} else {
+			slot.SetBytes(interpreter.evm.IntraBlockState.GetCodeHash(address).Bytes())
+		}
+		*/
 	} else {
+		slot.v = nil
 		slot.static = false
 	}
+
 	slot.AddHistory(vm.EXTCODEHASH, *pc, slot.static)
 
 	return nil, nil
@@ -755,7 +1132,8 @@ func opBlockhash(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, st
 		return nil, err
 	}
 
-	if slot.IsStatic() {
+	if slot.IsStatic() && slot.IsValue() {
+		slot.v = nil
 		slot.static = true
 	} else {
 		slot.static = false
@@ -852,7 +1230,7 @@ func opSload(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack 
 		return nil, err
 	}
 
-	loc.static = false // fixme: not true if we introduce memory type
+	loc = NewNonStaticCell() // fixme: not true if we introduce memory type
 	loc.AddHistory(vm.SLOAD, *pc, loc.static)
 
 	return nil, nil
@@ -878,9 +1256,9 @@ func opJump(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory, 
 	}
 
 	/*
-	if pos.static {
-		fmt.Printf("jumpiT: on %x to %v\nValue history %v\n", *pc, pos.v, pos.History())
-	}
+		if pos.static {
+			fmt.Printf("jumpiT: on %x to %v\nValue history %v\n", *pc, pos.v, pos.History())
+		}
 	*/
 
 	if !pos.static {
@@ -909,9 +1287,9 @@ func opJumpi(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory,
 	}
 
 	/*
-	if pos.static {
-		fmt.Printf("jumpiT: on %x to %v\nValue history %v\n", *pc, pos.v, pos.History())
-	}
+		if pos.static {
+			fmt.Printf("jumpiT: on %x to %v\nValue history %v\n", *pc, pos.v, pos.History())
+		}
 	*/
 
 	if cond.v.Sign() != 0 {
@@ -944,9 +1322,9 @@ func opJumpiJUMP(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Mem
 	}
 
 	/*
-	if pos.static {
-		fmt.Printf("jumpiT: on %x to %v\nValue history %v\n", *pc, pos.v, pos.History())
-	}
+		if pos.static {
+			fmt.Printf("jumpiT: on %x to %v\nValue history %v\n", *pc, pos.v, pos.History())
+		}
 	*/
 
 	if !pos.static {
@@ -986,8 +1364,11 @@ func opJumpdest(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stac
 
 func opPc(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	value := NewStaticCell()
+	value.v = big.NewInt(0).SetUint64(*pc)
+
 	value.AddHistory(vm.PC, *pc, value.static)
 	stack.push(value)
+
 	return nil, nil
 }
 
@@ -1273,9 +1654,12 @@ func opPush1(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory,
 	c.AddHistory(vm.PUSH1, *pc, c.static)
 
 	if *pc < codeLen {
-		c.SetValue(integer.SetUint64(uint64(contract.Code[*pc])))
+		integer = big.NewInt(0).SetUint64(uint64(contract.Code[*pc]))
+
+		c.SetValue(integer)
 	} else {
-		c.SetValue(integer.SetUint64(0))
+		integer = big.NewInt(0)
+		c.SetValue(integer)
 	}
 
 	stack.push(c)
@@ -1300,7 +1684,6 @@ func makePush(size uint64, pushByteSize int) executionFunc {
 
 		integer := big.NewInt(0)
 		integer.SetBytes(common.RightPadBytes(contract.Code[startMin:endMin], pushByteSize))
-
 
 		c := NewStaticCell()
 		c.SetValue(integer)

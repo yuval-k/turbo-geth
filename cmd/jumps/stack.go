@@ -63,13 +63,12 @@ func (c cell) IsValue() bool {
 	return c.v != nil
 }
 
-func (c cell) Sign() bool {
+func (c cell) Sign() *int {
 	if c.static && c.IsValue() {
-		if c.v.Sign() == 0 {
-			return true
-		}
+		res := c.v.Sign()
+		return &res
 	}
-	return false
+	return nil
 }
 
 func (c cell) Equals(n *big.Int) bool {

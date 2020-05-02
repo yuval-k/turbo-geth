@@ -7,6 +7,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/core/asm"
 	"github.com/ledgerwatch/turbo-geth/core/vm"
 )
@@ -222,8 +223,9 @@ var ErrMaxJumps = errors.New("max jumps or recursion")
 
 const maxJumps = 1000 // works the same as 1_000_000
 
-func NewContractRunner(code []byte, debug bool) *ContractRunner {
+func NewContractRunner(code []byte, codeAddress common.Address, debug bool) *ContractRunner {
 	contract := NewContract(code)
+	contract.CodeAddr = &codeAddress
 
 	jumpis := codeOpCodesPositions(code, vm.JUMPI)
 
@@ -298,7 +300,7 @@ pathsLoop:
 		jumpiIdx := -1
 		onThePath := true
 
-		innerCtx, innerCancel := context.WithTimeout(context.Background(), time.Second)
+		innerCtx, innerCancel := context.WithTimeout(context.Background(), 3*time.Second)
 
 		var lastDestPC uint64
 

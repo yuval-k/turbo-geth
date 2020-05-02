@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -271,22 +273,33 @@ func (p *processor) jumpsPaths() {
 	res := struct {
 		*sync.RWMutex
 
-		static    map[common.Hash]struct{}
-		notstatic map[common.Hash]struct{}
+		static    map[common.Address]struct{}
+		notstatic map[common.Address]struct{}
 
-		errJump         map[common.Hash]struct{}
-		novalueStatic   map[common.Hash]struct{}
-		errTooManyJumps map[common.Hash]struct{}
-		timeout         map[common.Hash]struct{}
+		errJump         map[common.Address]struct{}
+		novalueStatic   map[common.Address]struct{}
+		errTooManyJumps map[common.Address]struct{}
+		timeout         map[common.Address]struct{}
 	}{
 		RWMutex:   new(sync.RWMutex),
-		static:    make(map[common.Hash]struct{}, 200_000),
-		notstatic: make(map[common.Hash]struct{}, 2_000),
+		static:    make(map[common.Address]struct{}, 200_000),
+		notstatic: make(map[common.Address]struct{}, 2_000),
 
-		errJump:       make(map[common.Hash]struct{}, 1_000),
-		novalueStatic: make(map[common.Hash]struct{}, 1_000),
-		timeout:       make(map[common.Hash]struct{}, 1_000),
+		errJump:       make(map[common.Address]struct{}, 1_000),
+		novalueStatic: make(map[common.Address]struct{}, 1_000),
+		timeout:       make(map[common.Address]struct{}, 1_000),
 	}
+
+	SetSignalsHandler(func() {
+		fmt.Println("done contracts", atomic.LoadUint64(i))
+
+		fmt.Println("static contracts", len(res.static))
+		fmt.Println("notstatic contracts", len(res.notstatic))
+		fmt.Println("errJump contracts", len(res.errJump))
+		fmt.Println("novalueStatic contracts", len(res.novalueStatic))
+		fmt.Println("errTooManyJumps contracts", len(res.errTooManyJumps))
+		fmt.Println("timeout contracts", len(res.timeout))
+	})
 
 	type job struct {
 		fn   func(ctx context.Context, k, v []byte) error
@@ -304,11 +317,11 @@ func (p *processor) jumpsPaths() {
 			for jb := range ch {
 
 				done := atomic.AddUint64(i, 1)
-				if done%10000 == 0 {
+				if done%100 == 0 {
 					fmt.Println("done", done)
 				}
 
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 				jb.fn(ctx, jb.k, jb.v)
 				cancel()
 			}
@@ -333,8 +346,8 @@ func (p *processor) jumpsPaths() {
 	err = db.Walk(dbutils.CodeBucket, make([]byte, 32), 0, func(key, value []byte) (bool, error) {
 		ch <- job{
 			fn: func(ctx context.Context, k, v []byte) error {
-				codeAddress := common.BytesToHash(k)
-				runner := static.NewContractRunner(v, debug)
+				codeAddress := common.BytesToAddress(k)
+				runner := static.NewContractRunner(v, codeAddress, debug)
 
 				pathsDone, err := runner.Run(ctx)
 				//fmt.Println(codeAddress.String(), "end")
@@ -393,15 +406,6 @@ func (p *processor) jumpsPaths() {
 	}
 
 	wg.Wait()
-
-	fmt.Println("done contracts", atomic.LoadUint64(i))
-
-	fmt.Println("static contracts", len(res.static))
-	fmt.Println("notstatic contracts", len(res.notstatic))
-	fmt.Println("errJump contracts", len(res.errJump))
-	fmt.Println("novalueStatic contracts", len(res.novalueStatic))
-	fmt.Println("errTooManyJumps contracts", len(res.errTooManyJumps))
-	fmt.Println("timeout contracts", len(res.timeout))
 }
 
 func (p *processor) getJumpDests(code []byte) (map[uint64]struct{}, uint64, map[uint64]struct{}, error) {
@@ -570,7 +574,7 @@ func (p *processor) cleanupBeggining() *processor {
 	storageErr := NewToPut(dbutils.CodeBucket, BunchSize, dbErr)
 	err := db.Walk(dbutils.CodeBucket, make([]byte, 32), 0, func(k, v []byte) (bool, error) {
 		i++
-		if i%10000 == 0 {
+		if i%1000 == 0 {
 			fmt.Printf("done %d, fail %d, succ %d\n", i, errCount, correct)
 		}
 
@@ -1147,4 +1151,15 @@ func (p *toPut) Flush() error {
 	p.idx = 0
 	p.isEmpty = true
 	return nil
+}
+
+func SetSignalsHandler(fn func()) {
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM, os.Kill, syscall.SIGKILL)
+	go func() {
+		<-c
+		fmt.Println("INTERRUPTED!!!")
+		fn()
+		os.Exit(0)
+	}()
 }
