@@ -304,7 +304,7 @@ func (p *processor) jumpsPaths() {
 			for jb := range ch {
 
 				done := atomic.AddUint64(i, 1)
-				if done%100 == 0 {
+				if done%10000 == 0 {
 					fmt.Println("done", done)
 				}
 
@@ -394,7 +394,7 @@ func (p *processor) jumpsPaths() {
 
 	wg.Wait()
 
-	fmt.Println("done contracts", i)
+	fmt.Println("done contracts", atomic.LoadUint64(i))
 
 	fmt.Println("static contracts", len(res.static))
 	fmt.Println("notstatic contracts", len(res.notstatic))
@@ -402,8 +402,6 @@ func (p *processor) jumpsPaths() {
 	fmt.Println("novalueStatic contracts", len(res.novalueStatic))
 	fmt.Println("errTooManyJumps contracts", len(res.errTooManyJumps))
 	fmt.Println("timeout contracts", len(res.timeout))
-
-	//spew.Dump(res)
 }
 
 func (p *processor) getJumpDests(code []byte) (map[uint64]struct{}, uint64, map[uint64]struct{}, error) {

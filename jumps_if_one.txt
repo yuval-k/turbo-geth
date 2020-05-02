@@ -1,0 +1,29 @@
+jumpsPaths started. From "/mnt/sdb/contract_codes_cleanupBeggining_trimMetadata_cleanupErrors" to ""
+done 10000
+done 20000
+done 30000
+done 40000
+done 50000
+done 60000
+done 70000
+done 80000
+done 90000
+done 100000
+done 110000
+done 120000
+done 130000
+done 140000
+done 150000
+done 160000
+done 170000
+done 180000
+done 190000
+done 200000
+done contracts 206080
+static contracts 149858
+notstatic contracts 0
+errJump contracts 9787
+novalueStatic contracts 53200
+errTooManyJumps contracts 0
+timeout contracts 3022
+jumpsPaths finished

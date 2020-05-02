@@ -616,7 +616,7 @@ func opCallDataCopy(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, 
 func opReturnDataSize(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	value := NewNonStaticCell()
 	value.AddHistory(vm.RETURNDATASIZE, *pc, value.static)
-	stack.push(NewNonStaticCell()) // fixme: stricter than it could be
+	stack.push(value) // fixme: stricter than it could be
 
 	return nil, nil
 }
@@ -644,7 +644,7 @@ func opExtCodeSize(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, 
 		return nil, err
 	}
 
-	if slot.IsStatic() && slot.IsValue() {
+	if slot.IsStatic() {
 		slot.static = true
 	} else {
 		slot.static = false
@@ -732,7 +732,7 @@ func opExtCodeHash(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, 
 		return nil, err
 	}
 
-	if slot.IsStatic() && slot.IsValue() {
+	if slot.IsStatic() {
 		slot.static = true
 	} else {
 		slot.static = false
@@ -755,7 +755,7 @@ func opBlockhash(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, st
 		return nil, err
 	}
 
-	if slot.IsStatic() && slot.IsValue() {
+	if slot.IsStatic() {
 		slot.static = true
 	} else {
 		slot.static = false
@@ -883,8 +883,11 @@ func opJump(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory, 
 	}
 	*/
 
-	if !pos.static || !pos.IsValue() {
-		return nil, fmt.Errorf("opJump: %w on %v\nValue history %v\n", ErrNonStatic, spew.Sdump(pc), pos.History())
+	if !pos.static {
+		return nil, fmt.Errorf("opJumpi: %w on %v\nValue history %v\n", ErrNonStatic, spew.Sdump(pc), pos.History())
+	}
+	if pos.static && !pos.IsValue() {
+		return nil, fmt.Errorf("jumpi: %w on %v\nValue history %v\n", ErrNoValueStatic, spew.Sdump(pc), pos.History())
 	}
 	if !contract.validJumpdest(pos.v) {
 		return nil, fmt.Errorf("%w on %v\nValue history %v\n", ErrInvalidJump, spew.Sdump(pc), pos.History())
@@ -950,7 +953,7 @@ func opJumpiJUMP(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Mem
 		return nil, fmt.Errorf("opJumpiJUMP: %w on %v\nValue history %v\n", ErrNonStatic, spew.Sdump(pc), pos.History())
 	}
 	if pos.static && !pos.IsValue() {
-		return nil, fmt.Errorf("jumpi: %w on %v. jump to %x\nValue history %v\n", ErrNoValueStatic, spew.Sdump(pc), pos.v.Uint64(), pos.History())
+		return nil, fmt.Errorf("jumpi: %w on %v. jump to %v\nValue history %v\n", ErrNoValueStatic, spew.Sdump(pc), pos.v, pos.History())
 	}
 
 	if !contract.validJumpdest(pos.v) {
@@ -1049,7 +1052,6 @@ func opCreate2(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stac
 }
 
 func opCall(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
-	// Pop gas. The actual gas in interpreter.evm.callGasTemp.
 	_, err := stack.pop()
 	if err != nil {
 		return nil, err
@@ -1258,8 +1260,6 @@ func makeLog(size int) executionFunc {
 		return nil, nil
 	}
 }
-
-// var PushDest = make(map[uint64]struct{})
 
 // opPush1 is a specialized version of pushN
 func opPush1(pc *uint64, _ *vm.EVMInterpreter, contract *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {

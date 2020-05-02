@@ -1,0 +1,4 @@
+jumpsPaths started. From "/mnt/sdb/contract_codes_cleanupBeggining_trimMetadata_cleanupErrors" to ""
+done 10000
+done 20000
+signal: interrupt
