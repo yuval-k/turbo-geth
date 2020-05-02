@@ -1,2 +1,16 @@
 jumpsPaths started. From "/mnt/sdb/contract_codes_cleanupBeggining_trimMetadata_cleanupErrors" to ""
 done 100
+done 200
+done 300
+done 400
+done 500
+done 600
+done 700
+done 800
+done 900
+done 1000
+done 1100
+done 1200
+done 1300
+done 1400
+done 1500

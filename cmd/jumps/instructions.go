@@ -96,8 +96,8 @@ func opMul(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 
 	x.static = NotStaticIfOneNotStatic(x, y)
 
-	if x.static && y.IsValue() && x.IsValue() {
-		x.v = math.U256(x.v.Mul(x.v, y.v))
+	if x.static && x.IsValue() && y.IsValue() {
+		math.U256(x.v.Mul(x.v, y.v))
 	} else {
 		x.v = nil
 	}
@@ -358,8 +358,8 @@ func opNot(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 	if x.static && x.IsValue() {
 		math.U256(x.v.Not(x.v))
 	} else {
-		x.static = false
 		x.v = nil
+		x.static = false
 	}
 
 	x.AddHistory(vm.EXP, *pc, x.static)
@@ -387,8 +387,8 @@ func opLt(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *St
 
 		y.static = true
 	} else {
-		y.static = false
 		y.v = nil
+		y.static = false
 	}
 
 	y.AddHistory(vm.LT, *pc, y.static)
@@ -416,8 +416,8 @@ func opGt(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *St
 
 		y.static = true
 	} else {
-		y.static = false
 		y.v = nil
+		y.static = false
 	}
 
 	y.AddHistory(vm.GT, *pc, y.static)
@@ -457,8 +457,8 @@ func opSlt(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 
 		y.static = true
 	} else {
-		y.static = false
 		y.v = nil
+		y.static = false
 	}
 
 	y.AddHistory(vm.SLT, *pc, y.static)
@@ -498,8 +498,8 @@ func opSgt(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 
 		y.static = true
 	} else {
-		y.static = false
 		y.v = nil
+		y.static = false
 	}
 
 	y.AddHistory(vm.SGT, *pc, y.static)
@@ -527,8 +527,8 @@ func opEq(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *St
 
 		y.static = true
 	} else {
-		y.static = false
 		y.v = nil
+		y.static = false
 	}
 
 	y.AddHistory(vm.EQ, *pc, y.static)
@@ -551,8 +551,8 @@ func opIszero(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack
 
 		x.static = true
 	} else {
-		x.static = false
 		x.v = nil
+		x.static = false
 	}
 
 	x.AddHistory(vm.ISZERO, *pc, x.static)
@@ -571,7 +571,7 @@ func opAnd(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 	}
 
 	x.static = NotStaticIfOneNotStatic(x, y)
-	if x.static {
+	if x.static && x.IsValue() && y.static && y.IsValue() {
 		x.v = x.v.And(x.v, y.v)
 	} else {
 		x.v = nil
@@ -596,7 +596,7 @@ func opOr(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *St
 
 	y.static = NotStaticIfOneNotStatic(x, y)
 
-	if y.static {
+	if y.static && y.IsValue() && x.static && x.IsValue() {
 		y.v.Or(x.v, y.v)
 	} else {
 		y.v = nil
@@ -620,7 +620,7 @@ func opXor(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *S
 
 	y.static = NotStaticIfOneNotStatic(x, y)
 
-	if y.static {
+	if y.static && y.IsValue() && x.static && x.IsValue() {
 		y.v.Xor(x.v, y.v)
 	} else {
 		y.v = nil
@@ -910,8 +910,8 @@ func opBalance(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stac
 	if err != nil {
 		return nil, err
 	}
-	slot.static = false
 	slot.v = nil
+	slot.static = false
 	slot.AddHistory(vm.BALANCE, *pc, slot.static)
 
 	return nil, nil
