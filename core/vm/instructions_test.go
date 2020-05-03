@@ -93,15 +93,15 @@ func testTwoOperandOp(t *testing.T, tests []TwoOperandTestcase, opFn executionFu
 
 	var (
 		env            = NewEVM(Context{}, nil, params.TestChainConfig, Config{})
-		stack          = newstack()
+		stack          = NewStack(0)
 		pc             = uint64(0)
 		evmInterpreter = env.interpreter.(*EVMInterpreter)
 	)
 	// Stuff a couple of nonzero bigints into pool, to ensure that ops do not rely on pooled integers to be zero
-	evmInterpreter.intPool = poolOfIntPools.get()
-	evmInterpreter.intPool.put(big.NewInt(-1337))
-	evmInterpreter.intPool.put(big.NewInt(-1337))
-	evmInterpreter.intPool.put(big.NewInt(-1337))
+	evmInterpreter.IntPool = PoolOfIntPools.Get()
+	evmInterpreter.IntPool.Put(big.NewInt(-1337))
+	evmInterpreter.IntPool.Put(big.NewInt(-1337))
+	evmInterpreter.IntPool.Put(big.NewInt(-1337))
 
 	for i, test := range tests {
 		x := new(big.Int).SetBytes(common.Hex2Bytes(test.X))
@@ -118,13 +118,13 @@ func testTwoOperandOp(t *testing.T, tests []TwoOperandTestcase, opFn executionFu
 		// Check pool usage
 		// 1.pool is not allowed to contain anything on the stack
 		// 2.pool is not allowed to contain the same pointers twice
-		if evmInterpreter.intPool.pool.len() > 0 {
+		if evmInterpreter.IntPool.pool.len() > 0 {
 
 			poolvals := make(map[*big.Int]struct{})
 			poolvals[actual] = struct{}{}
 
-			for evmInterpreter.intPool.pool.len() > 0 {
-				key := evmInterpreter.intPool.get()
+			for evmInterpreter.IntPool.pool.len() > 0 {
+				key := evmInterpreter.IntPool.Get()
 				if _, exist := poolvals[key]; exist {
 					t.Errorf("Testcase %v %d, pool contains double-entry", name, i)
 				}
@@ -132,7 +132,7 @@ func testTwoOperandOp(t *testing.T, tests []TwoOperandTestcase, opFn executionFu
 			}
 		}
 	}
-	poolOfIntPools.put(evmInterpreter.intPool)
+	PoolOfIntPools.Put(evmInterpreter.IntPool)
 }
 
 func TestByteOp(t *testing.T) {
@@ -212,11 +212,11 @@ func TestSAR(t *testing.T) {
 func getResult(args []*twoOperandParams, opFn executionFunc) []TwoOperandTestcase {
 	var (
 		env         = NewEVM(Context{}, nil, params.TestChainConfig, Config{})
-		stack       = newstack()
+		stack       = NewStack(0)
 		pc          = uint64(0)
 		interpreter = env.interpreter.(*EVMInterpreter)
 	)
-	interpreter.intPool = poolOfIntPools.get()
+	interpreter.IntPool = PoolOfIntPools.Get()
 	result := make([]TwoOperandTestcase, len(args))
 	for i, param := range args {
 		x := new(big.Int).SetBytes(common.Hex2Bytes(param.x))
@@ -263,12 +263,12 @@ func TestJsonTestcases(t *testing.T) {
 func opBenchmark(bench *testing.B, op func(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error), args ...string) {
 	var (
 		env            = NewEVM(Context{}, nil, params.TestChainConfig, Config{})
-		stack          = newstack()
+		stack          = NewStack(0)
 		evmInterpreter = NewEVMInterpreter(env, env.vmConfig)
 	)
 
 	env.interpreter = evmInterpreter
-	evmInterpreter.intPool = poolOfIntPools.get()
+	evmInterpreter.IntPool = PoolOfIntPools.Get()
 	// convert args
 	byteArgs := make([][]byte, len(args))
 	for i, arg := range args {
@@ -284,7 +284,7 @@ func opBenchmark(bench *testing.B, op func(pc *uint64, interpreter *EVMInterpret
 		op(&pc, evmInterpreter, nil, nil, stack)
 		stack.pop()
 	}
-	poolOfIntPools.put(evmInterpreter.intPool)
+	PoolOfIntPools.Put(evmInterpreter.IntPool)
 }
 
 func BenchmarkOpAdd64(b *testing.B) {
@@ -498,13 +498,13 @@ func BenchmarkOpIsZero(b *testing.B) {
 func TestOpMstore(t *testing.T) {
 	var (
 		env            = NewEVM(Context{}, nil, params.TestChainConfig, Config{})
-		stack          = newstack()
+		stack          = NewStack(0)
 		mem            = NewMemory()
 		evmInterpreter = NewEVMInterpreter(env, env.vmConfig)
 	)
 
 	env.interpreter = evmInterpreter
-	evmInterpreter.intPool = poolOfIntPools.get()
+	evmInterpreter.IntPool = PoolOfIntPools.Get()
 	mem.Resize(64)
 	pc := uint64(0)
 	v := "abcdef00000000000000abba000000000deaf000000c0de00100000000133700"
@@ -518,19 +518,19 @@ func TestOpMstore(t *testing.T) {
 	if common.Bytes2Hex(mem.GetCopy(0, 32)) != "0000000000000000000000000000000000000000000000000000000000000001" {
 		t.Fatalf("Mstore failed to overwrite previous value")
 	}
-	poolOfIntPools.put(evmInterpreter.intPool)
+	PoolOfIntPools.Put(evmInterpreter.IntPool)
 }
 
 func BenchmarkOpMstore(bench *testing.B) {
 	var (
 		env            = NewEVM(Context{}, nil, params.TestChainConfig, Config{})
-		stack          = newstack()
+		stack          = NewStack(0)
 		mem            = NewMemory()
 		evmInterpreter = NewEVMInterpreter(env, env.vmConfig)
 	)
 
 	env.interpreter = evmInterpreter
-	evmInterpreter.intPool = poolOfIntPools.get()
+	evmInterpreter.IntPool = PoolOfIntPools.Get()
 	mem.Resize(64)
 	pc := uint64(0)
 	memStart := big.NewInt(0)
@@ -541,18 +541,18 @@ func BenchmarkOpMstore(bench *testing.B) {
 		stack.pushN(value, memStart)
 		opMstore(&pc, evmInterpreter, nil, mem, stack)
 	}
-	poolOfIntPools.put(evmInterpreter.intPool)
+	PoolOfIntPools.Put(evmInterpreter.IntPool)
 }
 
 func BenchmarkOpSHA3(bench *testing.B) {
 	var (
 		env            = NewEVM(Context{}, nil, params.TestChainConfig, Config{})
-		stack          = newstack()
+		stack          = NewStack(0)
 		mem            = NewMemory()
 		evmInterpreter = NewEVMInterpreter(env, env.vmConfig)
 	)
 	env.interpreter = evmInterpreter
-	evmInterpreter.intPool = poolOfIntPools.get()
+	evmInterpreter.IntPool = PoolOfIntPools.Get()
 	mem.Resize(32)
 	pc := uint64(0)
 	start := big.NewInt(0)
@@ -562,7 +562,7 @@ func BenchmarkOpSHA3(bench *testing.B) {
 		stack.pushN(big.NewInt(32), start)
 		opSha3(&pc, evmInterpreter, nil, mem, stack)
 	}
-	poolOfIntPools.put(evmInterpreter.intPool)
+	PoolOfIntPools.Put(evmInterpreter.IntPool)
 }
 
 func TestCreate2Addreses(t *testing.T) {
@@ -624,7 +624,7 @@ func TestCreate2Addreses(t *testing.T) {
 		codeHash := crypto.Keccak256(code)
 		address := crypto.CreateAddress2(origin, salt, codeHash)
 		/*
-			stack          := newstack()
+			stack          := NewStack(0)
 			// salt, but we don't need that for this test
 			stack.push(big.NewInt(int64(len(code)))) //size
 			stack.push(big.NewInt(0)) // memstart

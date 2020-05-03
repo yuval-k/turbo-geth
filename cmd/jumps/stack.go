@@ -27,19 +27,23 @@ import (
 var errNotEnoughStack = errors.New("not enough stack")
 
 type cell struct {
-	v      *big.Int
-	static bool
+	v       *big.Int
+	static  bool
 	history []Operation
 }
 
 type Operation struct {
-	Op vm.OpCode
-	Pc uint64
+	Op        vm.OpCode
+	Pc        uint64
 	StaticRes bool
 }
 
+const debug = false
+
 func (c *cell) AddHistory(op vm.OpCode, pc uint64, isStatic bool) *cell {
-	c.history = append(c.history, Operation{op, pc, isStatic})
+	if debug {
+		c.history = append(c.history, Operation{op, pc, isStatic})
+	}
 	return c
 }
 
@@ -86,6 +90,21 @@ func (c cell) History() []Operation {
 	return c.history
 }
 
+func (c *cell) set(n int64, interpreter *vm.EVMInterpreter) *big.Int {
+	if c.v == nil {
+		c.v = interpreter.IntPool.GetZero()
+	}
+	c.v.SetInt64(n)
+	return c.v
+}
+
+func (c *cell) unset(interpreter *vm.EVMInterpreter) {
+	if c.v != nil {
+		interpreter.IntPool.Put(c.v)
+	}
+	c.v = nil
+}
+
 type Stack struct {
 	data []*cell
 }
@@ -120,6 +139,20 @@ func (st *Stack) pop() (ret *cell, err error) {
 	st.data = st.data[:len(st.data)-1]
 
 	return
+}
+
+func (st *Stack) remove(n int, interpreter *vm.EVMInterpreter) error {
+	var c *cell
+	var err error
+	for i := 0; i < n; i++ {
+		c, err = st.pop()
+		if err != nil {
+			return err
+		}
+		interpreter.IntPool.Put(c.v)
+	}
+
+	return nil
 }
 
 func (st *Stack) len() int {

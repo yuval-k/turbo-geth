@@ -39,6 +39,7 @@ type Config struct {
 	EVMInterpreter   string // External EVM interpreter options
 
 	ExtraEips []int // Additional EIPS that are to be enabled
+	PoolSize  int
 }
 
 // Interpreter is used to run Ethereum based contracts and will utilise the
@@ -76,7 +77,7 @@ type EVMInterpreter struct {
 	evm *EVM
 	cfg Config
 
-	intPool *intPool
+	IntPool *IntPool
 
 	hasher    keccakState // Keccak256 hasher instance shared across opcodes
 	hasherBuf common.Hash // Keccak256 hasher result array shared aross opcodes
@@ -119,8 +120,9 @@ func NewEVMInterpreter(evm *EVM, cfg Config) *EVMInterpreter {
 	}
 
 	return &EVMInterpreter{
-		evm: evm,
-		cfg: cfg,
+		evm:     evm,
+		cfg:     cfg,
+		IntPool: GetPoolOfIntPools(cfg.PoolSize).Get(),
 	}
 }
 
@@ -134,13 +136,15 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	PushDest = make(map[uint64]struct{})
 	JumpDest = make(map[uint64]struct{})
 
-	if in.intPool == nil {
-		in.intPool = poolOfIntPools.get()
-		defer func() {
-			poolOfIntPools.put(in.intPool)
-			in.intPool = nil
-		}()
+	if in.IntPool == nil {
+		in.IntPool = PoolOfIntPools.Get()
 	}
+	defer func() {
+		if in.IntPool != nil {
+			PoolOfIntPools.Put(in.IntPool)
+			in.IntPool = nil
+		}
+	}()
 
 	// Increment the call depth which is restricted to 1024
 	in.evm.depth++
@@ -165,7 +169,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	var (
 		op    OpCode        // current opcode
 		mem   = NewMemory() // bound memory
-		stack = newstack()  // local stack
+		stack = NewStack(0)  // local stack
 		// For optimisation reason we're using uint64 as the program counter.
 		// It's theoretically possible to go above 2^64. The YP defines the PC
 		// to be uint256. Practically much less so feasible.
@@ -180,7 +184,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	contract.Input = input
 
 	// Reclaim the stack as an int pool when the execution stops
-	defer func() { in.intPool.put(stack.data...) }()
+	defer func() { in.IntPool.Put(stack.data...) }()
 
 	defer func() {
 		for jump := range JumpDest {
@@ -286,7 +290,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		// verifyPool is a build flag. Pool verification makes sure the integrity
 		// of the integer pool by comparing values to a default value.
 		if verifyPool {
-			verifyIntegerPool(in.intPool)
+			verifyIntegerPool(in.IntPool)
 		}
 		// if the operation clears the return data (e.g. it has returning data)
 		// set the last return to the result of the operation.
@@ -320,4 +324,15 @@ func GetJumps() (int, int) {
 // run by the current interpreter.
 func (in *EVMInterpreter) CanRun(code []byte) bool {
 	return true
+}
+
+func (in *EVMInterpreter) SetIntPool(intPoolGetter func() *IntPool) *IntPool {
+	if in.IntPool == nil {
+		in.IntPool = intPoolGetter()
+	}
+	return in.IntPool
+}
+
+func (in *EVMInterpreter) UnsetIntPool() {
+	in.IntPool = nil
 }

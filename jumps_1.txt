@@ -5,12 +5,11 @@ done 300
 done 400
 done 500
 done 600
-done 700
-done 800
-done 900
-done 1000
-done 1100
-done 1200
-done 1300
-done 1400
-done 1500
+INTERRUPTED!!!
+done contracts 635
+static contracts 579
+notstatic contracts 0
+errJump contracts 18
+novalueStatic contracts 0
+errTooManyJumps contracts 0
+timeout contracts 0

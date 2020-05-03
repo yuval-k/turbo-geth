@@ -94,9 +94,9 @@ func (p *Path) RemoveCycle() bool {
 	removedDupl := p.Deduplicate()
 
 	/*
-	if removed || removedDupl {
-		fmt.Println("!!!!!!!!!!!!!!!!!!", removed || removedDupl, removed, removedDupl)
-	}
+		if removed || removedDupl {
+			fmt.Println("!!!!!!!!!!!!!!!!!!", removed || removedDupl, removed, removedDupl)
+		}
 	*/
 
 	return removed || removedDupl
@@ -247,7 +247,7 @@ func NewContractRunner(code []byte, codeAddress common.Address, debug bool) *Con
 	}
 }
 
-func (c *ContractRunner) Run(ctx context.Context) (int, error) {
+func (c *ContractRunner) Run(ctx context.Context, poolSize int) (int, error) {
 	if len(c.Code) == 0 {
 		return 0, nil
 	}
@@ -263,6 +263,15 @@ func (c *ContractRunner) Run(ctx context.Context) (int, error) {
 	firstRun := true
 	paths := 0
 	var err error
+
+	in := &vm.EVMInterpreter{
+		IntPool: vm.GetPoolOfIntPools(poolSize).Get(),
+	}
+	pool := in.SetIntPool(vm.PoolOfIntPools.Get)
+	defer func() {
+		vm.PoolOfIntPools.Put(pool)
+		in.UnsetIntPool()
+	}()
 
 pathsLoop:
 	for {
@@ -300,7 +309,7 @@ pathsLoop:
 		jumpiIdx := -1
 		onThePath := true
 
-		innerCtx, innerCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		innerCtx, innerCancel := context.WithTimeout(context.Background(), time.Second)
 
 		var lastDestPC uint64
 
@@ -378,7 +387,7 @@ pathsLoop:
 			}
 
 			prevPc := pc
-			_, err = operation.execute(&pc, nil, c.Contract, nil, stack)
+			_, err = operation.execute(&pc, in, c.Contract, nil, stack)
 			if op != vm.JUMP && op != vm.JUMPI {
 				pc++
 			}

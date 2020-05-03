@@ -31,12 +31,12 @@ const dbPath = "/mnt/sdb/contract_codes_cleanupBeggining_trimMetadata_cleanupErr
 
 func main() {
 	/*
-	// uncomment to prepare the contracts database
-		p := &processor{from: "/mnt/sdb/contract_codes"}
-		p.cleanupBeggining().
-			trimMetadata().
-			cleanupErrors().
-			jumpsPaths()
+		// uncomment to prepare the contracts database
+			p := &processor{from: "/mnt/sdb/contract_codes"}
+			p.cleanupBeggining().
+				trimMetadata().
+				cleanupErrors().
+				jumpsPaths()
 	*/
 	p := &processor{from: dbPath}
 	p.jumpsPaths()
@@ -290,7 +290,7 @@ func (p *processor) jumpsPaths() {
 		timeout:       make(map[common.Address]struct{}, 1_000),
 	}
 
-	SetSignalsHandler(func() {
+	printFn := func() {
 		fmt.Println("done contracts", atomic.LoadUint64(i))
 
 		fmt.Println("static contracts", len(res.static))
@@ -299,63 +299,56 @@ func (p *processor) jumpsPaths() {
 		fmt.Println("novalueStatic contracts", len(res.novalueStatic))
 		fmt.Println("errTooManyJumps contracts", len(res.errTooManyJumps))
 		fmt.Println("timeout contracts", len(res.timeout))
-	})
+	}
+	defer printFn()
+	SetSignalsHandler(printFn)
 
 	type job struct {
 		fn   func(ctx context.Context, k, v []byte) error
 		k, v []byte
 	}
-	ch := make(chan job, 10000)
+	ch := make(chan job, 1000)
 
-	var numWorkers = 2*runtime.NumCPU()
+	var numWorkers = 10 * runtime.NumCPU()
 	wg := sync.WaitGroup{}
 
 	for n := 0; n < numWorkers; n++ {
 		wg.Add(1)
 
 		go func() {
-			for jb := range ch {
+			defer wg.Done()
 
+			for jb := range ch {
 				done := atomic.AddUint64(i, 1)
 				if done%100 == 0 {
 					fmt.Println("done", done)
 				}
 
-				ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+				ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 				jb.fn(ctx, jb.k, jb.v)
 				cancel()
 			}
-			defer wg.Done()
 		}()
 	}
 
-	testContracts := [][]byte{
-		{0, 0, 52, 48, 27, 92, 143, 64, 73, 215, 89, 9, 44, 209, 25, 4, 245, 137, 215, 62, 98, 131, 188, 46, 161, 226, 125, 62, 173, 184, 74, 132},        // 5
-		{0, 0, 68, 62, 128, 192, 9, 218, 248, 40, 202, 58, 152, 195, 40, 42, 3, 188, 148, 228, 49, 3, 249, 220, 123, 120, 55, 216, 123, 62, 249, 32},      // 201
-		{15, 83, 113, 94, 36, 52, 138, 104, 41, 166, 140, 58, 101, 223, 8, 20, 71, 149, 163, 216, 193, 228, 127, 125, 15, 211, 2, 134, 34, 228, 141, 182}, // 6
-
-		{0, 1, 140, 92, 146, 30, 249, 244, 87, 138, 251, 103, 93, 32, 165, 225, 9, 180, 66, 140, 16, 23, 95, 162, 74, 60, 191, 202, 149, 100, 36, 208},      // 90
-		{0, 0, 165, 215, 192, 253, 46, 213, 109, 128, 46, 84, 136, 231, 159, 200, 139, 170, 38, 65, 251, 138, 79, 165, 16, 132, 186, 47, 42, 106, 245, 124}, // 322
-		{0, 50, 69, 225, 158, 184, 55, 168, 227, 196, 43, 30, 246, 157, 69, 46, 88, 234, 22, 162, 72, 82, 76, 245, 152, 0, 231, 73, 43, 148, 207, 240},      //33
-	}
-	_ = testContracts
-
 	const debug = false
+	const poolSize = 1000
 
-	//err = db.Walk(dbutils.CodeBucket, testContracts[5], 32, func(key, value []byte) (bool, error) {
 	err = db.Walk(dbutils.CodeBucket, make([]byte, 32), 0, func(key, value []byte) (bool, error) {
 		ch <- job{
 			fn: func(ctx context.Context, k, v []byte) error {
 				codeAddress := common.BytesToAddress(k)
 				runner := static.NewContractRunner(v, codeAddress, debug)
 
-				pathsDone, err := runner.Run(ctx)
-				//fmt.Println(codeAddress.String(), "end")
+				pathsDone, err := runner.Run(ctx, poolSize)
 
 				res.Lock()
 				defer res.Unlock()
 
 				if errors.Is(err, static.ErrTimeout) {
+					// fixme
+					res.static[codeAddress] = struct{}{}
+
 					res.timeout[codeAddress] = struct{}{}
 
 					if debug {
