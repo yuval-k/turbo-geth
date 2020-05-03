@@ -318,15 +318,16 @@ func (p *processor) jumpsPaths() {
 		go func() {
 			defer wg.Done()
 
+			var done uint64
 			for jb := range ch {
-				done := atomic.AddUint64(i, 1)
-				if done%100 == 0 {
-					fmt.Println("done", done)
-				}
-
 				ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 				jb.fn(ctx, jb.k, jb.v)
 				cancel()
+
+				done = atomic.AddUint64(i, 1)
+				if done%100 == 0 {
+					fmt.Println("done", done)
+				}
 			}
 		}()
 	}
