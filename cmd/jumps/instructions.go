@@ -966,21 +966,21 @@ func opBalance(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Me
 	return nil, nil
 }
 
-func opOrigin(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+func opOrigin(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	value := NewNonStaticCell()
 	value.AddHistory(vm.ORIGIN, *pc, value.static)
 	stack.push(value)
 	return nil, nil
 }
 
-func opCaller(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+func opCaller(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	value := NewNonStaticCell()
 	value.AddHistory(vm.CALLER, *pc, value.static)
 	stack.push(value)
 	return nil, nil
 }
 
-func opCallValue(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+func opCallValue(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	value := NewNonStaticCell()
 	value.AddHistory(vm.CALLVALUE, *pc, value.static)
 	stack.push(value)
@@ -1001,7 +1001,7 @@ func opCallDataLoad(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *
 	return nil, nil
 }
 
-func opCallDataSize(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+func opCallDataSize(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	value := NewNonStaticCell()
 	value.AddHistory(vm.CALLDATASIZE, *pc, value.static)
 	stack.push(value)
@@ -1018,7 +1018,7 @@ func opCallDataCopy(_ *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *v
 	return nil, nil
 }
 
-func opReturnDataSize(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+func opReturnDataSize(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	value := NewNonStaticCell()
 	value.AddHistory(vm.RETURNDATASIZE, *pc, value.static)
 	stack.push(value) // fixme: stricter than it could be
@@ -1053,7 +1053,7 @@ func opExtCodeSize(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *v
 	return nil, nil
 }
 
-func opCodeSize(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+func opCodeSize(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	value := NewStaticCell()
 	// fixme we can set value here if we get the contract untrimmed code size
 	value.AddHistory(vm.CODESIZE, *pc, value.static)
@@ -1133,7 +1133,7 @@ func opExtCodeHash(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *v
 	return nil, nil
 }
 
-func opGasprice(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+func opGasprice(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	value := NewNonStaticCell()
 	value.AddHistory(vm.GASPRICE, *pc, value.static)
 	stack.push(value)
@@ -1158,35 +1158,35 @@ func opBlockhash(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.
 	return nil, nil
 }
 
-func opCoinbase(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+func opCoinbase(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	value := NewNonStaticCell()
 	value.AddHistory(vm.COINBASE, *pc, value.static)
 	stack.push(value)
 	return nil, nil
 }
 
-func opTimestamp(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+func opTimestamp(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	value := NewNonStaticCell()
 	value.AddHistory(vm.TIMESTAMP, *pc, value.static)
 	stack.push(value)
 	return nil, nil
 }
 
-func opNumber(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+func opNumber(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	value := NewNonStaticCell()
 	value.AddHistory(vm.NUMBER, *pc, value.static)
 	stack.push(value)
 	return nil, nil
 }
 
-func opDifficulty(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+func opDifficulty(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	value := NewNonStaticCell()
 	value.AddHistory(vm.DIFFICULTY, *pc, value.static)
 	stack.push(value)
 	return nil, nil
 }
 
-func opGasLimit(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+func opGasLimit(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	value := NewNonStaticCell()
 	value.AddHistory(vm.GASLIMIT, *pc, value.static)
 	stack.push(value)
@@ -1202,7 +1202,7 @@ func opPop(_ *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory,
 	return nil, nil
 }
 
-func opMload(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+func opMload(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	v, err := stack.peek()
 	if err != nil {
 		return nil, err
@@ -1232,7 +1232,7 @@ func opMstore8(_ *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Mem
 	return nil, nil
 }
 
-func opSload(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+func opSload(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	loc, err := stack.peek()
 	if err != nil {
 		return nil, err
@@ -1372,7 +1372,7 @@ func opJumpiNotJUMP(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *
 	return nil, nil
 }
 
-func opJumpdest(_ *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+func opJumpdest(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	return nil, nil
 }
 
@@ -1386,14 +1386,14 @@ func opPc(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory,
 	return nil, nil
 }
 
-func opMsize(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+func opMsize(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	value := NewNonStaticCell()
 	value.AddHistory(vm.MSIZE, *pc, value.static)
 	stack.push(value)
 	return nil, nil
 }
 
-func opGas(pc *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+func opGas(pc *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	value := NewNonStaticCell()
 	value.AddHistory(vm.GAS, *pc, value.static)
 	stack.push(value)
@@ -1499,7 +1499,7 @@ func opRevert(_ *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memo
 	return nil, ErrRevert
 }
 
-func opStop(_ *uint64, interpreter *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
+func opStop(_ *uint64, _ *vm.EVMInterpreter, _ *Contract, _ *vm.Memory, stack *Stack) ([]byte, error) {
 	return nil, ErrStop
 }
 
