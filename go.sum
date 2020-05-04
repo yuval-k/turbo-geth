@@ -204,6 +204,12 @@ github.com/ledgerwatch/bolt v1.4.4 h1:Pg5gDqcZPXeLjZSjKrVX5PeCrbWwCyr1il9BNi/+D/
 github.com/ledgerwatch/bolt v1.4.4/go.mod h1:4frpcWo7Gjizry2yhNN3T4FK0FrgE/AAUlHvKHC0Dao=
 github.com/ledgerwatch/bolt v1.4.5-0.20200503045024-34ccf049b2c6 h1:KIhBMYOTIzmMwD2Eo379uaUhJZTJwP7+fbf4Oqx0ams=
 github.com/ledgerwatch/bolt v1.4.5-0.20200503045024-34ccf049b2c6/go.mod h1:4frpcWo7Gjizry2yhNN3T4FK0FrgE/AAUlHvKHC0Dao=
+github.com/ledgerwatch/bolt v1.4.5-0.20200504030821-c3edfd1810ac h1:1ePdhDW3+fkOXPLScRj5A8UAQwHJTM7FCaOw43h2JKk=
+github.com/ledgerwatch/bolt v1.4.5-0.20200504030821-c3edfd1810ac/go.mod h1:4frpcWo7Gjizry2yhNN3T4FK0FrgE/AAUlHvKHC0Dao=
+github.com/ledgerwatch/bolt v1.4.5-0.20200504034816-045d69f65e2d h1:FN0pjfT/K8mCa0XeMYG/fgp432NRvibnBlNqEwdB7+g=
+github.com/ledgerwatch/bolt v1.4.5-0.20200504034816-045d69f65e2d/go.mod h1:4frpcWo7Gjizry2yhNN3T4FK0FrgE/AAUlHvKHC0Dao=
+github.com/ledgerwatch/bolt v1.4.5-0.20200504044332-61e827295044 h1:lzxpR6wIImfMGaH2QYIq3UOqOjOk6wjvOcM7RUEDUCY=
+github.com/ledgerwatch/bolt v1.4.5-0.20200504044332-61e827295044/go.mod h1:4frpcWo7Gjizry2yhNN3T4FK0FrgE/AAUlHvKHC0Dao=
 github.com/leodido/go-urn v1.1.0 h1:Sm1gr51B1kKyfD2BlRcLSiEkffoG96g6TPv6eRoEiB8=
 github.com/leodido/go-urn v1.1.0/go.mod h1:+cyI34gQWZcE1eQU7NVgKkkzdXDQHr1dBMtdAPozLkw=
 github.com/leodido/go-urn v1.2.0 h1:hpXL4XnriNwQ/ABnpepYM/1vCLWNDfUNts8dX3xTG6Y=
