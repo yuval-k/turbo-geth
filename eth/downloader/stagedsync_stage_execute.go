@@ -2,9 +2,9 @@ package downloader
 
 import (
 	"fmt"
-	//"os"
+	"os"
 	"runtime"
-	//"runtime/pprof"
+	"runtime/pprof"
 	"sync/atomic"
 	"time"
 
@@ -81,18 +81,16 @@ func spawnExecuteBlocksStage(stateDB ethdb.Database, blockchain BlockChain) (uin
 	nextBlockNumber := uint64(0)
 
 	atomic.StoreUint64(&nextBlockNumber, lastProcessedBlockNumber+1)
-	/*
-		profileNumber := atomic.LoadUint64(&nextBlockNumber)
-		f, err := os.Create(fmt.Sprintf("cpu-%d.prof", profileNumber))
-		if err != nil {
-			log.Error("could not create CPU profile", "error", err)
-			return lastProcessedBlockNumber, err
-		}
-		if err1 := pprof.StartCPUProfile(f); err1 != nil {
-			log.Error("could not start CPU profile", "error", err1)
-			return lastProcessedBlockNumber, err
-		}
-	*/
+	profileNumber := atomic.LoadUint64(&nextBlockNumber)
+	f, err := os.Create(fmt.Sprintf("cpu-%d.prof", profileNumber))
+	if err != nil {
+		log.Error("could not create CPU profile", "error", err)
+		return lastProcessedBlockNumber, err
+	}
+	if err1 := pprof.StartCPUProfile(f); err1 != nil {
+		log.Error("could not start CPU profile", "error", err1)
+		return lastProcessedBlockNumber, err
+	}
 	stateBatch := stateDB.NewBatch()
 	changeBatch := stateDB.NewBatch()
 
@@ -175,12 +173,10 @@ func spawnExecuteBlocksStage(stateDB ethdb.Database, blockchain BlockChain) (uin
 				return 0, err
 			}
 		}
-		/*
-			if blockNum-profileNumber == 100000 {
-				// Flush the profiler
-				pprof.StopCPUProfile()
-			}
-		*/
+		if blockNum-profileNumber == 100000 {
+			// Flush the profiler
+			pprof.StopCPUProfile()
+		}
 	}
 	_, err = stateBatch.Commit()
 	if err != nil {
