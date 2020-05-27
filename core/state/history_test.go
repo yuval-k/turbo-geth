@@ -155,7 +155,7 @@ func TestMutationCommitThinHistory(t *testing.T) {
 		}
 
 		for k, v := range accHistoryStateStorage[i] {
-			res, err := db.GetAsOf(dbutils.CurrentStateBucket, dbutils.StorageHistoryBucket, dbutils.GenerateCompositeStorageKey(addrHash, acc.Incarnation, k), 1)
+			res, err := ethdb.GetAsOf(db.AbstractKV(), dbutils.CurrentStateBucket, dbutils.StorageHistoryBucket, dbutils.GenerateCompositeStorageKey(addrHash, acc.Incarnation, k), 1)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -244,14 +244,14 @@ func generateAccountsWithStorageAndHistory(t *testing.T, db ethdb.Database, numO
 	ctx := context.Background()
 	for i := range accHistory {
 		accHistory[i], addrs[i], addrHashes[i] = randomAccount(t)
-		accHistory[i].Balance = *big.NewInt(100)
+		accHistory[i].Balance = *uint256.NewInt().SetUint64(100)
 		accHistory[i].CodeHash = common.Hash{uint8(10 + i)}
 		accHistory[i].Root = common.Hash{uint8(10 + i)}
 		accHistory[i].Incarnation = uint64(i + 1)
 
 		accState[i] = accHistory[i].SelfCopy()
 		accState[i].Nonce++
-		accState[i].Balance = *big.NewInt(200)
+		accState[i].Balance = *uint256.NewInt().SetUint64(200)
 
 		accStateStorage[i] = make(map[common.Hash]uint256.Int)
 		accHistoryStateStorage[i] = make(map[common.Hash]uint256.Int)
@@ -294,7 +294,7 @@ func randomAccount(t *testing.T) (*accounts.Account, common.Address, common.Hash
 	}
 	acc := accounts.NewAccount()
 	acc.Initialised = true
-	acc.Balance = *big.NewInt(rand.Int63())
+	acc.Balance = *uint256.NewInt().SetUint64(uint64(rand.Int63()))
 	addr := crypto.PubkeyToAddress(key.PublicKey)
 	addrHash, err := common.HashData(addr.Bytes())
 	if err != nil {
@@ -426,7 +426,7 @@ func TestBoltDB_WalkAsOf1(t *testing.T) {
 	//walk and collect walkAsOf result
 	var err error
 	var startKey [72]byte
-	err = db.WalkAsOf(dbutils.CurrentStateBucket, dbutils.StorageHistoryBucket, startKey[:], 0, 2, func(k []byte, v []byte) (b bool, e error) {
+	err = ethdb.WalkAsOf(db.AbstractKV(), dbutils.CurrentStateBucket, dbutils.StorageHistoryBucket, startKey[:], 0, 2, func(k []byte, v []byte) (b bool, e error) {
 		err = block2.Add(common.CopyBytes(k), common.CopyBytes(v))
 		if err != nil {
 			t.Fatal(err)
@@ -438,7 +438,7 @@ func TestBoltDB_WalkAsOf1(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = db.WalkAsOf(dbutils.CurrentStateBucket, dbutils.StorageHistoryBucket, startKey[:], 0, 4, func(k []byte, v []byte) (b bool, e error) {
+	err = ethdb.WalkAsOf(db.AbstractKV(), dbutils.CurrentStateBucket, dbutils.StorageHistoryBucket, startKey[:], 0, 4, func(k []byte, v []byte) (b bool, e error) {
 		err = block4.Add(common.CopyBytes(k), common.CopyBytes(v))
 		if err != nil {
 			t.Fatal(err)
@@ -450,7 +450,7 @@ func TestBoltDB_WalkAsOf1(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = db.WalkAsOf(dbutils.CurrentStateBucket, dbutils.StorageHistoryBucket, startKey[:], 0, 6, func(k []byte, v []byte) (b bool, e error) {
+	err = ethdb.WalkAsOf(db.AbstractKV(), dbutils.CurrentStateBucket, dbutils.StorageHistoryBucket, startKey[:], 0, 6, func(k []byte, v []byte) (b bool, e error) {
 		err = block6.Add(common.CopyBytes(k), common.CopyBytes(v))
 		if err != nil {
 			t.Fatal(err)

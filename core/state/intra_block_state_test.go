@@ -50,7 +50,7 @@ func TestUpdateLeaks(t *testing.T) {
 	for i := byte(0); i < 255; i++ {
 		tds.StartNewBuffer()
 		addr := common.BytesToAddress([]byte{i})
-		state.AddBalance(addr, big.NewInt(int64(11*i)))
+		state.AddBalance(addr, uint256.NewInt().SetUint64(uint64(11*i)))
 		state.SetNonce(addr, uint64(42*i))
 		if i%2 == 0 {
 			val := uint256.NewInt().SetBytes([]byte{i, i, i, i})
@@ -95,7 +95,7 @@ func TestIntermediateLeaks(t *testing.T) {
 	finalTds.StartNewBuffer()
 
 	modify := func(state *IntraBlockState, addr common.Address, i, tweak byte) {
-		state.SetBalance(addr, big.NewInt(int64(11*i)+int64(tweak)))
+		state.SetBalance(addr, uint256.NewInt().SetUint64(uint64(11*i+tweak)))
 		state.SetNonce(addr, uint64(42*i+tweak))
 		if i%2 == 0 {
 			val := uint256.NewInt()
@@ -230,14 +230,14 @@ func newTestAction(addr common.Address, r *rand.Rand) testAction {
 		{
 			name: "SetBalance",
 			fn: func(a testAction, s *IntraBlockState) {
-				s.SetBalance(addr, big.NewInt(a.args[0]))
+				s.SetBalance(addr, uint256.NewInt().SetUint64(uint64(a.args[0])))
 			},
 			args: make([]int64, 1),
 		},
 		{
 			name: "AddBalance",
 			fn: func(a testAction, s *IntraBlockState) {
-				s.AddBalance(addr, big.NewInt(a.args[0]))
+				s.AddBalance(addr, uint256.NewInt().SetUint64(uint64(a.args[0])))
 			},
 			args: make([]int64, 1),
 		},
@@ -364,7 +364,7 @@ func (test *snapshotTest) run() bool {
 	// Run all actions and create snapshots.
 	var (
 		db           = ethdb.NewMemDatabase()
-		ds           = NewDbState(db, 0)
+		ds           = NewDbState(db.AbstractKV(), 0)
 		state        = New(ds)
 		snapshotRevs = make([]int, len(test.snapshots))
 		sindex       = 0
@@ -379,7 +379,7 @@ func (test *snapshotTest) run() bool {
 	// Revert all snapshots in reverse order. Each revert must yield a state
 	// that is equivalent to fresh state with all actions up the snapshot applied.
 	for sindex--; sindex >= 0; sindex-- {
-		checkds := NewDbState(db, 0)
+		checkds := NewDbState(db.AbstractKV(), 0)
 		checkstate := New(checkds)
 		for _, action := range test.actions[:test.snapshots[sindex]] {
 			action.fn(action, checkstate)
@@ -415,7 +415,7 @@ func (test *snapshotTest) checkEqual(state, checkstate *IntraBlockState, ds, che
 		// Check basic accessor methods.
 		checkeq("Exist", state.Exist(addr), checkstate.Exist(addr))
 		checkeq("HasSuicided", state.HasSuicided(addr), checkstate.HasSuicided(addr))
-		checkeqBigInt("GetBalance", state.GetBalance(addr), checkstate.GetBalance(addr))
+		checkeqBigInt("GetBalance", state.GetBalance(addr).ToBig(), checkstate.GetBalance(addr).ToBig())
 		checkeq("GetNonce", state.GetNonce(addr), checkstate.GetNonce(addr))
 		checkeq("GetCode", state.GetCode(addr), checkstate.GetCode(addr))
 		checkeq("GetCodeHash", state.GetCodeHash(addr), checkstate.GetCodeHash(addr))
@@ -478,7 +478,7 @@ func (s *StateSuite) TestTouchDelete(c *check.C) {
 	s.state.Reset()
 
 	snapshot := s.state.Snapshot()
-	s.state.AddBalance(common.Address{}, new(big.Int))
+	s.state.AddBalance(common.Address{}, new(uint256.Int))
 
 	if len(s.state.journal.dirties) != 1 {
 		c.Fatal("expected one dirty state object")

@@ -220,7 +220,7 @@ type TrieDbState struct {
 	hashBuilder       *trie.HashBuilder
 	loader            *trie.SubTrieLoader
 	pw                *PreimageWriter
-	incarnationMap    map[common.Address]uint64 // Temporary map of incarnation in case we cannot figure out from the database
+	incarnationMap    map[common.Address]uint64 // Temporary map of incarnation for the cases when contracts are deleted and recreated within 1 block
 }
 
 func NewTrieDbState(root common.Hash, db ethdb.Database, blockNr uint64) *TrieDbState {
@@ -1014,35 +1014,11 @@ func (tds *TrieDbState) readAccountDataByHash(addrHash common.Hash) (*accounts.A
 	}
 
 	// Not present in the trie, try the database
-	var err error
-	var enc []byte
 	var a accounts.Account
-	if tds.historical {
-		enc, err = tds.db.GetAsOf(dbutils.CurrentStateBucket, dbutils.AccountsHistoryBucket, addrHash[:], tds.blockNr+1)
-		if err != nil {
-			enc = nil
-		}
-		if len(enc) == 0 {
-			return nil, nil
-		}
-		if err := a.DecodeForStorage(enc); err != nil {
-			return nil, err
-		}
-	} else {
-		if ok, err := rawdb.ReadAccount(tds.db, addrHash, &a); err != nil {
-			return nil, err
-		} else if !ok {
-			return nil, nil
-		}
-	}
-
-	if tds.historical && a.Incarnation > 0 {
-		codeHash, err := tds.db.Get(dbutils.ContractCodeBucket, dbutils.GenerateStoragePrefix(addrHash[:], a.Incarnation))
-		if err == nil {
-			a.CodeHash = common.BytesToHash(codeHash)
-		} else {
-			log.Error("Get code hash is incorrect", "err", err)
-		}
+	if ok, err := rawdb.ReadAccount(tds.db, addrHash, &a); err != nil {
+		return nil, err
+	} else if !ok {
+		return nil, nil
 	}
 	return &a, nil
 }
@@ -1105,16 +1081,9 @@ func (tds *TrieDbState) ReadAccountStorage(address common.Address, incarnation u
 	enc, ok := tds.t.Get(dbutils.GenerateCompositeTrieKey(addrHash, seckey))
 	if !ok {
 		// Not present in the trie, try database
-		if tds.historical {
-			enc, err = tds.db.GetAsOf(dbutils.CurrentStateBucket, dbutils.StorageHistoryBucket, dbutils.GenerateCompositeStorageKey(addrHash, incarnation, seckey), tds.blockNr)
-			if err != nil {
-				enc = nil
-			}
-		} else {
-			enc, err = tds.db.Get(dbutils.CurrentStateBucket, dbutils.GenerateCompositeStorageKey(addrHash, incarnation, seckey))
-			if err != nil {
-				enc = nil
-			}
+		enc, err = tds.db.Get(dbutils.CurrentStateBucket, dbutils.GenerateCompositeStorageKey(addrHash, incarnation, seckey))
+		if err != nil {
+			enc = nil
 		}
 	}
 	return enc, nil
@@ -1213,18 +1182,13 @@ func (tds *TrieDbState) ReadAccountIncarnation(address common.Address) (uint64, 
 	if inc, ok := tds.incarnationMap[address]; ok {
 		return inc, nil
 	}
-	addrHash, err := tds.pw.HashAddress(address, false /*save*/)
-	if err != nil {
+	if b, err := tds.db.Get(dbutils.IncarnationMapBucket, address[:]); err == nil {
+		return binary.BigEndian.Uint64(b), nil
+	} else if entryNotFound(err) {
+		return 0, nil
+	} else {
 		return 0, err
 	}
-	incarnation, found, err := ethdb.GetCurrentAccountIncarnation(tds.db, addrHash)
-	if err != nil {
-		return 0, err
-	}
-	if found {
-		return incarnation, nil
-	}
-	return 0, nil
 }
 
 var prevMemStats runtime.MemStats
@@ -1305,12 +1269,12 @@ func (tds *TrieDbState) TrieStateWriter() *TrieStateWriter {
 
 // DbStateWriter creates a writer that is designed to write changes into the database batch
 func (tds *TrieDbState) DbStateWriter() *DbStateWriter {
-	return &DbStateWriter{blockNr: tds.blockNr, stateDb: tds.db, changeDb: tds.db, pw: tds.pw, csw: NewChangeSetWriter(), incarnationMap: tds.incarnationMap}
+	return &DbStateWriter{blockNr: tds.blockNr, stateDb: tds.db, changeDb: tds.db, pw: tds.pw, csw: NewChangeSetWriter()}
 }
 
 // DbStateWriter creates a writer that is designed to write changes into the database batch
 func (tds *TrieDbState) PlainStateWriter() *PlainStateWriter {
-	return NewPlainStateWriter(tds.db, tds.db, tds.blockNr, tds.incarnationMap)
+	return NewPlainStateWriter(tds.db, tds.db, tds.blockNr)
 }
 
 func (tsw *TrieStateWriter) UpdateAccountData(_ context.Context, address common.Address, original, account *accounts.Account) error {
