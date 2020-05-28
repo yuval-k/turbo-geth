@@ -153,6 +153,7 @@ func (fstl *FlatDbSubTrieLoader) SetStreamReceiver(receiver StreamReceiver) {
 // one stream item, which is indicated by setting the field fstl.itemPresent to true
 func (fstl *FlatDbSubTrieLoader) iteration(c, ih ethdb.Cursor, first bool) error {
 	var isIH bool
+	var err error
 	var minKey []byte
 	var err error
 	if !first {
@@ -325,6 +326,9 @@ func (fstl *FlatDbSubTrieLoader) iteration(c, ih ethdb.Cursor, first bool) error
 		if fstl.ihK, fstl.ihV, err = ih.Next(); err != nil {
 			return err
 		} // go to children, not to sibling
+		if err != nil {
+			return err
+		}
 		return nil
 	}
 
@@ -337,6 +341,9 @@ func (fstl *FlatDbSubTrieLoader) iteration(c, ih ethdb.Cursor, first bool) error
 		if fstl.ihK, fstl.ihV, err = ih.Next(); err != nil {
 			return err
 		} // go to children, not to sibling
+		if err != nil {
+			return err
+		}
 		return nil
 	}
 
