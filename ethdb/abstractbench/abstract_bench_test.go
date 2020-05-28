@@ -132,7 +132,6 @@ func setupDatabases() {
 	}); err != nil {
 		panic(err)
 	}
-
 }
 
 func BenchmarkCursor(b *testing.B) {
