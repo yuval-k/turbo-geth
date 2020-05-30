@@ -47,8 +47,9 @@ import (
 // Create revival problem
 func TestCreate2Revive(t *testing.T) {
 	// Configure and generate a sample block chain
+	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	var (
-		db      = ethdb.NewMemDatabase()
 		key, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 		address = crypto.PubkeyToAddress(key.PublicKey)
 		funds   = big.NewInt(1000000000)
@@ -66,10 +67,11 @@ func TestCreate2Revive(t *testing.T) {
 				address: {Balance: funds},
 			},
 		}
-		genesis   = gspec.MustCommit(db)
-		genesisDb = db.MemCopy()
-		signer    = types.HomesteadSigner{}
+		genesis = gspec.MustCommit(db)
+		signer  = types.HomesteadSigner{}
 	)
+	genesisDB := db.MemCopy()
+	defer genesisDB.Close()
 
 	engine := ethash.NewFaker()
 	blockchain, err := core.NewBlockChain(db, nil, gspec.Config, engine, vm.Config{}, nil, nil)
@@ -80,6 +82,7 @@ func TestCreate2Revive(t *testing.T) {
 	blockchain.EnableReceipts(true)
 
 	contractBackend := backends.NewSimulatedBackendWithConfig(gspec.Alloc, gspec.Config, gspec.GasLimit)
+	defer contractBackend.Close()
 	transactOpts := bind.NewKeyedTransactor(key)
 	transactOpts.GasLimit = 1000000
 
@@ -96,7 +99,7 @@ func TestCreate2Revive(t *testing.T) {
 	// In the forth block, we create the second child contract, and we expect it to have a "clean slate" of storage,
 	// i.e. without any storage items that "inherited" from the first child contract by mistake
 	ctx := blockchain.WithContext(context.Background(), big.NewInt(genesis.Number().Int64()+1))
-	blocks, _ := core.GenerateChain(ctx, gspec.Config, genesis, engine, genesisDb, 4, func(i int, block *core.BlockGen) {
+	blocks, _ := core.GenerateChain(ctx, gspec.Config, genesis, engine, genesisDB, 4, func(i int, block *core.BlockGen) {
 		var tx *types.Transaction
 
 		switch i {
@@ -220,8 +223,10 @@ func TestCreate2Revive(t *testing.T) {
 
 func TestReorgOverSelfDestruct(t *testing.T) {
 	// Configure and generate a sample block chain
+	db := ethdb.NewMemDatabase()
+	defer db.Close()
+
 	var (
-		db      = ethdb.NewMemDatabase()
 		key, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 		address = crypto.PubkeyToAddress(key.PublicKey)
 		funds   = big.NewInt(1000000000)
@@ -251,6 +256,7 @@ func TestReorgOverSelfDestruct(t *testing.T) {
 	blockchain.EnableReceipts(true)
 
 	contractBackend := backends.NewSimulatedBackendWithConfig(gspec.Alloc, gspec.Config, gspec.GasLimit)
+	defer contractBackend.Close()
 	transactOpts := bind.NewKeyedTransactor(key)
 	transactOpts.GasLimit = 1000000
 
@@ -287,6 +293,7 @@ func TestReorgOverSelfDestruct(t *testing.T) {
 
 	// Create a longer chain, with 4 blocks (with higher total difficulty) that reverts the change of stroage self-destruction of the contract
 	contractBackendLonger := backends.NewSimulatedBackendWithConfig(gspec.Alloc, gspec.Config, gspec.GasLimit)
+	defer contractBackendLonger.Close()
 	transactOptsLonger := bind.NewKeyedTransactor(key)
 	transactOptsLonger.GasLimit = 1000000
 
@@ -362,8 +369,10 @@ func TestReorgOverSelfDestruct(t *testing.T) {
 
 func TestReorgOverStateChange(t *testing.T) {
 	// Configure and generate a sample block chain
+	db := ethdb.NewMemDatabase()
+	defer db.Close()
+
 	var (
-		db      = ethdb.NewMemDatabase()
 		key, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 		address = crypto.PubkeyToAddress(key.PublicKey)
 		funds   = big.NewInt(1000000000)
@@ -393,6 +402,7 @@ func TestReorgOverStateChange(t *testing.T) {
 	blockchain.EnableReceipts(true)
 
 	contractBackend := backends.NewSimulatedBackendWithConfig(gspec.Alloc, gspec.Config, gspec.GasLimit)
+	defer contractBackend.Close()
 	transactOpts := bind.NewKeyedTransactor(key)
 	transactOpts.GasLimit = 1000000
 
@@ -424,6 +434,7 @@ func TestReorgOverStateChange(t *testing.T) {
 
 	// Create a longer chain, with 4 blocks (with higher total difficulty) that reverts the change of stroage self-destruction of the contract
 	contractBackendLonger := backends.NewSimulatedBackendWithConfig(gspec.Alloc, gspec.Config, gspec.GasLimit)
+	defer contractBackendLonger.Close()
 	transactOptsLonger := bind.NewKeyedTransactor(key)
 	transactOptsLonger.GasLimit = 1000000
 	longerBlocks, _ := core.GenerateChain(ctx, gspec.Config, genesis, engine, db.MemCopy(), 3, func(i int, block *core.BlockGen) {
@@ -517,8 +528,10 @@ func TestDatabaseStateChangeDBSizeDebug(t *testing.T) {
 	for _, v := range addresses {
 		alloc[v] = core.GenesisAccount{Balance: funds}
 	}
+
+	db := ethdb.NewRWDecorator(ethdb.NewMemDatabase())
+	defer db.Close()
 	var (
-		db    = ethdb.NewRWDecorator(ethdb.NewMemDatabase())
 		gspec = &core.Genesis{
 			Config: &params.ChainConfig{
 				ChainID:             big.NewInt(1),
@@ -539,10 +552,12 @@ func TestDatabaseStateChangeDBSizeDebug(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer blockchain.Stop()
 
 	blockchain.EnableReceipts(true)
 
 	contractBackend := backends.NewSimulatedBackendWithConfig(gspec.Alloc, gspec.Config, gspec.GasLimit)
+	defer contractBackend.Close()
 
 	var selfDestruct = make([]*contracts.Selfdestruct, numOfContracts)
 
@@ -673,8 +688,9 @@ func (b BucketsStats) Size() uint64 {
 
 func TestCreateOnExistingStorage(t *testing.T) {
 	// Configure and generate a sample block chain
+	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	var (
-		db      = ethdb.NewMemDatabase()
 		key, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 		address = crypto.PubkeyToAddress(key.PublicKey)
 		// Address of the contract that will be deployed
@@ -696,19 +712,22 @@ func TestCreateOnExistingStorage(t *testing.T) {
 				contractAddr: {Balance: funds, Storage: map[common.Hash]common.Hash{{}: common.HexToHash("0x42")}},
 			},
 		}
-		genesis   = gspec.MustCommit(db)
-		genesisDb = db.MemCopy()
+		genesis = gspec.MustCommit(db)
 	)
+	genesisDB := db.MemCopy()
+	defer genesisDB.Close()
 
 	engine := ethash.NewFaker()
 	blockchain, err := core.NewBlockChain(db, nil, gspec.Config, engine, vm.Config{}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer blockchain.Stop()
 
 	blockchain.EnableReceipts(true)
 
 	contractBackend := backends.NewSimulatedBackendWithConfig(gspec.Alloc, gspec.Config, gspec.GasLimit)
+	defer contractBackend.Close()
 	transactOpts := bind.NewKeyedTransactor(key)
 	transactOpts.GasLimit = 1000000
 
@@ -717,7 +736,7 @@ func TestCreateOnExistingStorage(t *testing.T) {
 	// On the address contractAddr, where there is a storage item in the genesis, but no contract code
 	// We expect the pre-existing storage items to be removed by the deployment
 	ctx := blockchain.WithContext(context.Background(), big.NewInt(genesis.Number().Int64()+1))
-	blocks, _ := core.GenerateChain(ctx, gspec.Config, genesis, engine, genesisDb, 4, func(i int, block *core.BlockGen) {
+	blocks, _ := core.GenerateChain(ctx, gspec.Config, genesis, engine, genesisDB, 4, func(i int, block *core.BlockGen) {
 		var tx *types.Transaction
 
 		switch i {
@@ -771,6 +790,7 @@ func TestReproduceCrash(t *testing.T) {
 	storageKey2 := common.HexToHash("0x0e4c0e7175f9d22279a4f63ff74f7fa28b7a954a6454debaa62ce43dd9132542")
 	value2 := uint256.NewInt().SetUint64(0x58c00a51)
 	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	tds := state.NewTrieDbState(common.Hash{}, db, 0)
 
 	tsw := tds.TrieStateWriter()
@@ -814,8 +834,10 @@ func TestReproduceCrash(t *testing.T) {
 }
 func TestEip2200Gas(t *testing.T) {
 	// Configure and generate a sample block chain
+	db := ethdb.NewMemDatabase()
+	defer db.Close()
+
 	var (
-		db      = ethdb.NewMemDatabase()
 		key, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 		address = crypto.PubkeyToAddress(key.PublicKey)
 		funds   = big.NewInt(1000000000)
@@ -843,10 +865,12 @@ func TestEip2200Gas(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer blockchain.Stop()
 
 	blockchain.EnableReceipts(true)
 
 	contractBackend := backends.NewSimulatedBackendWithConfig(gspec.Alloc, gspec.Config, gspec.GasLimit)
+	defer contractBackend.Close()
 	transactOpts := bind.NewKeyedTransactor(key)
 	transactOpts.GasLimit = 1000000
 
@@ -906,8 +930,9 @@ func TestEip2200Gas(t *testing.T) {
 //Create contract, drop trie, reload trie from disk and add block with contract call
 func TestWrongIncarnation(t *testing.T) {
 	// Configure and generate a sample block chain
+	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	var (
-		db      = ethdb.NewMemDatabase()
 		key, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 		address = crypto.PubkeyToAddress(key.PublicKey)
 		funds   = big.NewInt(1000000000)
@@ -931,10 +956,12 @@ func TestWrongIncarnation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer blockchain.Stop()
 
 	blockchain.EnableReceipts(true)
 
 	contractBackend := backends.NewSimulatedBackendWithConfig(gspec.Alloc, gspec.Config, gspec.GasLimit)
+	defer contractBackend.Close()
 	transactOpts := bind.NewKeyedTransactor(key)
 	transactOpts.GasLimit = 1000000
 
@@ -1031,8 +1058,9 @@ func TestWrongIncarnation(t *testing.T) {
 //create acc, deploy to it contract, reorg to state without contract
 func TestWrongIncarnation2(t *testing.T) {
 	// Configure and generate a sample block chain
+	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	var (
-		db      = ethdb.NewMemDatabase()
 		key, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 		address = crypto.PubkeyToAddress(key.PublicKey)
 		funds   = big.NewInt(1000000000)
@@ -1059,10 +1087,12 @@ func TestWrongIncarnation2(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer blockchain.Stop()
 
 	blockchain.EnableReceipts(true)
 
 	contractBackend := backends.NewSimulatedBackendWithConfig(gspec.Alloc, gspec.Config, gspec.GasLimit)
+	defer contractBackend.Close()
 	transactOpts := bind.NewKeyedTransactor(key)
 	transactOpts.GasLimit = 1000000
 
@@ -1101,6 +1131,7 @@ func TestWrongIncarnation2(t *testing.T) {
 
 	// Create a longer chain, with 4 blocks (with higher total difficulty) that reverts the change of stroage self-destruction of the contract
 	contractBackendLonger := backends.NewSimulatedBackendWithConfig(gspec.Alloc, gspec.Config, gspec.GasLimit)
+	defer contractBackendLonger.Close()
 	transactOptsLonger := bind.NewKeyedTransactor(key)
 	transactOptsLonger.GasLimit = 1000000
 	longerBlocks, _ := core.GenerateChain(ctx, gspec.Config, genesis, engine, db.MemCopy(), 3, func(i int, block *core.BlockGen) {
@@ -1175,6 +1206,7 @@ func TestChangeAccountCodeBetweenBlocks(t *testing.T) {
 	contract := common.HexToAddress("0x71dd1027069078091B3ca48093B00E4735B20624")
 
 	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	tds := state.NewTrieDbState(common.Hash{}, db, 0)
 	tsw := tds.TrieStateWriter()
 	intraBlockState := state.New(tds)
@@ -1222,6 +1254,7 @@ func TestCacheCodeSizeSeparately(t *testing.T) {
 	root := common.HexToHash("0xb939e5bcf5809adfb87ab07f0795b05b95a1d64a90f0eddd0c3123ac5b433854")
 
 	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	tds := state.NewTrieDbState(root, db, 0)
 	tds.SetResolveReads(true)
 	intraBlockState := state.New(tds)
@@ -1281,6 +1314,7 @@ func TestCacheCodeSizeInTrie(t *testing.T) {
 	root := common.HexToHash("0xb939e5bcf5809adfb87ab07f0795b05b95a1d64a90f0eddd0c3123ac5b433854")
 
 	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	tds := state.NewTrieDbState(root, db, 0)
 	tds.SetResolveReads(true)
 	intraBlockState := state.New(tds)

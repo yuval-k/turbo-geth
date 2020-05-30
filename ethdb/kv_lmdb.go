@@ -9,7 +9,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/bmatsuo/lmdb-go/lmdb"
+	"github.com/AskAlexSharov/lmdb-go/lmdb"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/log"
 )
@@ -26,7 +26,6 @@ func (opts lmdbOpts) Path(path string) lmdbOpts {
 }
 
 func (opts lmdbOpts) InMem() lmdbOpts {
-	opts.path, _ = ioutil.TempDir(os.TempDir(), "lmdb")
 	opts.inMem = true
 	return opts
 }
@@ -50,12 +49,13 @@ func (opts lmdbOpts) Open(ctx context.Context) (KV, error) {
 	var logger log.Logger
 
 	if opts.inMem {
-		fmt.Printf("db.opts.path: %s\n", opts.path)
 		logger = log.New("lmdb", "inMem")
-		err = env.SetMapSize(1 << 26) // 64MB
+		err = env.SetMapSize(1 << 23) // 8MB
 		if err != nil {
 			return nil, err
 		}
+		opts.path, _ = ioutil.TempDir(os.TempDir(), "lmdb")
+		//opts.path = "lmdb_tmp"
 	} else {
 		logger = log.New("lmdb", path.Base(opts.path))
 
@@ -63,7 +63,43 @@ func (opts lmdbOpts) Open(ctx context.Context) (KV, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err = os.MkdirAll(opts.path, 0744); err != nil {
+	}
+
+	flags := uint(0)
+	if opts.readOnly {
+		flags |= lmdb.Readonly
+	}
+	if opts.inMem {
+		flags |= lmdb.NoSync | lmdb.NoMetaSync | lmdb.WriteMap
+	}
+
+	if err = os.MkdirAll(opts.path, 0744); err != nil {
+		return nil, err
+	}
+
+	err = env.Open(opts.path, flags, 0664)
+	if err != nil {
+		return nil, err
+	}
+
+	if opts.inMem {
+		// lmdb creates file in this mode, just doesn't fsync in it
+		// can remove file now, then os will remove it when db close
+		os.RemoveAll(opts.path)
+	}
+
+	buckets := map[string]lmdb.DBI{}
+	if !opts.readOnly {
+		if err := env.Update(func(tx *lmdb.Txn) error {
+			for _, name := range dbutils.Buckets {
+				dbi, createErr := tx.OpenDBI(string(name), lmdb.Create)
+				if createErr != nil {
+					return createErr
+				}
+				buckets[string(name)] = dbi
+			}
+			return nil
+		}); err != nil {
 			return nil, err
 		}
 	}
@@ -89,34 +125,6 @@ func (opts lmdbOpts) Open(ctx context.Context) (KV, error) {
 			}
 		}
 	}()
-
-	flags := uint(0)
-	if opts.readOnly {
-		flags |= lmdb.Readonly
-	}
-	if opts.inMem {
-		flags |= lmdb.NoSync | lmdb.NoMetaSync | lmdb.WriteMap
-	}
-	err = env.Open(opts.path, flags, 0664)
-	if err != nil {
-		return nil, err
-	}
-
-	buckets := map[string]lmdb.DBI{}
-	if !opts.readOnly {
-		if err := env.Update(func(tx *lmdb.Txn) error {
-			for _, name := range dbutils.Buckets {
-				dbi, createErr := tx.OpenDBI(string(name), lmdb.Create)
-				if createErr != nil {
-					return createErr
-				}
-				buckets[string(name)] = dbi
-			}
-			return nil
-		}); err != nil {
-			return nil, err
-		}
-	}
 
 	return &lmdbKV{
 		opts:    opts,
@@ -152,9 +160,6 @@ func (db *lmdbKV) Close() {
 		db.log.Warn("failed to close DB", "err", err)
 	} else {
 		db.log.Info("database closed")
-	}
-	if db.opts.inMem {
-		os.RemoveAll(db.opts.path) // lmdb creates file in this mode, just doesn't fsync in it
 	}
 }
 func (db *lmdbKV) Size() uint64 {

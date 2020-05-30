@@ -17,66 +17,60 @@
 package ethdb
 
 import (
+	"context"
+
 	"github.com/ledgerwatch/bolt"
 	"github.com/ledgerwatch/turbo-geth/common"
-	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/log"
 )
 
-func NewMemDatabase() *BoltDatabase {
-	logger := log.New("database", "in-memory")
-
-	// Open the db and recover any potential corruptions
-	db, errOpen := bolt.Open("in-memory", 0600, &bolt.Options{MemOnly: true})
-	if errOpen != nil {
-		panic(errOpen)
-	}
-
-	if err := db.Update(func(tx *bolt.Tx) error {
-		for _, bucket := range dbutils.Buckets {
-			if _, err := tx.CreateBucketIfNotExists(bucket, false); err != nil {
-				return err
-			}
-		}
-		return nil
-	}); err != nil {
-		panic(err)
-	}
-
-	b := &BoltDatabase{
-		db:  db,
-		log: logger,
-		id:  id(),
-	}
-
-	return b
+func NewMemDatabase() *ObjectDatabase {
+	return NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
+	//logger := log.New("database", "in-memory")
+	//
+	//// Open the db and recover any potential corruptions
+	//db, errOpen := bolt.Open("in-memory", 0600, &bolt.Options{MemOnly: true, KeysPrefixCompressionDisable: true})
+	//if errOpen != nil {
+	//	panic(errOpen)
+	//}
+	//
+	//if err := db.Update(func(tx *bolt.Tx) error {
+	//	for _, bucket := range dbutils.Buckets {
+	//		if _, err := tx.CreateBucketIfNotExists(bucket, false); err != nil {
+	//			return err
+	//		}
+	//	}
+	//	return nil
+	//}); err != nil {
+	//	panic(err)
+	//}
+	//
+	//b := &BoltDatabase{
+	//	db:  db,
+	//	log: logger,
+	//	id:  id(),
+	//}
+	//
+	//return b
 }
 
-func NewMemDatabase2() (*BoltDatabase, *bolt.DB) {
+func NewMemDatabase2() (*BoltDatabase, KV) {
 	logger := log.New("database", "in-memory")
-
 	// Open the db and recover any potential corruptions
-	db, err := bolt.Open("in-memory", 0600, &bolt.Options{MemOnly: true})
+	db, err := bolt.Open("in-memory", 0600, &bolt.Options{MemOnly: true, KeysPrefixCompressionDisable: true})
 	if err != nil {
 		panic(err)
 	}
 
-	if err := db.Update(func(tx *bolt.Tx) error {
-		for _, bucket := range dbutils.Buckets {
-			if _, err := tx.CreateBucketIfNotExists(bucket, false); err != nil {
-				return err
-			}
-		}
-		return nil
-	}); err != nil {
+	kv, err := NewBolt().WrapBoltDb(db)
+	if err != nil {
 		panic(err)
 	}
-
 	return &BoltDatabase{
 		db:  db,
 		log: logger,
 		id:  id(),
-	}, db
+	}, kv
 }
 
 func (db *BoltDatabase) MemCopy() Database {

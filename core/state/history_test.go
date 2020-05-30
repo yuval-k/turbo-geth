@@ -26,6 +26,7 @@ import (
 
 func TestMutation_DeleteTimestamp(t *testing.T) {
 	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	mutDB := db.NewBatch()
 
 	acc := make([]*accounts.Account, 10)
@@ -98,6 +99,7 @@ func TestMutation_DeleteTimestamp(t *testing.T) {
 
 func TestMutationCommitThinHistory(t *testing.T) {
 	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	mutDB := db.NewBatch()
 
 	numOfAccounts := 5
@@ -308,6 +310,7 @@ func TestBoltDB_WalkAsOf1(t *testing.T) {
 	t.Skip()
 
 	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	tds := NewTrieDbState(common.Hash{}, db, 1)
 	blockWriter := tds.DbStateWriter()
 	ctx := context.Background()
@@ -483,6 +486,7 @@ func TestBoltDB_WalkAsOf1(t *testing.T) {
 
 func TestUnwindTruncateHistory(t *testing.T) {
 	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	mutDB := db.NewBatch()
 	tds := NewTrieDbState(common.Hash{}, mutDB, 1)
 	ctx := context.Background()

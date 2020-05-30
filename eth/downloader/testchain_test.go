@@ -67,7 +67,7 @@ type testChain struct {
 }
 
 // newTestChain creates a blockchain of the given length.
-func newTestChain(length int, db *ethdb.BoltDatabase, genesis *types.Block) *testChain {
+func newTestChain(length int, db ethdb.Database, genesis *types.Block) *testChain {
 	tc := new(testChain).copy(length)
 	tc.db = db
 	tc.genesis = genesis
