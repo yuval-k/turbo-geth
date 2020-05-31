@@ -100,6 +100,7 @@ func (ig *IndexGenerator) GenerateIndex(blockNum uint64, changeSetBucket []byte)
 	var m runtime.MemStats
 	var mtx sync.Mutex
 	var bufferFileNames []struct{
+		h bool
 		name string
 		id uint64
 	}
@@ -172,14 +173,22 @@ func (ig *IndexGenerator) GenerateIndex(blockNum uint64, changeSetBucket []byte)
 				//fmt.Println("walk", time.Since(t2))
 				atomic.AddInt64(walkp, int64(time.Since(t2)))
 				t3 := time.Now()
-				if filename, err := ig.writeBufferMapToTempFile(ig.TempDir, v.Template, bufferMap); err == nil {
+				if filename1,filename2, err := ig.writeBufferMapToTempFile(ig.TempDir, v.Template, bufferMap); err == nil {
 					mtx.Lock()
 					bufferFileNames = append(bufferFileNames, struct {
+						h bool
 						name string
 						id   uint64
-					}{name: filename, id:oldBlocknum })
+					}{name: filename1, id:oldBlocknum , h:false})
+					bufferFileNames = append(bufferFileNames, struct {
+						h bool
+						name string
+						id   uint64
+					}{name: filename2, id:oldBlocknum , h:true})
 					runtime.ReadMemStats(&m)
-					log.Info("Created a buffer file", "name", filename, "from block", oldBlocknum, "up to block", blockNum,
+					log.Info("Created a buffer file", "name", filename1, "from block", oldBlocknum, "up to block", blockNum,
+						"alloc", int(m.Alloc/1024), "sys", int(m.Sys/1024), "numGC", int(m.NumGC))
+					log.Info("Created a buffer file", "name", filename2, "from block", oldBlocknum, "up to block", blockNum,
 						"alloc", int(m.Alloc/1024), "sys", int(m.Sys/1024), "numGC", int(m.NumGC))
 					mtx.Unlock()
 				} else {
@@ -226,9 +235,9 @@ func (ig *IndexGenerator) GenerateIndex(blockNum uint64, changeSetBucket []byte)
 		fmt.Println("merge", time.Since(t))
 	}
 
-	fmt.Println("fill", fill)
-	fmt.Println("walk", walk)
-	fmt.Println("wri", wri)
+	fmt.Println("fill", time.Duration(fill))
+	fmt.Println("walk", time.Duration(walk))
+	fmt.Println("wri", time.Duration(wri))
 
 	return nil
 }
@@ -353,48 +362,87 @@ const emptyValBit uint64 = 0x8000000000000000
 
 // writeBufferMapToTempFile creates temp file in the datadir and writes bufferMap into it
 // if sucessful, returns the name of the created file. File is closed
-func (ig *IndexGenerator) writeBufferMapToTempFile(datadir string, pattern string, bufferMap map[string][]uint64) (string, error) {
-	var filename string
-	keys := make([]string, len(bufferMap))
-	i := 0
+func (ig *IndexGenerator) writeBufferMapToTempFile(datadir string, pattern string, bufferMap map[string][]uint64) (string, string, error) {
+	var filename1 string
+	var filename2 string
+	keys1 := make([]string,0, len(bufferMap)/3*2)
+	keys2 := make([]string,0, len(bufferMap)/3*2)
 	for key := range bufferMap {
-		keys[i] = key
-		i++
+		if []byte(key)[0]<128 {
+			keys1=append(keys1, key)
+		} else {
+			keys2=append(keys2, key)
+		}
 	}
-	sort.Strings(keys)
+	sort.Strings(keys1)
+	sort.Strings(keys2)
 	var w *bufio.Writer
-	if bufferFile, err := ioutil.TempFile(datadir, pattern); err == nil {
-		//nolint:errcheck
-		defer bufferFile.Close()
-		filename = bufferFile.Name()
-		w = bufio.NewWriter(bufferFile)
-	} else {
-		return filename, fmt.Errorf("creating temp buf file %s: %v", pattern, err)
+	bufferFile, err := ioutil.TempFile(datadir, pattern)
+	if err!=nil {
+		return filename1,filename2, fmt.Errorf("creating temp buf file %s: %v", pattern, err)
 	}
+	//nolint:errcheck
+	defer bufferFile.Close()
+	filename1 = bufferFile.Name()
+
+	bufferFile2, err := ioutil.TempFile(datadir, pattern)
+	if err!=nil {
+		return filename1,filename2, fmt.Errorf("creating temp buf file %s: %v", pattern, err)
+	}
+	//nolint:errcheck
+	defer bufferFile2.Close()
+	filename2 = bufferFile2.Name()
+
+	w = bufio.NewWriter(bufferFile)
+
 	var nbytes [8]byte
-	for _, key := range keys {
+	for _, key := range keys1 {
 		if _, err := w.Write([]byte(key)); err != nil {
-			return filename, err
+			return filename1,filename1, err
 		}
 		list := bufferMap[key]
 		binary.BigEndian.PutUint64(nbytes[:], uint64(len(list)))
 		if _, err := w.Write(nbytes[:]); err != nil {
-			return filename, err
+			return filename1,filename2, err
 		}
 		for _, b := range list {
 			binary.BigEndian.PutUint64(nbytes[:], b)
 			if _, err := w.Write(nbytes[:]); err != nil {
-				return filename, err
+				return filename1,filename2, err
 			}
 		}
 	}
 	if err := w.Flush(); err != nil {
-		return filename, fmt.Errorf("flushing file %s: %v", filename, err)
+		return filename1,filename2, fmt.Errorf("flushing file %s,%s: %v", filename1,filename2, err)
 	}
-	return filename, nil
+
+
+	w = bufio.NewWriter(bufferFile2)
+	for _, key := range keys2 {
+		if _, err := w.Write([]byte(key)); err != nil {
+			return filename1,filename2, err
+		}
+		list := bufferMap[key]
+		binary.BigEndian.PutUint64(nbytes[:], uint64(len(list)))
+		if _, err := w.Write(nbytes[:]); err != nil {
+			return filename1,filename2, err
+		}
+		for _, b := range list {
+			binary.BigEndian.PutUint64(nbytes[:], b)
+			if _, err := w.Write(nbytes[:]); err != nil {
+				return filename1,filename2, err
+			}
+		}
+	}
+	if err := w.Flush(); err != nil {
+		return filename1,filename2, fmt.Errorf("flushing file %s,%s: %v", filename1,filename2, err)
+	}
+
+	return filename1, filename2, nil
 }
 
 func (ig *IndexGenerator) mergeFilesIntoBucket(bufferFileNames []struct{
+	h bool
 	name string
 	id uint64
 }, bucket []byte, keyLength int) error {
@@ -402,8 +450,10 @@ func (ig *IndexGenerator) mergeFilesIntoBucket(bufferFileNames []struct{
 	sort.Slice(bufferFileNames, func(i, j int) bool {
 		return bufferFileNames[i].id<bufferFileNames[j].id
 	})
-	h := &common.Heap{}
-	heap.Init(h)
+	h1 := &common.Heap{}
+	heap.Init(h1)
+	h2 := &common.Heap{}
+	heap.Init(h2)
 	readers := make([]io.Reader, len(bufferFileNames))
 	for i, fileName := range bufferFileNames {
 		if f, err := os.Open(fileName.name); err == nil {
@@ -416,84 +466,105 @@ func (ig *IndexGenerator) mergeFilesIntoBucket(bufferFileNames []struct{
 		// Read first key
 		keyBuf := make([]byte, keyLength)
 		if n, err := io.ReadFull(readers[i], keyBuf); err == nil && n == keyLength {
-			heap.Push(h, common.HeapElem{keyBuf, i, nil})
+			if fileName.h {
+				heap.Push(h1, common.HeapElem{keyBuf, i, nil})
+			} else {
+				heap.Push(h2, common.HeapElem{keyBuf, i, nil})
+			}
+
 		} else {
 			return fmt.Errorf("init reading from account buffer file: %d %x %v", n, keyBuf[:n], err)
 		}
 	}
-	// By now, the heap has one element for each buffer file
-	batch := ig.db.NewBatch()
-	var nbytes [8]byte
-	for h.Len() > 0 {
-		element := (heap.Pop(h)).(common.HeapElem)
-		reader := readers[element.TimeIdx]
-		k := element.Key
-		// Read number of items for this key
-		var count int
-		if n, err := io.ReadFull(reader, nbytes[:]); err != nil || n != 8 {
-			return fmt.Errorf("reading from account buffer file: %d %v", n, err)
-		}
 
-		count = int(binary.BigEndian.Uint64(nbytes[:]))
-		for i := 0; i < count; i++ {
-			var b uint64
-			if n, err := io.ReadFull(reader, nbytes[:]); err != nil || n != 8 {
-				return fmt.Errorf("reading from account buffer file: %d %v", n, err)
-			}
-			b = binary.BigEndian.Uint64(nbytes[:])
-			vzero := (b & emptyValBit) != 0
-			blockNr := b &^ emptyValBit
 
-			currentChunkKey := dbutils.IndexChunkKey(k, ^uint64(0))
-			indexBytes, err1 := batch.Get(bucket, currentChunkKey)
-			if err1 != nil && err1 != ethdb.ErrKeyNotFound {
-				return fmt.Errorf("find chunk failed: %w", err1)
-			}
-
-			var index dbutils.HistoryIndexBytes
-			if len(indexBytes) == 0 {
-				index = dbutils.NewHistoryIndex()
-			} else if dbutils.CheckNewIndexChunk(indexBytes, blockNr) {
-				// Chunk overflow, need to write the "old" current chunk under its key derived from the last element
-				index = dbutils.WrapHistoryIndex(indexBytes)
-				indexKey, err3 := index.Key(k)
-				if err3 != nil {
-					return err3
+	f:= func(h *common.Heap) func() error {
+		return func() error {
+			// By now, the heap has one element for each buffer file
+			batch := ig.db.NewBatch()
+			var nbytes [8]byte
+			for h.Len() > 0 {
+				element := (heap.Pop(h)).(common.HeapElem)
+				reader := readers[element.TimeIdx]
+				k := element.Key
+				// Read number of items for this key
+				var count int
+				if n, err := io.ReadFull(reader, nbytes[:]); err != nil || n != 8 {
+					return fmt.Errorf("reading from account buffer file: %d %v", n, err)
 				}
-				// Flush the old chunk
-				if err4 := batch.Put(bucket, indexKey, index); err4 != nil {
-					return err4
-				}
-				// Start a new chunk
-				index = dbutils.NewHistoryIndex()
-			} else {
-				index = dbutils.WrapHistoryIndex(indexBytes)
-			}
-			index = index.Append(blockNr, vzero)
 
-			if err := batch.Put(bucket, currentChunkKey, index); err != nil {
+				count = int(binary.BigEndian.Uint64(nbytes[:]))
+				for i := 0; i < count; i++ {
+					var b uint64
+					if n, err := io.ReadFull(reader, nbytes[:]); err != nil || n != 8 {
+						return fmt.Errorf("reading from account buffer file: %d %v", n, err)
+					}
+					b = binary.BigEndian.Uint64(nbytes[:])
+					vzero := (b & emptyValBit) != 0
+					blockNr := b &^ emptyValBit
+
+					currentChunkKey := dbutils.IndexChunkKey(k, ^uint64(0))
+					indexBytes, err1 := batch.Get(bucket, currentChunkKey)
+					if err1 != nil && err1 != ethdb.ErrKeyNotFound {
+						return fmt.Errorf("find chunk failed: %w", err1)
+					}
+
+					var index dbutils.HistoryIndexBytes
+					if len(indexBytes) == 0 {
+						index = dbutils.NewHistoryIndex()
+					} else if dbutils.CheckNewIndexChunk(indexBytes, blockNr) {
+						// Chunk overflow, need to write the "old" current chunk under its key derived from the last element
+						index = dbutils.WrapHistoryIndex(indexBytes)
+						indexKey, err3 := index.Key(k)
+						if err3 != nil {
+							return err3
+						}
+						// Flush the old chunk
+						if err4 := batch.Put(bucket, indexKey, index); err4 != nil {
+							return err4
+						}
+						// Start a new chunk
+						index = dbutils.NewHistoryIndex()
+					} else {
+						index = dbutils.WrapHistoryIndex(indexBytes)
+					}
+					index = index.Append(blockNr, vzero)
+
+					if err := batch.Put(bucket, currentChunkKey, index); err != nil {
+						return err
+					}
+					batchSize := batch.BatchSize()
+					if batchSize > batch.IdealBatchSize() {
+						if _, err := batch.Commit(); err != nil {
+							return err
+						}
+						runtime.ReadMemStats(&m)
+						log.Info("Commited index batch", "bucket", string(bucket), "size", common.StorageSize(batchSize), "current key", fmt.Sprintf("%x...", k[:4]),
+							"alloc", int(m.Alloc/1024), "sys", int(m.Sys/1024), "numGC", int(m.NumGC))
+					}
+				}
+				// Try to read the next key (reuse the element)
+				if n, err := io.ReadFull(reader, element.Key); err == nil && n == keyLength {
+					heap.Push(h, element)
+				} else if err != io.EOF {
+					// If it is EOF, we simply do not return anything into the heap
+					return fmt.Errorf("next reading from account buffer file: %d %x %v", n, element.Key[:n], err)
+				}
+			}
+			if _, err := batch.Commit(); err != nil {
 				return err
 			}
-			batchSize := batch.BatchSize()
-			if batchSize > batch.IdealBatchSize() {
-				if _, err := batch.Commit(); err != nil {
-					return err
-				}
-				runtime.ReadMemStats(&m)
-				log.Info("Commited index batch", "bucket", string(bucket), "size", common.StorageSize(batchSize), "current key", fmt.Sprintf("%x...", k[:4]),
-					"alloc", int(m.Alloc/1024), "sys", int(m.Sys/1024), "numGC", int(m.NumGC))
-			}
-		}
-		// Try to read the next key (reuse the element)
-		if n, err := io.ReadFull(reader, element.Key); err == nil && n == keyLength {
-			heap.Push(h, element)
-		} else if err != io.EOF {
-			// If it is EOF, we simply do not return anything into the heap
-			return fmt.Errorf("next reading from account buffer file: %d %x %v", n, element.Key[:n], err)
+			return nil
 		}
 	}
-	if _, err := batch.Commit(); err != nil {
+	erg,_:=errgroup.WithContext(context.TODO())
+	erg.Go(f(h1))
+	erg.Go(f(h2))
+	err:=erg.Wait()
+	if err!=nil {
 		return err
 	}
+
+
 	return nil
 }

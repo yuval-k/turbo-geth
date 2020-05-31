@@ -14,8 +14,9 @@ func RegenerateIndex(chaindata string, csBucket []byte) error {
 		return err
 	}
 	ig := core.NewIndexGenerator(db)
+	ig.ChangeSetBufSize = 256 * 1024 * 1024
 
-	err = ig.DropIndex(dbutils.AccountsHistoryBucket)
+	err = ig.DropIndex(dbutils.StorageHistoryBucket)
 	if err != nil {
 		return err
 	}
@@ -52,5 +53,27 @@ walk 505363152516
 wri 549504010353
 Index is successfully regenerated it took 35m40.326613534s
 
+add concurrency to merge
+merge 17m37.827462955s
+fill 1112782006332
+walk 522476159190
+wri 606755400206
+caltime 9m14.132599549s
+
+128mb buf
+caltime 9m2.71814643s
+merge 18m22.699848349s
+fill 18m14.547520731s
+walk 8m17.07871856s
+wri 10m1.586380075s
+Index is successfully regenerated it took 27m25.871274s
+
+
+calctime 17.12
+merge 51m43.100763556s
+fill 22m27.188621768s
+walk 11m44.751170304s
+wri 19m25.136709603s
+Index is successfully regenerated it took 1h8m56.707856368s
 
 */

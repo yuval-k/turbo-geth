@@ -29,7 +29,7 @@ func TestIndexGenerator_GenerateIndex_SimpleCase(t *testing.T) {
 			}
 			addrs, expecedIndexes := generateTestData(t, db, csBucket, blocksNum)
 
-			ig.ChangeSetBufSize = 1024
+			ig.ChangeSetBufSize = 1024 * 1024
 			err := ig.GenerateIndex(0, csBucket)
 			if err != nil {
 				t.Fatal(err)
@@ -57,6 +57,92 @@ func TestIndexGenerator_GenerateIndex_SimpleCase(t *testing.T) {
 	t.Run("storage plain state", test(2100,  dbutils.PlainStorageChangeSetBucket))
 
 }
+
+func TestName1(t *testing.T) {
+	t.Log(common.Hex2Bytes("8"))
+	t.Log(common.Hex2Bytes("7f"))
+	t.Log(common.Hex2Bytes("80"))
+	t.Log(common.Hex2Bytes("88"))
+	t.Log(common.Hex2Bytes("8f"))
+}
+
+func TestIndexGenerator_GenerateIndex_SimpleCase2(t *testing.T) {
+	csBucket:=dbutils.AccountChangeSetBucket
+		db := ethdb.NewMemDatabase()
+		ig := NewIndexGenerator(db)
+		log.Root().SetHandler(log.LvlFilterHandler(log.LvlInfo, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
+		//csInfo, ok := mapper[string(csBucket)]
+		//if !ok {
+		//	t.Fatal("incorrect cs bucket")
+		//}
+		_, _ = generateTestData2(t, db, csBucket, 5000, 100)
+
+		ig.ChangeSetBufSize = 1024 * 1024
+		err := ig.GenerateIndex(0, csBucket)
+		if err != nil {
+			t.Fatal(err)
+		}
+}
+
+func generateTestData2(t *testing.T, db ethdb.Database, csBucket []byte, numOfBlocks, numOfAddrs int) ([][]byte, map[string][][]uint64) { //nolint
+	csInfo, ok := mapper[string(csBucket)]
+	if !ok {
+		t.Fatal("incorrect cs bucket")
+	}
+	var isPlain bool
+	if bytes.Equal(dbutils.PlainStorageChangeSetBucket,csBucket)||bytes.Equal(dbutils.PlainAccountChangeSetBucket,csBucket) {
+		isPlain=true
+	}
+	addrs, err := generateAddrs(numOfAddrs, isPlain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal(dbutils.StorageChangeSetBucket, csBucket) || bytes.Equal(dbutils.PlainStorageChangeSetBucket, csBucket) {
+		keys, err := generateAddrs(numOfAddrs, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		defaultIncarnation := make([]byte, 8)
+		binary.BigEndian.PutUint64(defaultIncarnation, ^uint64(1))
+		for i := range addrs {
+			addrs[i] = append(addrs[i], defaultIncarnation...)
+			addrs[i] = append(addrs[i], keys[i]...)
+		}
+	}
+
+	expected1 := make([][]uint64, 0)
+	expected1 = append(expected1, make([]uint64, 0))
+	expected2 := make([][]uint64, 0)
+	expected2 = append(expected2, make([]uint64, 0))
+	expected3 := make([][]uint64, 0)
+	expected3 = append(expected3, make([]uint64, 0))
+
+	for i := 0; i < numOfBlocks; i++ {
+		cs := csInfo.New()
+		for i:=range addrs{
+			err = cs.Add(addrs[i], []byte(strconv.Itoa(i)))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+		}
+		v, err := csInfo.Encode(cs)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = db.Put(csBucket, dbutils.EncodeTimestamp(uint64(i)), v)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	return addrs, map[string][][]uint64{
+		string(addrs[0]): expected1,
+		string(addrs[1]): expected2,
+		string(addrs[2]): expected3,
+	}
+}
+
 
 func TestIndexGenerator_Truncate(t *testing.T) {
 	//don't run it parallel
