@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"time"
@@ -54,7 +53,8 @@ func (opts lmdbOpts) Open(ctx context.Context) (KV, error) {
 		if err != nil {
 			return nil, err
 		}
-		opts.path, _ = ioutil.TempDir(os.TempDir(), "lmdb")
+		//opts.path, _ = ioutil.TempDir(os.TempDir(), "lmdb")
+		opts.path = path.Join(os.TempDir(), "lmdb-in-memory")
 		//opts.path = "lmdb_tmp"
 	} else {
 		logger = log.New("lmdb", path.Base(opts.path))
@@ -82,11 +82,11 @@ func (opts lmdbOpts) Open(ctx context.Context) (KV, error) {
 		return nil, err
 	}
 
-	if opts.inMem {
-		// lmdb creates file in this mode, just doesn't fsync in it
-		// can remove file now, then os will remove it when db close
-		os.RemoveAll(opts.path)
-	}
+	//if opts.inMem {
+	//	// lmdb creates file in this mode, just doesn't fsync in it
+	//	// can remove file now, then os will remove it when db close
+	//	os.RemoveAll(opts.path)
+	//}
 
 	buckets := map[string]lmdb.DBI{}
 	if !opts.readOnly {
