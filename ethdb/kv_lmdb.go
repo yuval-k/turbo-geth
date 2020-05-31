@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"time"
@@ -49,13 +50,13 @@ func (opts lmdbOpts) Open(ctx context.Context) (KV, error) {
 
 	if opts.inMem {
 		logger = log.New("lmdb", "inMem")
-		err = env.SetMapSize(1 << 23) // 8MB
+		err = env.SetMapSize(1 << 22) // 4MB
 		if err != nil {
 			return nil, err
 		}
-		//opts.path, _ = ioutil.TempDir(os.TempDir(), "lmdb")
-		opts.path = path.Join(os.TempDir(), "lmdb-in-memory")
-		//opts.path = "lmdb_tmp"
+		opts.path, _ = ioutil.TempDir(os.TempDir(), "lmdb")
+		//opts.path = path.Join(os.TempDir(), "lmdb-in-memory")
+		////opts.path = "lmdb_tmp"
 	} else {
 		logger = log.New("lmdb", path.Base(opts.path))
 
