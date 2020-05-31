@@ -307,6 +307,10 @@ var (
 		Name:  "download-only",
 		Usage: "Run in download only mode - only fetch blocks but not process them",
 	}
+	DebugProtocolFlag = cli.BoolFlag{
+		Name:  "debug-protocol",
+		Usage: "Enable the DBG (debug) protocol",
+	}
 	// Ethash settings
 	EthashCacheDirFlag = DirectoryFlag{
 		Name:  "ethash.cachedir",
@@ -1267,6 +1271,7 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 
 	databaseFlag := ctx.GlobalString(DatabaseFlag.Name)
 	cfg.BadgerDB = strings.EqualFold(databaseFlag, "badger") //case insensitive
+	cfg.LMDB = strings.EqualFold(databaseFlag, "lmdb")       //case insensitive
 }
 
 func setSmartCard(ctx *cli.Context, cfg *node.Config) {
@@ -1546,6 +1551,8 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	cfg.PruningTimeout = ctx.GlobalDuration(GCModeTickTimeout.Name)
 
 	cfg.DownloadOnly = ctx.GlobalBoolT(DownloadOnlyFlag.Name)
+
+	cfg.EnableDebugProtocol = ctx.GlobalBool(DebugProtocolFlag.Name)
 
 	mode, err := eth.StorageModeFromString(ctx.GlobalString(StorageModeFlag.Name))
 	if err != nil {
