@@ -277,6 +277,7 @@ func testGenerateBlockAndImport(t *testing.T, testCase *testCase, isClique bool)
 	}
 
 	b := newTestBackend(t, testCase, chainConfig, engine, db, 0)
+	defer b.db.Close()
 	w := newTestWorker(testCase, chainConfig, engine, b, hooks{}, false)
 	defer w.close()
 
@@ -477,6 +478,7 @@ func TestStreamUncleBlock(t *testing.T) {
 	}
 
 	b := newTestBackend(t, testCase, testCase.ethashChainConfig, ethash, ethdb.NewMemDatabase(), 1)
+	defer b.db.Close()
 
 	var taskCh = make(chan struct{}, 1)
 	taskIndex := 0

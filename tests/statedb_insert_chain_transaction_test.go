@@ -65,6 +65,7 @@ func TestInsertIncorrectStateRootDifferentAccounts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer kv.Close()
 
 	if _, err = blockchain.InsertChain(context.Background(), blocks); err != nil {
 		t.Fatal(err)
