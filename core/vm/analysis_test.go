@@ -19,6 +19,7 @@ package vm
 import (
 	"testing"
 
+	"github.com/ledgerwatch/turbo-geth/common/pool"
 	"github.com/ledgerwatch/turbo-geth/crypto"
 )
 
@@ -49,8 +50,8 @@ func TestJumpDestAnalysis(t *testing.T) {
 	}
 	for _, test := range tests {
 		ret := codeBitmap(test.code)
-		if ret[test.which] != test.exp {
-			t.Fatalf("expected %x, got %02x", test.exp, ret[test.which])
+		if ret.Get(test.which) != test.exp {
+			t.Fatalf("expected %x, got %02x", test.exp, ret.Get(test.which))
 		}
 	}
 }
@@ -60,10 +61,12 @@ func BenchmarkJumpdestAnalysis_1200k(bench *testing.B) {
 	code := make([]byte, 1200000)
 	bench.ResetTimer()
 	for i := 0; i < bench.N; i++ {
-		codeBitmap(code)
+		b := codeBitmap(code)
+		pool.PutBuffer(b)
 	}
 	bench.StopTimer()
 }
+
 func BenchmarkJumpdestHashing_1200k(bench *testing.B) {
 	// 4 ms
 	code := make([]byte, 1200000)

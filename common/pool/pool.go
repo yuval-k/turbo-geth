@@ -25,8 +25,10 @@ func newPool(defaultSize uint) *pool {
 		maxSize:     uint64(defaultSize),
 		pool: sync.Pool{
 			New: func() interface{} {
-				return &bytebufferpool.ByteBuffer{
-					B: make([]byte, 0, defaultSize),
+				return &ByteBuffer{
+					&bytebufferpool.ByteBuffer{
+						B: make([]byte, 0, defaultSize),
+					},
 				}
 			},
 		},
@@ -37,14 +39,14 @@ func newPool(defaultSize uint) *pool {
 //
 // The byte buffer may be returned to the pool via Put after the use
 // in order to minimize GC overhead.
-func (p *pool) Get() *bytebufferpool.ByteBuffer {
-	return p.pool.Get().(*bytebufferpool.ByteBuffer)
+func (p *pool) Get() *ByteBuffer {
+	return p.pool.Get().(*ByteBuffer)
 }
 
 // Put releases byte buffer obtained via Get to the pool.
 //
 // The buffer mustn't be accessed after returning to the pool.
-func (p *pool) Put(b *bytebufferpool.ByteBuffer) {
+func (p *pool) Put(b *ByteBuffer) {
 	if b == nil || cap(b.B) == 0 {
 		return
 	}
