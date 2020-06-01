@@ -123,9 +123,11 @@ func BenchmarkJumpDest(b *testing.B) {
 	pc := new(uint256.Int)
 	hash := common.Hash{1, 2, 3, 4, 5}
 
+	contractRef := dummyContractRef{}
+
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		contract := NewContract(&dummyContractRef{}, &dummyContractRef{}, nil, 0)
+		contract := NewContract(contractRef, contractRef, nil, 0)
 		contract.Code = code
 		contract.CodeHash = hash
 

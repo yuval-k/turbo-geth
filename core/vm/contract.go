@@ -92,11 +92,11 @@ func (c *Contract) validJumpdest(dest *uint256.Int) bool {
 	// If we have the code hash (but no analysis), we should look into the
 	// parent analysis map and see if the analysis has been made previously
 	if c.CodeHash != (common.Hash{}) {
-		analysis, exist := jumpdests[c.CodeHash]
+		analysis, exist := jumpdests.Get(c.CodeHash)
 		if !exist {
 			// Do the analysis and save in parent context
 			analysis = codeBitmap(c.Code)
-			jumpdests[c.CodeHash] = analysis
+			jumpdests.Set(c.CodeHash, analysis)
 		}
 		// Also stash it in current contract for faster access
 		c.analysis = analysis

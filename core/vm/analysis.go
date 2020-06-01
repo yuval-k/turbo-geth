@@ -17,11 +17,99 @@
 package vm
 
 import (
+	"sort"
+
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/pool"
 )
 
-var jumpdests = make(map[common.Hash]*pool.ByteBuffer, 300000) // Aggregated result of JUMPDEST analysis.
+var jumpdests cache = newJumpDests(50000, 10, 1)
+
+type cache interface {
+	Set(hash common.Hash, v *pool.ByteBuffer)
+	Get(hash common.Hash) (*pool.ByteBuffer, bool)
+}
+
+type jumpDests struct {
+	maps       map[common.Hash]*item
+	lru        []map[common.Hash]struct{}
+	chunks     []int
+	minToClear int // 1..1000
+	maxSize    int
+}
+
+type item struct {
+	m    *pool.ByteBuffer
+	used int
+}
+
+func newJumpDests(maxSize, nChunks, perMilleToClear int) *jumpDests {
+	lru := make([]map[common.Hash]struct{}, nChunks)
+	chunks := make([]int, nChunks)
+	chunkSize := maxSize / nChunks
+	for i := 0; i < nChunks; i++ {
+		lru[i] = make(map[common.Hash]struct{}, chunkSize)
+		chunks[i] = 1 << (1 + i*2)
+	}
+
+	return &jumpDests{
+		make(map[common.Hash]*item, maxSize),
+		lru,
+		chunks,
+		maxSize * perMilleToClear / 1000,
+		maxSize,
+	}
+}
+
+func (j *jumpDests) Set(hash common.Hash, v *pool.ByteBuffer) {
+	_, ok := j.maps[hash]
+	if ok {
+		return
+	}
+
+	if len(j.maps) >= j.maxSize {
+		j.gc()
+	}
+
+	j.maps[hash] = &item{v, 1}
+	j.lru[0][hash] = struct{}{}
+	return
+}
+
+func (j *jumpDests) Get(hash common.Hash) (*pool.ByteBuffer, bool) {
+	jumps, ok := j.maps[hash]
+	if !ok {
+		return nil, false
+	}
+
+	jumps.used++
+	idx := sort.SearchInts(j.chunks, jumps.used)
+	// everything greater than j.chunks[len(chunks)-1] should be stored in the last chunk
+	if idx >= 0 && idx < len(j.chunks)-1 {
+		max := j.chunks[idx]
+		if jumps.used >= max {
+			j.lru[idx+1][hash] = struct{}{}
+			delete(j.lru[idx], hash)
+		}
+	}
+
+	return jumps.m, true
+}
+
+func (j *jumpDests) gc() {
+	n := 0
+	for _, chunk := range j.lru {
+		for hash := range chunk {
+			delete(chunk, hash)
+			delete(j.maps, hash)
+
+			n++
+			if n >= j.minToClear {
+				return
+			}
+		}
+	}
+}
 
 // codeBitmap collects data locations in code.
 func codeBitmap(code []byte) *pool.ByteBuffer {
