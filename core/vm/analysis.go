@@ -28,6 +28,7 @@ var jumpdests cache = newJumpDests(50000, 10, 1)
 type cache interface {
 	Set(hash common.Hash, v *pool.ByteBuffer)
 	Get(hash common.Hash) (*pool.ByteBuffer, bool)
+	Clear(codeHash common.Hash, local *pool.ByteBuffer)
 }
 
 type jumpDests struct {
@@ -84,10 +85,12 @@ func (j *jumpDests) Get(hash common.Hash) (*pool.ByteBuffer, bool) {
 
 	jumps.used++
 	idx := sort.SearchInts(j.chunks, jumps.used)
+
 	// everything greater than j.chunks[len(chunks)-1] should be stored in the last chunk
 	if idx >= 0 && idx < len(j.chunks)-1 {
 		max := j.chunks[idx]
 		if jumps.used >= max {
+			// moving to the next chunk
 			j.lru[idx+1][hash] = struct{}{}
 			delete(j.lru[idx], hash)
 		}
@@ -101,7 +104,10 @@ func (j *jumpDests) gc() {
 	for _, chunk := range j.lru {
 		for hash := range chunk {
 			delete(chunk, hash)
+
+			item := j.maps[hash]
 			delete(j.maps, hash)
+			pool.PutBuffer(item.m)
 
 			n++
 			if n >= j.minToClear {
@@ -109,6 +115,18 @@ func (j *jumpDests) gc() {
 			}
 		}
 	}
+}
+
+func (j *jumpDests) Clear(codeHash common.Hash, local *pool.ByteBuffer) {
+	if codeHash == (common.Hash{}) {
+		return
+	}
+	_, ok := j.maps[codeHash]
+	if ok {
+		return
+	}
+	// analysis is a local one
+	pool.PutBuffer(local)
 }
 
 // codeBitmap collects data locations in code.
