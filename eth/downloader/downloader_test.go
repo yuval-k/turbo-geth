@@ -29,6 +29,7 @@ import (
 
 	ethereum "github.com/ledgerwatch/turbo-geth"
 	"github.com/ledgerwatch/turbo-geth/common"
+	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/consensus"
 	"github.com/ledgerwatch/turbo-geth/core/types"
 	"github.com/ledgerwatch/turbo-geth/core/vm"
@@ -87,7 +88,10 @@ func newTester() *downloadTester {
 		ancientChainTd:  map[common.Hash]*big.Int{testGenesis.Hash(): testGenesis.Difficulty()},
 	}
 	tester.stateDb = ethdb.NewMemDatabase()
-	tester.stateDb.Put(nil, testGenesis.Root().Bytes(), []byte{0x00})
+	err := tester.stateDb.Put(dbutils.BlockBodyPrefix, dbutils.BlockBodyKey(testGenesis.NumberU64(), testGenesis.Root()), []byte{0x00})
+	if err != nil {
+		panic(err)
+	}
 	tester.downloader = New(uint64(FullSync), tester.stateDb, trie.NewSyncBloom(1, tester.stateDb), new(event.TypeMux), tester, nil, tester.dropPeer, false)
 	return tester
 }
@@ -190,7 +194,7 @@ func (dl *downloadTester) CurrentBlock() *types.Block {
 	for i := len(dl.ownHashes) - 1; i >= 0; i-- {
 		if block := dl.ancientBlocks[dl.ownHashes[i]]; block != nil {
 			// FIXME: Support ancients
-			if _, err := dl.stateDb.Get(nil, block.Root().Bytes()); err == nil {
+			if _, err := dl.stateDb.Get(dbutils.BlockBodyPrefix, dbutils.BlockBodyKey(block.NumberU64(), block.Root())); err == nil {
 				return block
 			}
 			return block
@@ -298,7 +302,10 @@ func (dl *downloadTester) InsertChain(_ context.Context, blocks types.Blocks) (i
 		}
 		dl.ownBlocks[block.Hash()] = block
 		dl.ownReceipts[block.Hash()] = make(types.Receipts, 0)
-		dl.stateDb.Put(nil, block.Root().Bytes(), []byte{0x00})
+		err := dl.stateDb.Put(dbutils.BlockBodyPrefix, dbutils.BlockBodyKey(block.NumberU64(), block.Root()), []byte{0x00})
+		if err != nil {
+			panic(err)
+		}
 		dl.ownChainTd[block.Hash()] = new(big.Int).Add(dl.ownChainTd[block.ParentHash()], block.Difficulty())
 	}
 	return len(blocks), nil

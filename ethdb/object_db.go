@@ -295,8 +295,16 @@ func (db *ObjectDatabase) AbstractKV() KV {
 }
 
 func (db *ObjectDatabase) MemCopy() Database {
+	var mem *ObjectDatabase
 	// Open the db and recover any potential corruptions
-	mem := NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
+	switch db.kv.(type) {
+	case *lmdbKV:
+		mem = NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
+	case *BoltKV:
+		mem = NewObjectDatabase(NewBolt().InMem().MustOpen(context.Background()))
+	case *badgerDB:
+		mem = NewObjectDatabase(NewBadger().InMem().MustOpen(context.Background()))
+	}
 
 	if err := db.kv.View(context.Background(), func(readTx Tx) error {
 		for _, name := range dbutils.Buckets {
