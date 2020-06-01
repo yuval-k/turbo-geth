@@ -74,7 +74,6 @@ func (j *jumpDests) Set(hash common.Hash, v *pool.ByteBuffer) {
 
 	j.maps[hash] = &item{v, 1}
 	j.lru[0][hash] = struct{}{}
-	return
 }
 
 func (j *jumpDests) Get(hash common.Hash) (*pool.ByteBuffer, bool) {
