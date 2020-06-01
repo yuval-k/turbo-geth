@@ -20,5 +20,5 @@ func (b ByteBuffer) SetBit8Pos(pos uint64) {
 }
 
 func (b ByteBuffer) CodeSegment(pos uint64) bool {
-	return b.B[pos/8] & (0x80 >> (pos % 8)) == 0
+	return b.B[pos/8]&(0x80>>(pos%8)) == 0
 }

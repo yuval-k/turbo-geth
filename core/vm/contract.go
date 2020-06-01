@@ -50,7 +50,7 @@ type Contract struct {
 	caller        ContractRef
 	self          ContractRef
 
-	analysis  *pool.ByteBuffer                 // Locally cached result of JUMPDEST analysis
+	analysis *pool.ByteBuffer // Locally cached result of JUMPDEST analysis
 
 	Code     []byte
 	CodeHash common.Hash

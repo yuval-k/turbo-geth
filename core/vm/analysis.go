@@ -28,7 +28,7 @@ func codeBitmap(code []byte) *pool.ByteBuffer {
 	// The bitmap is 4 bytes longer than necessary, in case the code
 	// ends with a PUSH32, the algorithm will push zeroes onto the
 	// bitvector outside the bounds of the actual code.
-	bits := pool.GetBuffer(uint(len(code)/8+1+4))
+	bits := pool.GetBuffer(uint(len(code)/8 + 1 + 4))
 	for pc := uint64(0); pc < uint64(len(code)); {
 		op := OpCode(code[pc])
 
