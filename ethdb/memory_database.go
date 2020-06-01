@@ -25,7 +25,7 @@ import (
 )
 
 func NewMemDatabase() *ObjectDatabase {
-	return NewObjectDatabase(NewBolt().InMem().MustOpen(context.Background()))
+	return NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
 	//logger := log.New("database", "in-memory")
 	//
 	//// Open the db and recover any potential corruptions

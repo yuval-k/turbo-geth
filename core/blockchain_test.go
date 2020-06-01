@@ -1183,6 +1183,7 @@ func TestSideLogRebirth(t *testing.T) {
 
 	// Generate side chain with lower difficulty
 	sideChainDb := dbCopy.MemCopy()
+	defer sideChainDb.Close()
 	sideChain, _ := GenerateChain(context.Background(), params.TestChainConfig, genesis, ethash.NewFaker(), sideChainDb, 2, func(i int, gen *BlockGen) {
 		if i == 1 {
 			tx, err := types.SignTx(types.NewContractCreation(gen.TxNonce(addr1), new(big.Int), 1000000, new(big.Int), logCode), signer, key1)
