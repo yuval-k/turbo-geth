@@ -24,14 +24,18 @@ func newPool(defaultSize uint) *pool {
 		defaultSize: uint64(defaultSize),
 		maxSize:     uint64(defaultSize),
 		pool: sync.Pool{
-			New: func() interface{} {
-				return &ByteBuffer{
-					&bytebufferpool.ByteBuffer{
-						B: make([]byte, 0, defaultSize),
-					},
-				}
-			},
+			New: getFn(defaultSize),
 		},
+	}
+}
+
+func getFn(defaultSize uint) func() interface{} {
+	return func() interface{} {
+		return &ByteBuffer{
+			&bytebufferpool.ByteBuffer{
+				B: make([]byte, 0, defaultSize),
+			},
+		}
 	}
 }
 
