@@ -68,12 +68,27 @@ walk 8m17.07871856s
 wri 10m1.586380075s
 Index is successfully regenerated it took 27m25.871274s
 
+4 потока мерж
+caltime 8m41.669206731s
+merge 21m36.471219819s
+fill 18m12.304514889s
+walk 8m9.658442011s
+wri 9m9.48262477s
 
+storage
 calctime 17.12
 merge 51m43.100763556s
 fill 22m27.188621768s
 walk 11m44.751170304s
 wri 19m25.136709603s
 Index is successfully regenerated it took 1h8m56.707856368s
+
+storage 4 threads
+caltime 16m12.283974528s
+merge 52m35.329102088s
+fill 22m38.1297512s
+walk 10m34.275977833s
+wri 17m57.306465989s
+Index is successfully regenerated it took 1h8m48.618407089s
 
 */

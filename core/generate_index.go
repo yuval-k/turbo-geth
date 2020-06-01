@@ -100,7 +100,7 @@ func (ig *IndexGenerator) GenerateIndex(blockNum uint64, changeSetBucket []byte)
 	var m runtime.MemStats
 	var mtx sync.Mutex
 	var bufferFileNames []struct{
-		h bool
+		h int
 		name string
 		id uint64
 	}
@@ -173,25 +173,25 @@ func (ig *IndexGenerator) GenerateIndex(blockNum uint64, changeSetBucket []byte)
 				//fmt.Println("walk", time.Since(t2))
 				atomic.AddInt64(walkp, int64(time.Since(t2)))
 				t3 := time.Now()
-				if filename1,filename2, err := ig.writeBufferMapToTempFile(ig.TempDir, v.Template, bufferMap); err == nil {
+				if filenames, err := ig.writeBufferMapToTempFile(ig.TempDir, v.Template, bufferMap); err == nil {
 					mtx.Lock()
-					bufferFileNames = append(bufferFileNames, struct {
-						h bool
-						name string
-						id   uint64
-					}{name: filename1, id:oldBlocknum , h:false})
-					bufferFileNames = append(bufferFileNames, struct {
-						h bool
-						name string
-						id   uint64
-					}{name: filename2, id:oldBlocknum , h:true})
-					runtime.ReadMemStats(&m)
-					log.Info("Created a buffer file", "name", filename1, "from block", oldBlocknum, "up to block", blockNum,
-						"alloc", int(m.Alloc/1024), "sys", int(m.Sys/1024), "numGC", int(m.NumGC))
-					log.Info("Created a buffer file", "name", filename2, "from block", oldBlocknum, "up to block", blockNum,
-						"alloc", int(m.Alloc/1024), "sys", int(m.Sys/1024), "numGC", int(m.NumGC))
+					for i,filename:=range filenames {
+						fmt.Println("filename", i, filename)
+						if filename=="" {
+							continue
+						}
+						bufferFileNames = append(bufferFileNames, struct {
+							h int
+							name string
+							id   uint64
+						}{name: filename, id:oldBlocknum , h:i})
+						runtime.ReadMemStats(&m)
+						log.Info("Created a buffer file", "name", filename, "from block", oldBlocknum, "up to block", blockNum,
+							"alloc", int(m.Alloc/1024), "sys", int(m.Sys/1024), "numGC", int(m.NumGC))
+					}
 					mtx.Unlock()
 				} else {
+					fmt.Println("writeBufferMapToTempFile",err)
 					return err
 				}
 				//fmt.Println("save map", time.Since(t3))
@@ -362,87 +362,96 @@ const emptyValBit uint64 = 0x8000000000000000
 
 // writeBufferMapToTempFile creates temp file in the datadir and writes bufferMap into it
 // if sucessful, returns the name of the created file. File is closed
-func (ig *IndexGenerator) writeBufferMapToTempFile(datadir string, pattern string, bufferMap map[string][]uint64) (string, string, error) {
-	var filename1 string
-	var filename2 string
-	keys1 := make([]string,0, len(bufferMap)/3*2)
-	keys2 := make([]string,0, len(bufferMap)/3*2)
+func (ig *IndexGenerator) writeBufferMapToTempFile(datadir string, pattern string, bufferMap map[string][]uint64) ([]string, error) {
+	keys1 := make([]string,0, len(bufferMap)/3)
+	keys2 := make([]string,0, len(bufferMap)/3)
+	keys3 := make([]string,0, len(bufferMap)/3)
+	keys4 := make([]string,0, len(bufferMap)/3)
 	for key := range bufferMap {
-		if []byte(key)[0]<128 {
+		v:= []byte(key)[0]
+		switch  {
+		case v<80:
 			keys1=append(keys1, key)
-		} else {
+		case v>=80&&v<128:
 			keys2=append(keys2, key)
+		case v>=128&&v<192:
+			keys3=append(keys3, key)
+		default:
+			keys4=append(keys4, key)
 		}
 	}
 	sort.Strings(keys1)
 	sort.Strings(keys2)
-	var w *bufio.Writer
-	bufferFile, err := ioutil.TempFile(datadir, pattern)
-	if err!=nil {
-		return filename1,filename2, fmt.Errorf("creating temp buf file %s: %v", pattern, err)
-	}
-	//nolint:errcheck
-	defer bufferFile.Close()
-	filename1 = bufferFile.Name()
-
-	bufferFile2, err := ioutil.TempFile(datadir, pattern)
-	if err!=nil {
-		return filename1,filename2, fmt.Errorf("creating temp buf file %s: %v", pattern, err)
-	}
-	//nolint:errcheck
-	defer bufferFile2.Close()
-	filename2 = bufferFile2.Name()
-
-	w = bufio.NewWriter(bufferFile)
-
-	var nbytes [8]byte
-	for _, key := range keys1 {
-		if _, err := w.Write([]byte(key)); err != nil {
-			return filename1,filename1, err
+	sort.Strings(keys3)
+	sort.Strings(keys4)
+	filenames:=make([]string, 4)
+	f:= func(keys []string) (string, error) {
+		bufferFile, err := ioutil.TempFile(datadir, pattern)
+		if err!=nil {
+			return "", fmt.Errorf("creating temp buf file %s: %v", pattern, err)
 		}
-		list := bufferMap[key]
-		binary.BigEndian.PutUint64(nbytes[:], uint64(len(list)))
-		if _, err := w.Write(nbytes[:]); err != nil {
-			return filename1,filename2, err
-		}
-		for _, b := range list {
-			binary.BigEndian.PutUint64(nbytes[:], b)
+		//nolint:errcheck
+		defer bufferFile.Close()
+		filename := bufferFile.Name()
+		var w *bufio.Writer
+		w = bufio.NewWriter(bufferFile)
+		var nbytes [8]byte
+		for _, key := range keys {
+			if _, err := w.Write([]byte(key)); err != nil {
+				return filename, err
+			}
+			list := bufferMap[key]
+			binary.BigEndian.PutUint64(nbytes[:], uint64(len(list)))
 			if _, err := w.Write(nbytes[:]); err != nil {
-				return filename1,filename2, err
+				return filename, err
+			}
+			for _, b := range list {
+				binary.BigEndian.PutUint64(nbytes[:], b)
+				if _, err := w.Write(nbytes[:]); err != nil {
+					return filename, err
+				}
 			}
 		}
-	}
-	if err := w.Flush(); err != nil {
-		return filename1,filename2, fmt.Errorf("flushing file %s,%s: %v", filename1,filename2, err)
-	}
-
-
-	w = bufio.NewWriter(bufferFile2)
-	for _, key := range keys2 {
-		if _, err := w.Write([]byte(key)); err != nil {
-			return filename1,filename2, err
+		if err := w.Flush(); err != nil {
+			return filename, fmt.Errorf("flushing file %s: %v", filename, err)
 		}
-		list := bufferMap[key]
-		binary.BigEndian.PutUint64(nbytes[:], uint64(len(list)))
-		if _, err := w.Write(nbytes[:]); err != nil {
-			return filename1,filename2, err
-		}
-		for _, b := range list {
-			binary.BigEndian.PutUint64(nbytes[:], b)
-			if _, err := w.Write(nbytes[:]); err != nil {
-				return filename1,filename2, err
-			}
+		return filename, nil
+	}
+	if len(keys1)>0 {
+		filename,err:=f(keys1)
+		filenames[0] =  filename
+		if err!=nil {
+			return filenames, fmt.Errorf("creating temp buf file %v: %v", pattern, err)
 		}
 	}
-	if err := w.Flush(); err != nil {
-		return filename1,filename2, fmt.Errorf("flushing file %s,%s: %v", filename1,filename2, err)
+	if len(keys2)>0 {
+		filename, err := f(keys2)
+		filenames[1] =  filename
+		if err != nil {
+			return filenames, fmt.Errorf("creating temp buf file %v: %v", pattern, err)
+		}
+	}
+	if len(keys3)>0 {
+		filename, err := f(keys3)
+		filenames[2] =  filename
+		if err != nil {
+			return filenames, fmt.Errorf("creating temp buf file %v: %v", pattern, err)
+		}
 	}
 
-	return filename1, filename2, nil
+	if len(keys4)>0 {
+		filename, err := f(keys4)
+		filenames[3] =  filename
+		if err != nil {
+			return filenames, fmt.Errorf("creating temp buf file %v: %v", pattern, err)
+		}
+	}
+
+	return filenames, nil
 }
 
 func (ig *IndexGenerator) mergeFilesIntoBucket(bufferFileNames []struct{
-	h bool
+	h int
 	name string
 	id uint64
 }, bucket []byte, keyLength int) error {
@@ -454,6 +463,10 @@ func (ig *IndexGenerator) mergeFilesIntoBucket(bufferFileNames []struct{
 	heap.Init(h1)
 	h2 := &common.Heap{}
 	heap.Init(h2)
+	h3 := &common.Heap{}
+	heap.Init(h3)
+	h4 := &common.Heap{}
+	heap.Init(h4)
 	readers := make([]io.Reader, len(bufferFileNames))
 	for i, fileName := range bufferFileNames {
 		if f, err := os.Open(fileName.name); err == nil {
@@ -466,10 +479,15 @@ func (ig *IndexGenerator) mergeFilesIntoBucket(bufferFileNames []struct{
 		// Read first key
 		keyBuf := make([]byte, keyLength)
 		if n, err := io.ReadFull(readers[i], keyBuf); err == nil && n == keyLength {
-			if fileName.h {
+			switch fileName.h {
+			case 0:
 				heap.Push(h1, common.HeapElem{keyBuf, i, nil})
-			} else {
+			case 1:
 				heap.Push(h2, common.HeapElem{keyBuf, i, nil})
+			case 2:
+				heap.Push(h3, common.HeapElem{keyBuf, i, nil})
+			case 3:
+				heap.Push(h4, common.HeapElem{keyBuf, i, nil})
 			}
 
 		} else {
@@ -560,6 +578,8 @@ func (ig *IndexGenerator) mergeFilesIntoBucket(bufferFileNames []struct{
 	erg,_:=errgroup.WithContext(context.TODO())
 	erg.Go(f(h1))
 	erg.Go(f(h2))
+	erg.Go(f(h3))
+	erg.Go(f(h4))
 	err:=erg.Wait()
 	if err!=nil {
 		return err

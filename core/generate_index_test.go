@@ -29,7 +29,7 @@ func TestIndexGenerator_GenerateIndex_SimpleCase(t *testing.T) {
 			}
 			addrs, expecedIndexes := generateTestData(t, db, csBucket, blocksNum)
 
-			ig.ChangeSetBufSize = 1024 * 1024
+			ig.ChangeSetBufSize = 256*1024  * 1024
 			err := ig.GenerateIndex(0, csBucket)
 			if err != nil {
 				t.Fatal(err)
@@ -59,11 +59,14 @@ func TestIndexGenerator_GenerateIndex_SimpleCase(t *testing.T) {
 }
 
 func TestName1(t *testing.T) {
-	t.Log(common.Hex2Bytes("8"))
+	t.Log(common.Hex2Bytes("4f"))
+	t.Log(common.Hex2Bytes("50"))
+	t.Log()
 	t.Log(common.Hex2Bytes("7f"))
 	t.Log(common.Hex2Bytes("80"))
-	t.Log(common.Hex2Bytes("88"))
-	t.Log(common.Hex2Bytes("8f"))
+	t.Log()
+	t.Log(common.Hex2Bytes("bf"))
+	t.Log(common.Hex2Bytes("c0"))
 }
 
 func TestIndexGenerator_GenerateIndex_SimpleCase2(t *testing.T) {
