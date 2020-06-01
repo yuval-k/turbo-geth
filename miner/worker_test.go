@@ -157,7 +157,6 @@ func newTestWorkerBackend(t *testing.T, testCase *testCase, chainConfig *params.
 	genesis := gspec.MustCommit(db)
 
 	dbCopy := db.MemCopy()
-	defer dbCopy.Close()
 	chain, _ := core.NewBlockChain(dbCopy, nil, gspec.Config, engine, vm.Config{}, nil, nil)
 	txpool := core.NewTxPool(testCase.testTxPoolConfig, chainConfig, chain)
 
