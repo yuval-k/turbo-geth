@@ -970,6 +970,7 @@ func testMissingHeaderAttack(t *testing.T, protocol int, mode SyncMode) {
 
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
 
 	chain := testChainBase.shorten(blockCacheItems - 15)
 	brokenChain := chain.shorten(chain.len())
@@ -1003,6 +1004,7 @@ func testShiftedHeaderAttack(t *testing.T, protocol int, mode SyncMode) {
 
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
 
 	chain := testChainBase.shorten(blockCacheItems - 15)
 
@@ -1036,6 +1038,7 @@ func testInvalidHeaderRollback(t *testing.T, protocol int, mode SyncMode) {
 
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
 
 	// Create a small enough block chain to download
 	targetBlocks := 3*fsHeaderSafetyNet + 256 + fsMinFullBlocks
@@ -1133,6 +1136,7 @@ func testHighTDStarvationAttack(t *testing.T, protocol int, mode SyncMode) {
 
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
 
 	chain := testChainBase.shorten(1)
 	tester.newPeer("attack", protocol, chain)
@@ -1173,6 +1177,7 @@ func testBlockHeaderAttackerDropping(t *testing.T, protocol int) {
 	// Run the tests and check disconnection status
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
 	chain := testChainBase.shorten(1)
 
 	for i, tt := range tests {
@@ -1210,6 +1215,7 @@ func testSyncProgress(t *testing.T, protocol int, mode SyncMode) {
 
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
 	chain := testChainBase.shorten(blockCacheItems - 15)
 
 	// Set a sync init hook to catch progress changes
@@ -1295,6 +1301,7 @@ func testForkedSyncProgress(t *testing.T, protocol int, mode SyncMode) {
 
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
 	chainA := testChainForkLightA.shorten(testChainBase.len() + MaxHashFetch)
 	chainB := testChainForkLightB.shorten(testChainBase.len() + MaxHashFetch)
 
@@ -1372,6 +1379,8 @@ func testFailedSyncProgress(t *testing.T, protocol int, mode SyncMode) {
 
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
+
 	chain := testChainBase.shorten(blockCacheItems - 15)
 
 	// Set a sync init hook to catch progress changes
@@ -1446,6 +1455,7 @@ func testFakedSyncProgress(t *testing.T, protocol int, mode SyncMode) {
 
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
 	chain := testChainBase.shorten(blockCacheItems - 15)
 
 	// Set a sync init hook to catch progress changes
@@ -1534,10 +1544,8 @@ func TestDeliverHeadersHang(t *testing.T) {
 
 func testDeliverHeadersHang(t *testing.T, protocol int, mode SyncMode) {
 	master := newTester()
-	defer func() {
-		master.terminate()
-		master.peerDb.Close()
-	}()
+	defer master.terminate()
+	defer master.peerDb.Close()
 	chain := testChainBase.shorten(15)
 
 	for i := 0; i < 200; i++ {

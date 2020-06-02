@@ -35,6 +35,8 @@ func (opts lmdbOpts) ReadOnly() lmdbOpts {
 	return opts
 }
 
+var i int
+
 func (opts lmdbOpts) Open(ctx context.Context) (KV, error) {
 	env, err := lmdb.NewEnv()
 	if err != nil {
@@ -57,6 +59,11 @@ func (opts lmdbOpts) Open(ctx context.Context) (KV, error) {
 		opts.path, _ = ioutil.TempDir(os.TempDir(), "lmdb")
 		//opts.path = path.Join(os.TempDir(), "lmdb-in-memory")
 		//opts.path = "lmdb_tmp"
+		//fmt.Printf("Open: %s\n", opts.path)
+		//i++
+		//if i == 2 {
+		//	//panic(1)
+		//}
 	} else {
 		logger = log.New("lmdb", path.Base(opts.path))
 
@@ -161,6 +168,13 @@ func (db *lmdbKV) Close() {
 		db.log.Warn("failed to close DB", "err", err)
 	} else {
 		db.log.Info("database closed")
+	}
+
+	if db.opts.inMem {
+		//fmt.Printf("RM: %s\n", db.opts.path)
+		if err := os.RemoveAll(db.opts.path); err != nil {
+			db.log.Warn("failed to remove in-mem db file", "err", err)
+		}
 	}
 }
 func (db *lmdbKV) Size() uint64 {

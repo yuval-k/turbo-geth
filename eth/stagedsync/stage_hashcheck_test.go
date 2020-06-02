@@ -17,8 +17,9 @@ func getDataDir() string {
 }
 
 func TestPromoteHashedStateClearState(t *testing.T) {
-	db1 := ethdb.NewMemDatabase()
-	db2 := ethdb.NewMemDatabase()
+	db1, db2 := ethdb.NewMemDatabase(), ethdb.NewMemDatabase()
+	defer db1.Close()
+	defer db2.Close()
 
 	generateBlocks(t, 1, 50, hashedWriterGen(db1), changeCodeWithIncarnations)
 
@@ -39,8 +40,9 @@ func TestPromoteHashedStateClearState(t *testing.T) {
 
 func TestPromoteHashedStateIncremental(t *testing.T) {
 	t.Skip("not implemented yet")
-	db1 := ethdb.NewMemDatabase()
-	db2 := ethdb.NewMemDatabase()
+	db1, db2 := ethdb.NewMemDatabase(), ethdb.NewMemDatabase()
+	defer db1.Close()
+	defer db2.Close()
 
 	generateBlocks(t, 1, 50, hashedWriterGen(db1), changeCodeWithIncarnations)
 	generateBlocks(t, 1, 50, plainWriterGen(db2), changeCodeWithIncarnations)
@@ -73,8 +75,9 @@ func TestPromoteHashedStateIncremental(t *testing.T) {
 
 func TestPromoteHashedStateIncrementalMixed(t *testing.T) {
 	t.Skip("not implemented yet")
-	db1 := ethdb.NewMemDatabase()
-	db2 := ethdb.NewMemDatabase()
+	db1, db2 := ethdb.NewMemDatabase(), ethdb.NewMemDatabase()
+	defer db1.Close()
+	defer db2.Close()
 
 	generateBlocks(t, 1, 100, hashedWriterGen(db1), changeCodeWithIncarnations)
 	generateBlocks(t, 1, 50, hashedWriterGen(db1), changeCodeWithIncarnations)

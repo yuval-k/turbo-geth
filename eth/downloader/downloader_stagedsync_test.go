@@ -324,6 +324,8 @@ func (stp *stagedSyncTesterPeer) RequestReceipts(hashes []common.Hash) error {
 
 func TestUnwind(t *testing.T) {
 	tester := newStagedSyncTester(false)
+	defer tester.Stop()
+	defer tester.db.Close()
 	if err := tester.newPeer("peer", 65, testChainForkLightA); err != nil {
 		t.Fatal(err)
 	}
