@@ -163,7 +163,7 @@ func (tm *testMatcher) findSkip(name string) (reason string, skipload bool) {
 
 // findConfig returns the chain config matching defined patterns.
 func (tm *testMatcher) findConfig(name string) *params.ChainConfig {
-	// TODO(fjl): name can be derived from testing.T when min Go version is 1.8
+
 	for _, m := range tm.configpat {
 		if m.p.MatchString(name) {
 			return &m.config

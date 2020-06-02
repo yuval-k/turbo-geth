@@ -100,6 +100,7 @@ func newTester() *downloadTester {
 // held resources.
 func (dl *downloadTester) terminate() {
 	dl.downloader.Terminate()
+	dl.stateDb.Close()
 }
 
 // sync starts synchronizing with a remote peer, blocking until it completes.
@@ -1533,11 +1534,15 @@ func TestDeliverHeadersHang(t *testing.T) {
 
 func testDeliverHeadersHang(t *testing.T, protocol int, mode SyncMode) {
 	master := newTester()
-	defer master.terminate()
+	defer func() {
+		master.terminate()
+		master.peerDb.Close()
+	}()
 	chain := testChainBase.shorten(15)
 
 	for i := 0; i < 200; i++ {
 		tester := newTester()
+		tester.peerDb.Close()
 		tester.peerDb = master.peerDb
 		tester.newPeer("peer", protocol, chain)
 
@@ -1692,6 +1697,7 @@ func testCheckpointEnforcement(t *testing.T, protocol int, mode SyncMode) {
 	// Create a new tester with a particular hard coded checkpoint block
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
 
 	tester.downloader.checkpoint = uint64(fsMinFullBlocks) + 256
 	chain := testChainBase.shorten(int(tester.downloader.checkpoint) - 1)
