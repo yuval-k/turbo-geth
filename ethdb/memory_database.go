@@ -21,15 +21,15 @@ import (
 
 	"github.com/ledgerwatch/bolt"
 	"github.com/ledgerwatch/turbo-geth/common"
+	"github.com/ledgerwatch/turbo-geth/common/debug"
 	"github.com/ledgerwatch/turbo-geth/log"
 )
 
 func NewMemDatabase() *ObjectDatabase {
-	return NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
 	//logger := log.New("database", "in-memory")
 	//
 	//// Open the db and recover any potential corruptions
-	//db, errOpen := bolt.Open("in-memory", 0600, &bolt.Options{MemOnly: true, KeysPrefixCompressionDisable: true})
+	//db, errOpen := bolt.Open("in-memory", 0600, &bolt.Options{MemOnly: true})
 	//if errOpen != nil {
 	//	panic(errOpen)
 	//}
@@ -52,6 +52,17 @@ func NewMemDatabase() *ObjectDatabase {
 	//}
 	//
 	//return b
+
+	switch debug.TestDB() {
+	case "badger":
+		return NewObjectDatabase(NewBadger().InMem().MustOpen(context.Background()))
+	case "lmdb":
+		return NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
+	default:
+		return NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
+		//return NewObjectDatabase(NewBadger().InMem().MustOpen(context.Background()))
+		//return NewObjectDatabase(NewBolt().InMem().MustOpen(context.Background()))
+	}
 }
 
 func NewMemDatabase2() (*BoltDatabase, KV) {
