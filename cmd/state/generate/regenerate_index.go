@@ -1,7 +1,7 @@
 package generate
 
 import (
-	"github.com/ledgerwatch/turbo-geth/common/dbutils"
+	"errors"
 	"github.com/ledgerwatch/turbo-geth/core"
 	"github.com/ledgerwatch/turbo-geth/ethdb"
 	"github.com/ledgerwatch/turbo-geth/log"
@@ -15,7 +15,12 @@ func RegenerateIndex(chaindata string, csBucket []byte) error {
 	}
 	ig := core.NewIndexGenerator(db, make(chan struct{}))
 
-	err = ig.DropIndex(dbutils.AccountsHistoryBucket)
+	cs,ok:=core.CSMapper[string(csBucket)]
+	if !ok {
+		return errors.New("unknown changeset")
+	}
+
+	err = ig.DropIndex(cs.IndexBucket)
 	if err != nil {
 		return err
 	}

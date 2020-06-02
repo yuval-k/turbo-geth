@@ -24,7 +24,7 @@ type fileDataProvider struct {
 }
 
 func FlushToDisk(currentKey []byte, b *sortableBuffer, datadir string) (dataProvider, error) {
-	if len(b.entries) == 0 {
+	if b.Len() == 0 {
 		return nil, nil
 	}
 	bufferFile, err := ioutil.TempFile(datadir, "tg-sync-sortable-buf")

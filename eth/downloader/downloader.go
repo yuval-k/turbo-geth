@@ -157,6 +157,7 @@ type Downloader struct {
 	chainInsertHook  func([]*fetchResult)  // Method to call upon inserting a chain of blocks (possibly in multiple invocations)
 	// generate history index, disable/enable pruning
 	history bool
+	txIndex bool
 	datadir string
 }
 
@@ -237,7 +238,7 @@ type BlockChain interface {
 }
 
 // New creates a new downloader to fetch hashes and blocks from remote peers.
-func New(checkpoint uint64, stateDb ethdb.Database, stateBloom *trie.SyncBloom, mux *event.TypeMux, chain BlockChain, lightchain LightChain, dropPeer peerDropFn, history bool) *Downloader {
+func New(checkpoint uint64, stateDb ethdb.Database, stateBloom *trie.SyncBloom, mux *event.TypeMux, chain BlockChain, lightchain LightChain, dropPeer peerDropFn, history, txIndex bool) *Downloader {
 	if lightchain == nil {
 		lightchain = chain
 	}
@@ -261,6 +262,7 @@ func New(checkpoint uint64, stateDb ethdb.Database, stateBloom *trie.SyncBloom, 
 		quitCh:        make(chan struct{}),
 		//generate index, disable/enable pruning
 		history: history,
+		txIndex: txIndex,
 	}
 	go dl.qosTuner()
 	return dl

@@ -16,7 +16,7 @@ import (
 
 var (
 	cbor              codec.CborHandle
-	bufferOptimalSize = 256 * 1024 * 1024 /* 256 mb | var because we want to sometimes change it from tests */
+	bufferOptimalSize =  1024*16 /* 256 mb | var because we want to sometimes change it from tests */
 )
 
 type Decoder interface {
@@ -51,6 +51,7 @@ func NewCollector(datadir string) *Collector {
 	sortableBuffer := newSortableBuffer()
 
 	c.flushBuffer = func(currentKey []byte, canStoreInRam bool) error {
+		fmt.Println("common/etl/etl.go:54", canStoreInRam, sortableBuffer.Len(),  common.Bytes2Hex(currentKey))
 		if sortableBuffer.Len() == 0 {
 			return nil
 		}
@@ -74,6 +75,7 @@ func NewCollector(datadir string) *Collector {
 	c.extractNextFunc = func(k []byte, v interface{}) error {
 		buffer.Reset()
 		encoder.Reset(buffer)
+		//fmt.Println("common/etl/etl.go:77", common.Bytes2Hex(k), v)
 		if err := encoder.Encode(v); err != nil {
 			return err
 		}
@@ -185,6 +187,7 @@ func loadFilesIntoBucket(db ethdb.Database, bucket []byte, providers []dataProvi
 	heap.Init(h)
 	for i, provider := range providers {
 		if key, value, err := provider.Next(decoder); err == nil {
+			fmt.Println("common/etl/etl.go:190 Push", common.Bytes2Hex(key),common.Bytes2Hex(value), i, key)
 			he := HeapElem{key, i, value}
 			heap.Push(h, he)
 		} else /* we must have at least one entry per file */ {
@@ -235,6 +238,7 @@ func loadFilesIntoBucket(db ethdb.Database, bucket []byte, providers []dataProvi
 		}
 
 		element := (heap.Pop(h)).(HeapElem)
+		//fmt.Println("common/etl/etl.go:241 Pop", common.Bytes2Hex(element.Key), common.Bytes2Hex(element.Value), element.Key)
 		provider := providers[element.TimeIdx]
 		decoder.ResetBytes(element.Value)
 		err := loadFunc(element.Key, decoder, state, loadNextFunc)
