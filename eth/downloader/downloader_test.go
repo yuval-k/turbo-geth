@@ -517,6 +517,7 @@ func testCanonicalSynchronisation(t *testing.T, protocol int, mode SyncMode) {
 
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
 
 	// Create a small enough block chain to download
 	chain := testChainBase.shorten(blockCacheItems - 15)
@@ -543,6 +544,7 @@ func testThrottling(t *testing.T, protocol int, mode SyncMode) {
 	t.Parallel()
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
 
 	// Create a long block chain to download and the tester
 	targetBlocks := testChainBase.len() - 1
@@ -633,6 +635,7 @@ func testForkedSync(t *testing.T, protocol int, mode SyncMode) {
 
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
 
 	chainA := testChainForkLightA.shorten(testChainBase.len() + 80)
 	chainB := testChainForkLightB.shorten(testChainBase.len() + 80)
@@ -668,6 +671,7 @@ func testHeavyForkedSync(t *testing.T, protocol int, mode SyncMode) {
 
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
 
 	chainA := testChainForkLightA.shorten(testChainBase.len() + 80)
 	chainB := testChainForkHeavy.shorten(testChainBase.len() + 80)
@@ -704,6 +708,7 @@ func testBoundedForkedSync(t *testing.T, protocol int, mode SyncMode) {
 
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
 
 	chainA := testChainForkLightA
 	chainB := testChainForkLightB
@@ -739,6 +744,7 @@ func testBoundedHeavyForkedSync(t *testing.T, protocol int, mode SyncMode) {
 
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
 
 	// Create a long enough forked chain
 	chainA := testChainForkLightA
@@ -765,6 +771,7 @@ func TestInactiveDownloader62(t *testing.T) {
 
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
 
 	// Check that neither block headers nor bodies are accepted
 	if err := tester.downloader.DeliverHeaders("bad peer", []*types.Header{}); err != errNoSyncActive {
@@ -782,6 +789,7 @@ func TestInactiveDownloader63(t *testing.T) {
 
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
 
 	// Check that neither block headers nor bodies are accepted
 	if err := tester.downloader.DeliverHeaders("bad peer", []*types.Header{}); err != errNoSyncActive {
@@ -810,6 +818,7 @@ func testCancel(t *testing.T, protocol int, mode SyncMode) {
 
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
 
 	chain := testChainBase.shorten(MaxHeaderFetch)
 	tester.newPeer("peer", protocol, chain)
@@ -875,6 +884,7 @@ func testMultiProtoSync(t *testing.T, protocol int, mode SyncMode) {
 
 	tester := newTester()
 	defer tester.terminate()
+	defer tester.peerDb.Close()
 
 	// Create a small enough block chain to download
 	chain := testChainBase.shorten(blockCacheItems - 15)

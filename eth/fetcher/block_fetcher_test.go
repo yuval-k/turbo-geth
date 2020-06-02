@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -35,12 +36,21 @@ import (
 )
 
 var (
-	testdb       = ethdb.NewMemDatabase()
+	testdb       ethdb.Database
+	genesis      *types.Block
 	testKey, _   = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 	testAddress  = crypto.PubkeyToAddress(testKey.PublicKey)
-	genesis      = core.GenesisBlockForTesting(testdb, testAddress, big.NewInt(1000000000))
 	unknownBlock = types.NewBlock(&types.Header{GasLimit: params.GenesisGasLimit}, nil, nil, nil)
 )
+
+func TestMain(m *testing.M) {
+	testdb = ethdb.NewMemDatabase()
+	genesis = core.GenesisBlockForTesting(testdb, testAddress, big.NewInt(1000000000))
+	result := m.Run()
+	// teardown
+	testdb.Close()
+	os.Exit(result)
+}
 
 // makeChain creates a chain of n blocks starting at and including parent.
 // the returned hash chain is ordered head->parent. In addition, every 3rd block
@@ -48,6 +58,7 @@ var (
 // reassembly.
 func makeChain(n int, seed byte, parent *types.Block) ([]common.Hash, map[common.Hash]*types.Block) {
 	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	core.GenesisBlockForTesting(db, testAddress, big.NewInt(1000000000))
 	blocks, _ := core.GenerateChain(context.Background(), params.TestChainConfig, parent, ethash.NewFaker(), db, n, func(i int, block *core.BlockGen) {
 		block.SetCoinbase(common.Address{seed})

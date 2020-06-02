@@ -64,8 +64,9 @@ func (h resultHash) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
 func (h resultHash) Less(i, j int) bool { return bytes.Compare(h[i].Bytes(), h[j].Bytes()) < 0 }
 
 func TestAccountRange(t *testing.T) {
+	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	var (
-		db    = ethdb.NewMemDatabase()
 		tds   = state.NewTrieDbState(common.Hash{}, db, 0)
 		sdb   = state.New(tds)
 		addrs = [AccountRangeMaxResults * 2]common.Address{}
@@ -139,8 +140,9 @@ func TestAccountRange(t *testing.T) {
 }
 
 func TestEmptyAccountRange(t *testing.T) {
+	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	var (
-		db  = ethdb.NewMemDatabase()
 		tds = state.NewTrieDbState(common.Hash{}, db, 1)
 	)
 	tds.StartNewBuffer()
@@ -162,8 +164,9 @@ func TestEmptyAccountRange(t *testing.T) {
 
 func TestStorageRangeAt(t *testing.T) {
 	// Create a state where account 0x010000... has a few storage entries.
+	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	var (
-		db      = ethdb.NewMemDatabase()
 		tds     = state.NewTrieDbState(common.Hash{}, db, 0)
 		statedb = state.New(tds)
 		addr    = common.Address{0x01}

@@ -10,6 +10,7 @@ import (
 
 func TestSetStorageModeIfNotExist(t *testing.T) {
 	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	sm, err := GetStorageModeFromDB(db)
 	if err != nil {
 		t.Fatal(err)
