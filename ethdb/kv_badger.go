@@ -302,7 +302,6 @@ func (c *badgerCursor) Seek(seek []byte) ([]byte, []byte, error) {
 	}
 
 	c.initCursor()
-
 	c.badger.Seek(append(c.prefix[:c.bucket.nameLen], seek...))
 	if !c.badger.Valid() {
 		c.k, c.v = nil, nil
@@ -409,7 +408,6 @@ func (c *badgerNoValuesCursor) Seek(seek []byte) ([]byte, uint32, error) {
 	}
 
 	c.initCursor()
-
 	c.badger.Seek(append(c.prefix[:c.bucket.nameLen], seek...))
 	if !c.badger.Valid() {
 		c.k, c.v = nil, nil

@@ -25,15 +25,15 @@ import (
 	"github.com/ledgerwatch/turbo-geth/log"
 )
 
-func NewMemDatabase() Database {
+func NewMemDatabase() *ObjectDatabase {
 	switch debug.TestDB() {
 	case "badger":
 		return NewObjectDatabase(NewBadger().InMem().MustOpen(context.Background()))
 	case "lmdb":
 		return NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
 	default:
-		//return NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
-		return NewObjectDatabase(NewBadger().InMem().MustOpen(context.Background()))
+		return NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
+		//return NewObjectDatabase(NewBadger().InMem().MustOpen(context.Background()))
 		//return NewObjectDatabase(NewBolt().InMem().MustOpen(context.Background()))
 	}
 }

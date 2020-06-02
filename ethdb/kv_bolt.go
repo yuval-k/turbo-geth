@@ -30,6 +30,7 @@ type boltBucket struct {
 	tx *boltTx
 
 	bolt    *bolt.Bucket
+	name    []byte
 	nameLen uint
 }
 
@@ -159,7 +160,7 @@ func (tx *boltTx) Yield() {
 }
 
 func (tx *boltTx) Bucket(name []byte) Bucket {
-	b := boltBucket{tx: tx, nameLen: uint(len(name))}
+	b := boltBucket{tx: tx, nameLen: uint(len(name)), name: name}
 	b.bolt = tx.bolt.Bucket(name)
 	return b
 }

@@ -457,6 +457,8 @@ func (dr *DefaultReceiver) Receive(itemType StreamItem,
 	cutoff int,
 	witnessSize uint64,
 ) error {
+	//fmt.Printf("Receive %d %x %x %x %x %x\n", itemType, accountKey, storageKeyPart1, storageKeyPart2, storageValue, hash)
+
 	switch itemType {
 	case StorageStreamItem:
 		dr.advanceKeysStorage(storageKey, true /* terminator */)
