@@ -56,7 +56,7 @@ func (opts lmdbOpts) Open(ctx context.Context) (KV, error) {
 		}
 		opts.path, _ = ioutil.TempDir(os.TempDir(), "lmdb")
 		//opts.path = path.Join(os.TempDir(), "lmdb-in-memory")
-		////opts.path = "lmdb_tmp"
+		//opts.path = "lmdb_tmp"
 	} else {
 		logger = log.New("lmdb", path.Base(opts.path))
 
@@ -75,7 +75,7 @@ func (opts lmdbOpts) Open(ctx context.Context) (KV, error) {
 	}
 
 	if err = os.MkdirAll(opts.path, 0744); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not create dir: %s, %w", opts.path, err)
 	}
 
 	err = env.Open(opts.path, flags, 0664)
@@ -138,7 +138,7 @@ func (opts lmdbOpts) Open(ctx context.Context) (KV, error) {
 func (opts lmdbOpts) MustOpen(ctx context.Context) KV {
 	db, err := opts.Open(ctx)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("fail to open lmdb: %w", err))
 	}
 	return db
 }
