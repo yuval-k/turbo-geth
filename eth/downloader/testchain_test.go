@@ -35,21 +35,19 @@ import (
 
 // Test chain parameters.
 var (
-	testKey, _    = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
-	testAddress   = crypto.PubkeyToAddress(testKey.PublicKey)
-	testDB        *ethdb.ObjectDatabase
-	testGenesis   *types.Block
-	testChainBase *testChain // The common prefix of all test chains:
+	testKey, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
+	testAddress = crypto.PubkeyToAddress(testKey.PublicKey)
+	testDb      = ethdb.NewMemDatabase()
+	testGenesis = core.GenesisBlockForTesting(testDb, testAddress, big.NewInt(1000000000))
 )
+
+// The common prefix of all test chains:
+var testChainBase = newTestChain(blockCacheItems+200, testDb, testGenesis)
 
 // Different forks on top of the base chain:
 var testChainForkLightA, testChainForkLightB, testChainForkHeavy *testChain
 
 func TestMain(m *testing.M) {
-	testDB = ethdb.NewMemDatabase()
-	testGenesis = core.GenesisBlockForTesting(testDB, testAddress, big.NewInt(1000000000))
-	testChainBase = newTestChain(blockCacheItems+200, testDB, testGenesis)
-
 	var forkLen = int(maxForkAncestry + 50)
 	var wg sync.WaitGroup
 	wg.Add(3)
@@ -61,7 +59,8 @@ func TestMain(m *testing.M) {
 	result := m.Run()
 
 	// teardown
-	testDB.Close()
+	testDb.Close()
+
 	os.Exit(result)
 }
 
@@ -116,7 +115,7 @@ func (tc *testChain) copy(newlen int) *testChain {
 		tdm:      make(map[common.Hash]*big.Int, newlen),
 	}
 	if tc.db != nil {
-		cpy.db = tc.db.NewBatch()
+		cpy.db = tc.db.MemCopy()
 	}
 	for i := 0; i < len(tc.chain) && i < newlen; i++ {
 		hash := tc.chain[i]

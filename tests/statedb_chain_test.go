@@ -59,8 +59,8 @@ func TestSelfDestructReceive(t *testing.T) {
 		// this code generates a log
 		signer = types.HomesteadSigner{}
 	)
-	genesisDb := db.MemCopy()
-	defer genesisDb.Close()
+	genesisDB := db.MemCopy()
+	defer genesisDB.Close()
 
 	engine := ethash.NewFaker()
 	blockchain, err := core.NewBlockChain(db, nil, gspec.Config, engine, vm.Config{}, nil, nil)
@@ -83,7 +83,7 @@ func TestSelfDestructReceive(t *testing.T) {
 	// The second block is empty and is only used to force the newly created blockchain object to reload the trie
 	// from the database.
 	ctx := blockchain.WithContext(context.Background(), big.NewInt(genesis.Number().Int64()+1))
-	blocks, _ := core.GenerateChain(ctx, gspec.Config, genesis, engine, genesisDb, 2, func(i int, block *core.BlockGen) {
+	blocks, _ := core.GenerateChain(ctx, gspec.Config, genesis, engine, genesisDB, 2, func(i int, block *core.BlockGen) {
 		var tx *types.Transaction
 
 		switch i {
