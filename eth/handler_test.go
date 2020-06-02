@@ -448,8 +448,9 @@ func testCheckpointChallenge(t *testing.T, syncmode downloader.SyncMode, checkpo
 	syncChallengeTimeout = 250 * time.Millisecond
 
 	// Initialize a chain and generate a fake CHT if checkpointing is enabled
+	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	var (
-		db     = ethdb.NewMemDatabase()
 		config = new(params.ChainConfig)
 	)
 	(&core.Genesis{Config: config}).MustCommit(db) // Commit genesis block
@@ -547,10 +548,11 @@ func TestBroadcastBlock(t *testing.T) {
 }
 
 func testBroadcastBlock(t *testing.T, totalPeers, broadcastExpected int) {
+	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	var (
 		evmux   = new(event.TypeMux)
 		pow     = ethash.NewFaker()
-		db      = ethdb.NewMemDatabase()
 		config  = &params.ChainConfig{}
 		gspec   = &core.Genesis{Config: config}
 		genesis = gspec.MustCommit(db)
@@ -1317,9 +1319,10 @@ func TestFirehoseBytecode(t *testing.T) {
 // with the hashes in the header) gets discarded and not broadcast forward.
 func TestBroadcastMalformedBlock(t *testing.T) {
 	// Create a live node to test propagation with
+	db := ethdb.NewMemDatabase()
+	defer db.Close()
 	var (
 		engine  = ethash.NewFaker()
-		db      = ethdb.NewMemDatabase()
 		config  = &params.ChainConfig{}
 		gspec   = &core.Genesis{Config: config}
 		genesis = gspec.MustCommit(db)

@@ -222,6 +222,7 @@ func TestBasisAccountPruningNoHistory(t *testing.T) {
 		// this code generates a log
 		signer = types.HomesteadSigner{}
 	)
+	defer genesisDb.Close()
 
 	numBlocks := 10
 	engine := ethash.NewFaker()

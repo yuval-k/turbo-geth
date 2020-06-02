@@ -32,8 +32,8 @@ func NewMemDatabase() *ObjectDatabase {
 	case "lmdb":
 		return NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
 	default:
-		//return NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
-		return NewObjectDatabase(NewBadger().InMem().MustOpen(context.Background()))
+		return NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
+		//return NewObjectDatabase(NewBadger().InMem().MustOpen(context.Background()))
 		//return NewObjectDatabase(NewBolt().InMem().MustOpen(context.Background()))
 	}
 }

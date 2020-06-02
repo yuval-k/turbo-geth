@@ -55,11 +55,11 @@ func TestSelfDestructReceive(t *testing.T) {
 				address: {Balance: funds},
 			},
 		}
-		genesis   = gspec.MustCommit(db)
-		genesisDb = db.MemCopy()
+		genesis = gspec.MustCommit(db)
 		// this code generates a log
 		signer = types.HomesteadSigner{}
 	)
+	genesisDb := db.MemCopy()
 	defer genesisDb.Close()
 
 	engine := ethash.NewFaker()
