@@ -37,7 +37,7 @@ import (
 var (
 	testKey, _    = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 	testAddress   = crypto.PubkeyToAddress(testKey.PublicKey)
-	testDb        *ethdb.ObjectDatabase
+	testDB        *ethdb.ObjectDatabase
 	testGenesis   *types.Block
 	testChainBase *testChain // The common prefix of all test chains:
 )
@@ -46,9 +46,9 @@ var (
 var testChainForkLightA, testChainForkLightB, testChainForkHeavy *testChain
 
 func TestMain(m *testing.M) {
-	testDb = ethdb.NewMemDatabase()
-	testGenesis = core.GenesisBlockForTesting(testDb, testAddress, big.NewInt(1000000000))
-	testChainBase = newTestChain(blockCacheItems+200, testDb, testGenesis)
+	testDB = ethdb.NewMemDatabase()
+	testGenesis = core.GenesisBlockForTesting(testDB, testAddress, big.NewInt(1000000000))
+	testChainBase = newTestChain(blockCacheItems+200, testDB, testGenesis)
 
 	var forkLen = int(maxForkAncestry + 50)
 	var wg sync.WaitGroup
@@ -61,7 +61,7 @@ func TestMain(m *testing.M) {
 	result := m.Run()
 
 	// teardown
-	testDb.Close()
+	testDB.Close()
 	os.Exit(result)
 }
 
