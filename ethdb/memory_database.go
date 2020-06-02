@@ -25,34 +25,7 @@ import (
 	"github.com/ledgerwatch/turbo-geth/log"
 )
 
-func NewMemDatabase() *ObjectDatabase {
-	//logger := log.New("database", "in-memory")
-	//
-	//// Open the db and recover any potential corruptions
-	//db, errOpen := bolt.Open("in-memory", 0600, &bolt.Options{MemOnly: true})
-	//if errOpen != nil {
-	//	panic(errOpen)
-	//}
-	//
-	//if err := db.Update(func(tx *bolt.Tx) error {
-	//	for _, bucket := range dbutils.Buckets {
-	//		if _, err := tx.CreateBucketIfNotExists(bucket, false); err != nil {
-	//			return err
-	//		}
-	//	}
-	//	return nil
-	//}); err != nil {
-	//	panic(err)
-	//}
-	//
-	//b := &BoltDatabase{
-	//	db:  db,
-	//	log: logger,
-	//	id:  id(),
-	//}
-	//
-	//return b
-
+func NewMemDatabase() Database {
 	switch debug.TestDB() {
 	case "badger":
 		return NewObjectDatabase(NewBadger().InMem().MustOpen(context.Background()))

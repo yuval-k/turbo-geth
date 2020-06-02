@@ -35,8 +35,6 @@ func (opts lmdbOpts) ReadOnly() lmdbOpts {
 	return opts
 }
 
-var i int
-
 func (opts lmdbOpts) Open(ctx context.Context) (KV, error) {
 	env, err := lmdb.NewEnv()
 	if err != nil {
@@ -59,11 +57,6 @@ func (opts lmdbOpts) Open(ctx context.Context) (KV, error) {
 		opts.path, _ = ioutil.TempDir(os.TempDir(), "lmdb")
 		//opts.path = path.Join(os.TempDir(), "lmdb-in-memory")
 		//opts.path = "lmdb_tmp"
-		//fmt.Printf("Open: %s\n", opts.path)
-		//i++
-		//if i == 2 {
-		//	//panic(1)
-		//}
 	} else {
 		logger = log.New("lmdb", path.Base(opts.path))
 
@@ -89,12 +82,6 @@ func (opts lmdbOpts) Open(ctx context.Context) (KV, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	//if opts.inMem {
-	//	// lmdb creates file in this mode, just doesn't fsync in it
-	//	// can remove file now, then os will remove it when db close
-	//	os.RemoveAll(opts.path)
-	//}
 
 	buckets := map[string]lmdb.DBI{}
 	if !opts.readOnly {
