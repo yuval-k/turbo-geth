@@ -354,8 +354,11 @@ func TestReadAfterPut(t *testing.T) {
 		t.Run("GetAfterPut "+msg, func(t *testing.T) {
 			if err := db.Update(ctx, func(tx ethdb.Tx) error {
 				b := tx.Bucket(dbutils.Buckets[0])
-				for i := uint8(0); i < 10; i++ {
+				for i := uint8(0); i < 10; i++ { // don't read in same loop to check that writes don't affect each other (for example by sharing bucket.prefix buffer)
 					require.NoError(t, b.Put([]byte{i}, []byte{i}))
+				}
+
+				for i := uint8(0); i < 10; i++ {
 					v, err := b.Get([]byte{i})
 					require.NoError(t, err)
 					require.Equal(t, []byte{i}, v)
@@ -364,10 +367,14 @@ func TestReadAfterPut(t *testing.T) {
 				b2 := tx.Bucket(dbutils.Buckets[1])
 				for i := uint8(0); i < 12; i++ {
 					require.NoError(t, b2.Put([]byte{i}, []byte{i}))
+				}
+
+				for i := uint8(0); i < 12; i++ {
 					v, err := b2.Get([]byte{i})
 					require.NoError(t, err)
 					require.Equal(t, []byte{i}, v)
 				}
+
 				require.NoError(t, b2.Delete([]byte{5}))
 				v, err := b2.Get([]byte{5})
 				require.NoError(t, err)
