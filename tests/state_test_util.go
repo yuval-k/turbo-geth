@@ -181,9 +181,7 @@ func (t *StateTest) RunNoVerify(ctx context.Context, subtest StateSubtest, vmcon
 	ctx = config.WithEIPsFlags(ctx, big.NewInt(int64(writeBlockNr)))
 
 	db := ethdb.NewMemDatabase()
-	defer db.Close()
 	statedb, tds, err := MakePreState(context.Background(), db, t.json.Pre, readBlockNr)
-	defer db.Close()
 	if err != nil {
 		return nil, nil, common.Hash{}, UnsupportedForkError{subtest.Fork}
 	}
