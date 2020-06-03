@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/big"
 	"runtime"
+	"runtime/pprof"
+	"os"
 
 	"github.com/pkg/errors"
 
@@ -38,6 +40,17 @@ func spawnRecoverSendersStage(s *StageState, stateDB ethdb.Database, config *par
 	lastProcessedBlockNumber := s.BlockNumber
 	nextBlockNumber := lastProcessedBlockNumber + 1
 
+
+	profileNumber := nextBlockNumber
+	f, err := os.Create(fmt.Sprintf("cpu-rec-%d.prof", profileNumber))
+	if err != nil {
+		log.Error("could not create CPU profile", "error", err)
+		return err
+	}
+	if err1 := pprof.StartCPUProfile(f); err1 != nil {
+		log.Error("could not start CPU profile", "error", err1)
+		return err
+	}
 	mutation := stateDB.NewBatch()
 	defer func() {
 		_, dbErr := mutation.Commit()
@@ -90,6 +103,10 @@ func spawnRecoverSendersStage(s *StageState, stateDB ethdb.Database, config *par
 			written++
 
 			nextBlockNumber++
+			if nextBlockNumber-profileNumber == 100000 {
+				// Flush the profiler
+				pprof.StopCPUProfile()
+			}
 		}
 
 		for i := 0; i < written; i++ {

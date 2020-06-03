@@ -83,11 +83,11 @@ func spawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, blockchain B
 	f, err := os.Create(fmt.Sprintf("cpu-%d.prof", profileNumber))
 	if err != nil {
 		log.Error("could not create CPU profile", "error", err)
-		return lastProcessedBlockNumber, err
+		return err
 	}
 	if err1 := pprof.StartCPUProfile(f); err1 != nil {
 		log.Error("could not start CPU profile", "error", err1)
-		return lastProcessedBlockNumber, err
+		return err
 	}
 	stateBatch := stateDB.NewBatch()
 	changeBatch := stateDB.NewBatch()
@@ -178,7 +178,7 @@ func spawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, blockchain B
 		}
 	}
 
-	_, err := stateBatch.Commit()
+	_, err = stateBatch.Commit()
 	if err != nil {
 		return fmt.Errorf("sync Execute: failed to write state batch commit: %v", err)
 	}
