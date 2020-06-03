@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"testing"
 
+	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/ethdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/ugorji/go/codec"
@@ -47,6 +49,32 @@ func TestWriteAndReadBufferEntry(t *testing.T) {
 
 	_, _, err := readElementFromDisk(decoder)
 	assert.Equal(t, io.EOF, err)
+}
+
+func TestNextKey(t *testing.T) {
+	for _, tc := range []string{
+		"00000001->00000002",
+		"000000FF->00000100",
+		"FEFFFFFF->FF000000",
+	} {
+		parts := strings.Split(tc, "->")
+		input := common.Hex2Bytes(parts[0])
+		expectedOutput := common.Hex2Bytes(parts[1])
+		actualOutput, err := NextKey(input)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedOutput, actualOutput)
+	}
+}
+
+func TestNextKeyErr(t *testing.T) {
+	for _, tc := range []string{
+		"",
+		"FFFFFF",
+	} {
+		input := common.Hex2Bytes(tc)
+		_, err := NextKey(input)
+		assert.Error(t, err)
+	}
 }
 
 func TestFileDataProviders(t *testing.T) {
@@ -115,13 +143,79 @@ func TestTransformRAMOnly(t *testing.T) {
 		sourceBucket,
 		destBucket,
 		"", // temp dir
-		nil,
 		testExtractToMapFunc,
 		testLoadFromMapFunc,
-		nil,
+		TransformArgs{},
 	)
 	assert.Nil(t, err)
 	compareBuckets(t, db, sourceBucket, destBucket, nil)
+}
+
+func TestTransformOnLoadCommitCustomBatchSize(t *testing.T) {
+	// test invariant when we only have one buffer and it fits into RAM (exactly 1 buffer)
+	db := ethdb.NewMemDatabase()
+	sourceBucket := []byte("source")
+	destBucket := []byte("dest")
+	generateTestData(t, db, sourceBucket, 20)
+
+	numberOfCalls := 0
+	finalized := false
+
+	err := Transform(
+		db,
+		sourceBucket,
+		destBucket,
+		"", // temp dir
+		testExtractToMapFunc,
+		testLoadFromMapFunc,
+		TransformArgs{
+			OnLoadCommit: func(_ []byte, isDone bool) {
+				numberOfCalls++
+				if isDone {
+					finalized = true
+				}
+			},
+			loadBatchSize: 1,
+		},
+	)
+	assert.Nil(t, err)
+	compareBuckets(t, db, sourceBucket, destBucket, nil)
+
+	assert.Equal(t, 21, numberOfCalls)
+	assert.True(t, finalized)
+}
+
+func TestTransformOnLoadCommitDefaultBatchSize(t *testing.T) {
+	// test invariant when we only have one buffer and it fits into RAM (exactly 1 buffer)
+	db := ethdb.NewMemDatabase()
+	sourceBucket := []byte("source")
+	destBucket := []byte("dest")
+	generateTestData(t, db, sourceBucket, 20)
+
+	numberOfCalls := 0
+	finalized := false
+
+	err := Transform(
+		db,
+		sourceBucket,
+		destBucket,
+		"", // temp dir
+		testExtractToMapFunc,
+		testLoadFromMapFunc,
+		TransformArgs{
+			OnLoadCommit: func(_ []byte, isDone bool) {
+				numberOfCalls++
+				if isDone {
+					finalized = true
+				}
+			},
+		},
+	)
+	assert.Nil(t, err)
+	compareBuckets(t, db, sourceBucket, destBucket, nil)
+
+	assert.Equal(t, 1, numberOfCalls)
+	assert.True(t, finalized)
 }
 
 func TestEmptySourceBucket(t *testing.T) {
@@ -133,16 +227,15 @@ func TestEmptySourceBucket(t *testing.T) {
 		sourceBucket,
 		destBucket,
 		"", // temp dir
-		nil,
 		testExtractToMapFunc,
 		testLoadFromMapFunc,
-		nil,
+		TransformArgs{},
 	)
 	assert.Nil(t, err)
 	compareBuckets(t, db, sourceBucket, destBucket, nil)
 }
 
-func TestTransformStartkey(t *testing.T) {
+func TestTransformExtractStartKey(t *testing.T) {
 	// test invariant when we only have one buffer and it fits into RAM (exactly 1 buffer)
 	db := ethdb.NewMemDatabase()
 	sourceBucket := []byte("source")
@@ -153,10 +246,51 @@ func TestTransformStartkey(t *testing.T) {
 		sourceBucket,
 		destBucket,
 		"", // temp dir
-		[]byte(fmt.Sprintf("%10d-key-%010d", 5, 5)),
 		testExtractToMapFunc,
 		testLoadFromMapFunc,
-		nil,
+		TransformArgs{ExtractStartKey: []byte(fmt.Sprintf("%10d-key-%010d", 5, 5))},
+	)
+	assert.Nil(t, err)
+	compareBuckets(t, db, sourceBucket, destBucket, []byte(fmt.Sprintf("%10d-key-%010d", 5, 5)))
+}
+
+func TestTransformLoadStartKey(t *testing.T) {
+	// test invariant when we only have one buffer and it fits into RAM (exactly 1 buffer)
+	db := ethdb.NewMemDatabase()
+	sourceBucket := []byte("source")
+	destBucket := []byte("dest")
+	generateTestData(t, db, sourceBucket, 10)
+	err := Transform(
+		db,
+		sourceBucket,
+		destBucket,
+		"", // temp dir
+		testExtractToMapFunc,
+		testLoadFromMapFunc,
+		TransformArgs{LoadStartKey: []byte(fmt.Sprintf("%10d-key-%010d", 5, 5))},
+	)
+	assert.Nil(t, err)
+	compareBuckets(t, db, sourceBucket, destBucket, []byte(fmt.Sprintf("%10d-key-%010d", 5, 5)))
+}
+
+func TestTransformLoadStartKeyLexicography(t *testing.T) {
+	// test invariant when we only have one buffer and it fits into RAM (exactly 1 buffer)
+	db := ethdb.NewMemDatabase()
+	sourceBucket := []byte("source")
+	destBucket := []byte("dest")
+	generateTestData(t, db, sourceBucket, 10)
+
+	//      intentional to make key #5 not to be ignored-------v
+	startKey := append([]byte(fmt.Sprintf("%10d-key-%010d", 5, 4)), 0x00, 0x00, 0x00, 0x00)
+
+	err := Transform(
+		db,
+		sourceBucket,
+		destBucket,
+		"", // temp dir
+		testExtractToMapFunc,
+		testLoadFromMapFunc,
+		TransformArgs{LoadStartKey: startKey},
 	)
 	assert.Nil(t, err)
 	compareBuckets(t, db, sourceBucket, destBucket, []byte(fmt.Sprintf("%10d-key-%010d", 5, 5)))
@@ -178,10 +312,9 @@ func TestTransformThroughFiles(t *testing.T) {
 		sourceBucket,
 		destBucket,
 		"", // temp dir
-		nil,
 		testExtractToMapFunc,
 		testLoadFromMapFunc,
-		nil,
+		TransformArgs{},
 	)
 	assert.Nil(t, err)
 	compareBuckets(t, db, sourceBucket, destBucket, nil)
@@ -198,10 +331,9 @@ func TestTransformDoubleOnExtract(t *testing.T) {
 		sourceBucket,
 		destBucket,
 		"", // temp dir
-		nil,
 		testExtractDoubleToMapFunc,
 		testLoadFromMapFunc,
-		nil,
+		TransformArgs{},
 	)
 	assert.Nil(t, err)
 	compareBucketsDouble(t, db, sourceBucket, destBucket)
@@ -218,10 +350,9 @@ func TestTransformDoubleOnLoad(t *testing.T) {
 		sourceBucket,
 		destBucket,
 		"", // temp dir
-		nil,
 		testExtractToMapFunc,
 		testLoadFromMapDoubleFunc,
-		nil,
+		TransformArgs{},
 	)
 	assert.Nil(t, err)
 	compareBucketsDouble(t, db, sourceBucket, destBucket)
@@ -239,14 +370,14 @@ func generateTestData(t *testing.T, db ethdb.Putter, bucket []byte, count int) {
 func testExtractToMapFunc(k, v []byte, next ExtractNextFunc) error {
 	valueMap := make(map[string][]byte)
 	valueMap["value"] = v
-	return next(k, valueMap)
+	return next(k, k, valueMap)
 }
 
 func testExtractDoubleToMapFunc(k, v []byte, next ExtractNextFunc) error {
 	valueMap := make(map[string][]byte)
 	valueMap["value"] = append(v, 0xAA)
 	k1 := append(k, 0xAA)
-	err := next(k1, valueMap)
+	err := next(k, k1, valueMap)
 	if err != nil {
 		return err
 	}
@@ -254,7 +385,7 @@ func testExtractDoubleToMapFunc(k, v []byte, next ExtractNextFunc) error {
 	valueMap = make(map[string][]byte)
 	valueMap["value"] = append(v, 0xBB)
 	k2 := append(k, 0xBB)
-	return next(k2, valueMap)
+	return next(k, k2, valueMap)
 }
 
 func testLoadFromMapFunc(k []byte, decoder Decoder, _ State, next LoadNextFunc) error {

@@ -1,4 +1,4 @@
-package downloader
+package stagedsync
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	"github.com/ledgerwatch/turbo-geth/common/etl"
 	"github.com/ledgerwatch/turbo-geth/core"
 	"github.com/ledgerwatch/turbo-geth/core/rawdb"
+	"github.com/ledgerwatch/turbo-geth/eth/stagedsync/stages"
 	"github.com/ledgerwatch/turbo-geth/ethdb"
 	"github.com/ledgerwatch/turbo-geth/log"
 	"github.com/ledgerwatch/turbo-geth/trie"
@@ -18,8 +19,10 @@ import (
 
 var cbor codec.CborHandle
 
-func spawnCheckFinalHashStage(stateDB ethdb.Database, syncHeadNumber uint64, datadir string, quit chan struct{}) error {
-	hashProgress, err := GetStageProgress(stateDB, HashCheck)
+func SpawnCheckFinalHashStage(s *StageState, stateDB ethdb.Database, datadir string, quit chan struct{}) error {
+	hashProgress := s.BlockNumber
+
+	syncHeadNumber, err := s.ExecutionAt(stateDB)
 	if err != nil {
 		return err
 	}
@@ -27,19 +30,16 @@ func spawnCheckFinalHashStage(stateDB ethdb.Database, syncHeadNumber uint64, dat
 	if hashProgress == syncHeadNumber {
 		// we already did hash check for this block
 		// we don't do the obvious `if hashProgress > syncHeadNumber` to support reorgs more naturally
+		s.Done()
 		return nil
 	}
 
 	if core.UsePlainStateExecution {
-		err = promoteHashedState(stateDB, hashProgress, datadir, quit)
+		log.Info("Promoting plain state", "from", hashProgress, "to", syncHeadNumber)
+		err := promoteHashedState(stateDB, hashProgress, datadir, quit)
 		if err != nil {
 			return err
 		}
-	}
-
-	//REMOVE THE FOLLOWING LINE WHEN PLAIN => HASHED TRANSFORMATION IS READY
-	if hashProgress > 0 {
-		return nil
 	}
 
 	hash := rawdb.ReadCanonicalHash(stateDB, syncHeadNumber)
@@ -61,25 +61,25 @@ func spawnCheckFinalHashStage(stateDB ethdb.Database, syncHeadNumber uint64, dat
 		return fmt.Errorf("wrong trie root: %x, expected (from header): %x", subTries.Hashes[0], syncHeadBlock.Root())
 	}
 
-	return SaveStageProgress(stateDB, HashCheck, blockNr)
+	return s.DoneAndUpdate(stateDB, blockNr)
 }
 
 func unwindHashCheckStage(unwindPoint uint64, stateDB ethdb.Database) error {
 	// Currently it does not require unwinding because it does not create any Intemediate Hash records
 	// and recomputes the state root from scratch
-	lastProcessedBlockNumber, err := GetStageProgress(stateDB, HashCheck)
+	lastProcessedBlockNumber, err := stages.GetStageProgress(stateDB, stages.HashCheck)
 	if err != nil {
 		return fmt.Errorf("unwind HashCheck: get stage progress: %v", err)
 	}
 	if unwindPoint >= lastProcessedBlockNumber {
-		err = SaveStageUnwind(stateDB, HashCheck, 0)
+		err = stages.SaveStageUnwind(stateDB, stages.HashCheck, 0)
 		if err != nil {
 			return fmt.Errorf("unwind HashCheck: reset: %v", err)
 		}
 		return nil
 	}
 	mutation := stateDB.NewBatch()
-	err = SaveStageUnwind(mutation, HashCheck, 0)
+	err = stages.SaveStageUnwind(mutation, stages.HashCheck, 0)
 	if err != nil {
 		return fmt.Errorf("unwind HashCheck: reset: %v", err)
 	}
@@ -106,10 +106,9 @@ func promoteHashedStateCleanly(db ethdb.Database, datadir string, quit chan stru
 		dbutils.PlainStateBucket,
 		dbutils.CurrentStateBucket,
 		datadir,
-		nil,
 		keyTransformExtractFunc(transformPlainStateKey),
 		etl.IdentityLoadFunc,
-		quit,
+		etl.TransformArgs{Quit: quit},
 	)
 
 	if err != nil {
@@ -121,10 +120,9 @@ func promoteHashedStateCleanly(db ethdb.Database, datadir string, quit chan stru
 		dbutils.PlainContractCodeBucket,
 		dbutils.ContractCodeBucket,
 		datadir,
-		nil,
 		keyTransformExtractFunc(transformContractCodeKey),
 		etl.IdentityLoadFunc,
-		quit,
+		etl.TransformArgs{Quit: quit},
 	)
 }
 
@@ -134,7 +132,7 @@ func keyTransformExtractFunc(transformKey func([]byte) ([]byte, error)) etl.Extr
 		if err != nil {
 			return err
 		}
-		return next(newK, v)
+		return next(k, newK, v)
 	}
 }
 
