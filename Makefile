@@ -91,7 +91,8 @@ ios:
 	@echo "Import \"$(GOBIN)/Geth.framework\" to use the library."
 
 test: semantics/z3/build/libz3.a all
-	$(GORUN) build/ci.go test -v
+	go test ./tests -v -run TestBlockchain/InvalidBlocks/bcBlockGasLimitTest/GasUsedHigherThanBlockGasLimitButNotWithRefundsSuicideLast.json/GasUsedHigherThanBlockGasLimitButNotWithRefundsSuicideLast_Byzantium
+	#$(GORUN) build/ci.go test -v
 
 lint: lintci
 
