@@ -2,9 +2,9 @@ package downloader
 
 import (
 	"fmt"
-	// "os"
+	"os"
 	"runtime"
-	// "runtime/pprof"
+	"runtime/pprof"
 	"sync/atomic"
 	"time"
 
@@ -16,6 +16,7 @@ import (
 	"github.com/ledgerwatch/turbo-geth/core/rawdb"
 	"github.com/ledgerwatch/turbo-geth/core/state"
 	"github.com/ledgerwatch/turbo-geth/core/types/accounts"
+	"github.com/ledgerwatch/turbo-geth/core/vm"
 	"github.com/ledgerwatch/turbo-geth/ethdb"
 	"github.com/ledgerwatch/turbo-geth/log"
 )
@@ -49,7 +50,8 @@ func (l *progressLogger) Start(numberRef *uint64) {
 			var m runtime.MemStats
 			runtime.ReadMemStats(&m)
 			log.Info("Executed blocks:", "currentBlock", now, "speed (blk/second)", speed, "state batch", common.StorageSize(l.batch.BatchSize()),
-				"alloc", int(m.Alloc/1024), "sys", int(m.Sys/1024), "numGC", int(m.NumGC))
+				"alloc", int(m.Alloc/1024), "sys", int(m.Sys/1024), "numGC", int(m.NumGC),
+				"cached", vm.Jumpdests.Len(), "cacheGC", vm.Jumpdests.GcCount, "cacheGCCleaned", vm.Jumpdests.GcTotal)
 			prev = now
 		}
 		for {
@@ -71,6 +73,8 @@ func (l *progressLogger) Stop() {
 
 const StateBatchSize = 50 * 1024 * 1024 // 50 Mb
 const ChangeBatchSize = 1024 * 2014     // 1 Mb
+const stopNum = 6_600_000
+const prof = false
 
 func spawnExecuteBlocksStage(stateDB ethdb.Database, blockchain BlockChain, quit chan struct{}) (uint64, error) {
 	lastProcessedBlockNumber, err := GetStageProgress(stateDB, Execution)
@@ -81,8 +85,9 @@ func spawnExecuteBlocksStage(stateDB ethdb.Database, blockchain BlockChain, quit
 	nextBlockNumber := uint64(0)
 
 	atomic.StoreUint64(&nextBlockNumber, lastProcessedBlockNumber+1)
-	/*
-		profileNumber := atomic.LoadUint64(&nextBlockNumber)
+
+	profileNumber := atomic.LoadUint64(&nextBlockNumber)
+	if prof {
 		f, err := os.Create(fmt.Sprintf("cpu-%d.prof", profileNumber))
 		if err != nil {
 			log.Error("could not create CPU profile", "error", err)
@@ -92,7 +97,8 @@ func spawnExecuteBlocksStage(stateDB ethdb.Database, blockchain BlockChain, quit
 			log.Error("could not start CPU profile", "error", err1)
 			return lastProcessedBlockNumber, err
 		}
-	*/
+	}
+
 	stateBatch := stateDB.NewBatch()
 	changeBatch := stateDB.NewBatch()
 
@@ -176,12 +182,17 @@ func spawnExecuteBlocksStage(stateDB ethdb.Database, blockchain BlockChain, quit
 				return 0, err
 			}
 		}
-		/*
+
+		if prof {
 			if blockNum-profileNumber == 100000 {
 				// Flush the profiler
 				pprof.StopCPUProfile()
 			}
-		*/
+		}
+
+		if lastProcessedBlockNumber >= stopNum {
+			return 0, errCanceled
+		}
 	}
 
 	// the last processed block

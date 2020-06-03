@@ -23,7 +23,7 @@ import (
 	"github.com/ledgerwatch/turbo-geth/common/pool"
 )
 
-var jumpdests cache = newJumpDests(50000, 10, 1)
+var Jumpdests = newJumpDests(50000, 10, 1)
 
 type cache interface {
 	Set(hash common.Hash, v *pool.ByteBuffer)
@@ -31,12 +31,17 @@ type cache interface {
 	Clear(codeHash common.Hash, local *pool.ByteBuffer)
 }
 
+// var jumpdests = fastcache.New(2 * 1024 * 1024* 1024)
+
 type jumpDests struct {
 	maps       map[common.Hash]*item
 	lru        []map[common.Hash]struct{}
 	chunks     []int
 	minToClear int // 1..1000
 	maxSize    int
+
+	GcCount int
+	GcTotal int
 }
 
 type item struct {
@@ -59,7 +64,13 @@ func newJumpDests(maxSize, nChunks, perMilleToClear int) *jumpDests {
 		chunks,
 		maxSize * perMilleToClear / 1000,
 		maxSize,
+		0,
+		0,
 	}
+}
+
+func (j *jumpDests) Len() int {
+	return len(j.maps)
 }
 
 func (j *jumpDests) Set(hash common.Hash, v *pool.ByteBuffer) {
@@ -69,6 +80,7 @@ func (j *jumpDests) Set(hash common.Hash, v *pool.ByteBuffer) {
 	}
 
 	if len(j.maps) >= j.maxSize {
+		j.GcCount++
 		j.gc()
 	}
 
@@ -103,17 +115,16 @@ func (j *jumpDests) gc() {
 	for _, chunk := range j.lru {
 		for hash := range chunk {
 			delete(chunk, hash)
-
-			item := j.maps[hash]
 			delete(j.maps, hash)
-			pool.PutBuffer(item.m)
 
 			n++
 			if n >= j.minToClear {
+				j.GcTotal += n
 				return
 			}
 		}
 	}
+	j.GcTotal += n
 }
 
 func (j *jumpDests) Clear(codeHash common.Hash, local *pool.ByteBuffer) {

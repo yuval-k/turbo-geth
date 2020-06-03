@@ -55,7 +55,7 @@ func (d *Downloader) doStagedSyncWithFetchers(p *peerConnection, headersFetchers
 	}
 
 	log.Info("Sync stage 4/7. Executing blocks w/o hash checks... Complete!")
-
+	panic("====== STAGE 4 =======")
 	// Further stages go there
 	log.Info("Sync stage 5/7. Validating final hash")
 	err = spawnCheckFinalHashStage(d.stateDB, syncHeadNumber, d.datadir, d.quitCh)

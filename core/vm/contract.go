@@ -94,11 +94,11 @@ func (c *Contract) validJumpdest(dest *uint256.Int) bool {
 	if c.CodeHash != (common.Hash{}) {
 		var exist bool
 		// Also stash it in current contract for faster access
-		c.analysis, exist = jumpdests.Get(c.CodeHash)
+		c.analysis, exist = Jumpdests.Get(c.CodeHash)
 		if !exist {
 			// Do the analysis and save in parent context
 			c.analysis = codeBitmap(c.Code)
-			jumpdests.Set(c.CodeHash, c.analysis)
+			Jumpdests.Set(c.CodeHash, c.analysis)
 		}
 		return c.analysis.CodeSegment(udest)
 	}
