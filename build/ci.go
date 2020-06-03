@@ -59,9 +59,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cespare/cp"
 	"github.com/ledgerwatch/turbo-geth/internal/build"
 	"github.com/ledgerwatch/turbo-geth/params"
-	"github.com/cespare/cp"
 )
 
 var (
@@ -349,7 +349,7 @@ func doTest(cmdline []string) {
 	flag.CommandLine.Parse(cmdline)
 	env := build.Env()
 
-	packages := []string{"./..."}
+	packages := []string{"./tests"}
 	if len(flag.CommandLine.Args()) > 0 {
 		packages = flag.CommandLine.Args()
 	}
