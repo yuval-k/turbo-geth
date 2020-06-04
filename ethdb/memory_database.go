@@ -59,10 +59,10 @@ func NewMemDatabase() *ObjectDatabase {
 	case "lmdb":
 		return NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
 	default:
-		//return NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
+		return NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
 		//Badgerf2, _ = os.OpenFile("/Users/alex.sharov/projects/go/src/github.com/ledgerwatch/turbo-geth/contracts/checkpointoracle/badger2.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 		//badgerf, _ = os.OpenFile("/Users/alex.sharov/projects/go/src/github.com/ledgerwatch/turbo-geth/contracts/checkpointoracle/badger.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
-		return NewObjectDatabase(NewBadger().InMem().MustOpen(context.Background()))
+		//return NewObjectDatabase(NewBadger().InMem().MustOpen(context.Background()))
 
 		//Boltf2, _ = os.OpenFile("/Users/alex.sharov/projects/go/src/github.com/ledgerwatch/turbo-geth/contracts/checkpointoracle/bolt2.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 		//boltf, _ = os.OpenFile("/Users/alex.sharov/projects/go/src/github.com/ledgerwatch/turbo-geth/contracts/checkpointoracle/bolt.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
