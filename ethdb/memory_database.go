@@ -27,14 +27,14 @@ import (
 
 func NewMemDatabase() *ObjectDatabase {
 	switch debug.TestDB() {
+	case "bolt":
+		return NewObjectDatabase(NewBadger().InMem().MustOpen(context.Background()))
 	case "badger":
 		return NewObjectDatabase(NewBadger().InMem().MustOpen(context.Background()))
 	case "lmdb":
 		return NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
 	default:
-		return NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
-		//return NewObjectDatabase(NewBadger().InMem().MustOpen(context.Background()))
-		//return NewObjectDatabase(NewBolt().InMem().MustOpen(context.Background()))
+		return NewObjectDatabase(NewBolt().InMem().MustOpen(context.Background()))
 	}
 }
 
