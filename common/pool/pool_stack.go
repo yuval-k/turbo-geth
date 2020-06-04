@@ -12,7 +12,7 @@ type Stack struct {
 	*sync.Pool
 }
 
-const maxCap = 1024*2
+const maxCap = 1024 * 2
 
 func NewStack() *Stack {
 	return &Stack{

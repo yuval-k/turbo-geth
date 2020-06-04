@@ -16,7 +16,6 @@ import (
 	"github.com/ledgerwatch/turbo-geth/core/rawdb"
 	"github.com/ledgerwatch/turbo-geth/core/state"
 	"github.com/ledgerwatch/turbo-geth/core/types/accounts"
-	"github.com/ledgerwatch/turbo-geth/core/vm"
 	"github.com/ledgerwatch/turbo-geth/ethdb"
 	"github.com/ledgerwatch/turbo-geth/log"
 )
@@ -49,8 +48,14 @@ func (l *progressLogger) Start(numberRef *uint64) {
 			speed := float64(now-prev) / float64(l.interval)
 			var m runtime.MemStats
 			runtime.ReadMemStats(&m)
-			log.Info("Executed blocks:", "currentBlock", now, "speed (blk/second)", speed, "state batch", common.StorageSize(l.batch.BatchSize()),
-				"alloc", int(m.Alloc/1024), "sys", int(m.Sys/1024), "numGC", int(m.NumGC), "cache", vm.Jumpdests.String())
+			log.Info("Executed blocks:",
+				"currentBlock", now,
+				"speed (blk/second)", speed,
+				"state batch", common.StorageSize(l.batch.BatchSize()),
+				"alloc", int(m.Alloc/1024),
+				"sys", int(m.Sys/1024),
+				"numGC", int(m.NumGC))
+
 			prev = now
 		}
 		for {

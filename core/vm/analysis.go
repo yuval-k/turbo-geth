@@ -26,12 +26,6 @@ import (
 
 var Jumpdests = newJumpDests(50000, 10, 5)
 
-type cache interface {
-	Set(hash common.Hash, v *pool.ByteBuffer)
-	Get(hash common.Hash) (*pool.ByteBuffer, bool)
-	Clear(codeHash common.Hash, local *pool.ByteBuffer)
-}
-
 type jumpDests struct {
 	maps       map[common.Hash]*item
 	lru        []map[common.Hash]struct{}

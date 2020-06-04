@@ -104,10 +104,10 @@ func testTwoOperandOp(t *testing.T, tests []TwoOperandTestcase, opFn executionFu
 		x := new(uint256.Int).SetBytes(common.Hex2Bytes(test.X))
 		y := new(uint256.Int).SetBytes(common.Hex2Bytes(test.Y))
 		expected := new(uint256.Int).SetBytes(common.Hex2Bytes(test.Expected))
-		stack.push(x)
-		stack.push(y)
+		stack.Push(x)
+		stack.Push(y)
 		opFn(&pc, evmInterpreter, &callCtx{nil, stack, nil})
-		actual := stack.pop()
+		actual := stack.Pop()
 
 		if actual.Cmp(expected) != 0 {
 			t.Errorf("Testcase %v %d, %v(%x, %x): expected  %x, got %x", name, i, name, x, y, expected, &actual)
@@ -200,10 +200,10 @@ func getResult(args []*twoOperandParams, opFn executionFunc) []TwoOperandTestcas
 	for i, param := range args {
 		x := new(uint256.Int).SetBytes(common.Hex2Bytes(param.x))
 		y := new(uint256.Int).SetBytes(common.Hex2Bytes(param.y))
-		stack.push(x)
-		stack.push(y)
+		stack.Push(x)
+		stack.Push(y)
 		opFn(&pc, interpreter, &callCtx{nil, stack, nil})
-		actual := stack.pop()
+		actual := stack.Pop()
 		result[i] = TwoOperandTestcase{param.x, param.y, fmt.Sprintf("%064x", actual)}
 	}
 	return result
@@ -257,10 +257,10 @@ func opBenchmark(bench *testing.B, op executionFunc, args ...string) {
 	for i := 0; i < bench.N; i++ {
 		for _, arg := range byteArgs {
 			a := new(uint256.Int).SetBytes(arg)
-			stack.push(a)
+			stack.Push(a)
 		}
 		op(&pc, evmInterpreter, &callCtx{nil, stack, nil})
-		stack.pop()
+		stack.Pop()
 	}
 }
 
@@ -484,14 +484,14 @@ func TestOpMstore(t *testing.T) {
 	mem.Resize(64)
 	pc := uint64(0)
 	v := "abcdef00000000000000abba000000000deaf000000c0de00100000000133700"
-	stack.push(new(uint256.Int).SetBytes(common.Hex2Bytes(v)))
-	stack.push(new(uint256.Int))
+	stack.Push(new(uint256.Int).SetBytes(common.Hex2Bytes(v)))
+	stack.Push(new(uint256.Int))
 	opMstore(&pc, evmInterpreter, &callCtx{mem, stack, nil})
 	if got := common.Bytes2Hex(mem.GetCopy(0, 32)); got != v {
 		t.Fatalf("Mstore fail, got %v, expected %v", got, v)
 	}
-	stack.push(new(uint256.Int).SetOne())
-	stack.push(new(uint256.Int))
+	stack.Push(new(uint256.Int).SetOne())
+	stack.Push(new(uint256.Int))
 	opMstore(&pc, evmInterpreter, &callCtx{mem, stack, nil})
 	if common.Bytes2Hex(mem.GetCopy(0, 32)) != "0000000000000000000000000000000000000000000000000000000000000001" {
 		t.Fatalf("Mstore failed to overwrite previous value")
@@ -514,8 +514,8 @@ func BenchmarkOpMstore(bench *testing.B) {
 
 	bench.ResetTimer()
 	for i := 0; i < bench.N; i++ {
-		stack.push(value)
-		stack.push(memStart)
+		stack.Push(value)
+		stack.Push(memStart)
 		opMstore(&pc, evmInterpreter, &callCtx{mem, stack, nil})
 	}
 }
@@ -534,8 +534,8 @@ func BenchmarkOpSHA3(bench *testing.B) {
 
 	bench.ResetTimer()
 	for i := 0; i < bench.N; i++ {
-		stack.push(uint256.NewInt().SetUint64(32))
-		stack.push(start)
+		stack.Push(uint256.NewInt().SetUint64(32))
+		stack.Push(start)
 		opSha3(&pc, evmInterpreter, &callCtx{mem, stack, nil})
 	}
 }
@@ -601,9 +601,9 @@ func TestCreate2Addreses(t *testing.T) {
 		/*
 			stack          := newstack()
 			// salt, but we don't need that for this test
-			stack.push(big.NewInt(int64(len(code)))) //size
-			stack.push(big.NewInt(0)) // memstart
-			stack.push(big.NewInt(0)) // value
+			stack.Push(big.NewInt(int64(len(code)))) //size
+			stack.Push(big.NewInt(0)) // memstart
+			stack.Push(big.NewInt(0)) // value
 			gas, _ := gasCreate2(params.GasTable{}, nil, nil, stack, nil, 0)
 			fmt.Printf("Example %d\n* address `0x%x`\n* salt `0x%x`\n* init_code `0x%x`\n* gas (assuming no mem expansion): `%v`\n* result: `%s`\n\n", i,origin, salt, code, gas, address.String())
 		*/

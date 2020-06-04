@@ -8,10 +8,10 @@ import (
 )
 
 func TestRightPadding(t *testing.T) {
-	bs := []byte{0, 1,0x10, 0x11, 0x20, 0xfa, 0xff}
+	bs := []byte{0, 1, 0x10, 0x11, 0x20, 0xfa, 0xff}
 
-	for n:=1; n<=4;n++ {
-		for l:=n; l<=4;l++ {
+	for n := 1; n <= 4; n++ {
+		for l := n; l <= 4; l++ {
 			slice := make([]byte, n)
 			for _, b := range bs {
 				for i := range slice {
