@@ -108,7 +108,7 @@ func (b *SyncBloom) init(database ethdb.Database) {
 		_ = database.Walk(dbutils.CurrentStateBucket, []byte{}, 0, func(key, val []byte) (bool, error) {
 			// If the database entry is a trie node, add it to the bloom
 			if len(key) == common.HashLength {
-				b.bloom.Add(syncBloomHasher(key))
+				b.bloom.Add(syncBloomHasher(common.CopyBytes(key)))
 				bloomLoadMeter.Mark(1)
 			}
 			return true, nil

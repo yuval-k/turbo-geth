@@ -158,7 +158,6 @@ func (db *lmdbKV) Close() {
 	}
 
 	if db.opts.inMem {
-		//fmt.Printf("RM: %s\n", db.opts.path)
 		if err := os.RemoveAll(db.opts.path); err != nil {
 			db.log.Warn("failed to remove in-mem db file", "err", err)
 		}
