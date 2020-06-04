@@ -73,6 +73,7 @@ func (l *progressLogger) Stop() {
 const StateBatchSize = 50 * 1024 * 1024 // 50 Mb
 const ChangeBatchSize = 1024 * 2014     // 1 Mb
 const prof = false
+const stopOn = 9653105
 
 func spawnExecuteBlocksStage(stateDB ethdb.Database, blockchain BlockChain, quit chan struct{}) (uint64, error) {
 	lastProcessedBlockNumber, err := GetStageProgress(stateDB, Execution)
@@ -83,6 +84,9 @@ func spawnExecuteBlocksStage(stateDB ethdb.Database, blockchain BlockChain, quit
 	nextBlockNumber := uint64(0)
 
 	atomic.StoreUint64(&nextBlockNumber, lastProcessedBlockNumber+1)
+	if lastProcessedBlockNumber > stopOn {
+		return 0, errCanceled
+	}
 
 	profileNumber := atomic.LoadUint64(&nextBlockNumber)
 	if prof {
