@@ -26,14 +26,47 @@ import (
 )
 
 func NewMemDatabase() *ObjectDatabase {
+	//logger := log.New("database", "in-memory")
+	//
+	//// Open the db and recover any potential corruptions
+	//db, errOpen := bolt.Open("in-memory", 0600, &bolt.Options{MemOnly: true})
+	//if errOpen != nil {
+	//	panic(errOpen)
+	//}
+	//
+	//if err := db.Update(func(tx *bolt.Tx) error {
+	//	for _, bucket := range dbutils.Buckets {
+	//		if _, err := tx.CreateBucketIfNotExists(bucket, false); err != nil {
+	//			return err
+	//		}
+	//	}
+	//	return nil
+	//}); err != nil {
+	//	panic(err)
+	//}
+	//
+	//b := &BoltDatabase{
+	//	db:  db,
+	//	log: logger,
+	//	id:  id(),
+	//}
+	//
+	//return b
+
 	switch debug.TestDB() {
 	case "badger":
 		return NewObjectDatabase(NewBadger().InMem().MustOpen(context.Background()))
 	case "lmdb":
 		return NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
 	default:
-		return NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
-		//return NewObjectDatabase(NewBadger().InMem().MustOpen(context.Background()))
+		//return NewObjectDatabase(NewLMDB().InMem().MustOpen(context.Background()))
+		//Badgerf2, _ = os.OpenFile("/Users/alex.sharov/projects/go/src/github.com/ledgerwatch/turbo-geth/contracts/checkpointoracle/badger2.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+		//badgerf, _ = os.OpenFile("/Users/alex.sharov/projects/go/src/github.com/ledgerwatch/turbo-geth/contracts/checkpointoracle/badger.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+		return NewObjectDatabase(NewBadger().InMem().MustOpen(context.Background()))
+
+		//Boltf2, _ = os.OpenFile("/Users/alex.sharov/projects/go/src/github.com/ledgerwatch/turbo-geth/contracts/checkpointoracle/bolt2.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+		//boltf, _ = os.OpenFile("/Users/alex.sharov/projects/go/src/github.com/ledgerwatch/turbo-geth/contracts/checkpointoracle/bolt.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+
 		//return NewObjectDatabase(NewBolt().InMem().MustOpen(context.Background()))
 	}
 }

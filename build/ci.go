@@ -349,7 +349,7 @@ func doTest(cmdline []string) {
 	flag.CommandLine.Parse(cmdline)
 	env := build.Env()
 
-	packages := []string{"-test.run='TestBlockchain/InvalidBlocks' ./..."}
+	packages := []string{"./..."}
 	if len(flag.CommandLine.Args()) > 0 {
 		packages = flag.CommandLine.Args()
 	}

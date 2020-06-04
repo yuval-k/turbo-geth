@@ -3,6 +3,9 @@ package ethdb
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
+	"io/ioutil"
 	"runtime"
 	"time"
 
@@ -11,6 +14,9 @@ import (
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/log"
 )
+
+var badgerf io.Writer = ioutil.Discard
+var Badgerf2 io.Writer = ioutil.Discard
 
 type badgerOpts struct {
 	Badger badger.Options
@@ -168,11 +174,13 @@ func (tx *badgerTx) Bucket(name []byte) Bucket {
 
 func (tx *badgerTx) Commit(ctx context.Context) error {
 	tx.cleanup()
+	fmt.Fprintf(badgerf, "Commit\n")
 	return tx.badger.Commit()
 }
 
 func (tx *badgerTx) Rollback() error {
 	tx.cleanup()
+	fmt.Fprintf(badgerf, "Commit\n")
 	tx.badger.Discard()
 	return nil
 }
@@ -206,6 +214,8 @@ func (c *badgerCursor) NoValues() NoValuesCursor {
 }
 
 func (b badgerBucket) Get(key []byte) (val []byte, err error) {
+	//fmt.Fprintf(badgerf, "Get: %s %x\n", b.prefix[:b.nameLen], key)
+
 	select {
 	case <-b.tx.ctx.Done():
 		return nil, b.tx.ctx.Err()
@@ -237,6 +247,8 @@ func (b badgerBucket) Put(key []byte, value []byte) error {
 	default:
 	}
 
+	fmt.Fprintf(badgerf, "Put: %s %x %x \n", b.prefix[:b.nameLen], key, value)
+
 	b.prefix = append(b.prefix[:b.nameLen], key...) // avoid passing buffer in Put, need copy bytes
 	return b.tx.badger.Set(common.CopyBytes(b.prefix), value)
 }
@@ -249,6 +261,7 @@ func (b badgerBucket) Delete(key []byte) error {
 	}
 
 	b.prefix = append(b.prefix[:b.nameLen], key...)
+	fmt.Fprintf(badgerf, "Delete: %s -> %x  \n", b.prefix[:b.nameLen], key)
 	return b.tx.badger.Delete(b.prefix)
 }
 
@@ -312,6 +325,10 @@ func (c *badgerCursor) Seek(seek []byte) ([]byte, []byte, error) {
 	if c.badgerOpts.PrefetchValues {
 		c.v, c.err = item.ValueCopy(c.v)
 	}
+	//if bytes.Equal(c.k, common.FromHex("b2a6f5e69e1f8f7a4bcb4b8a7b8aed440a7a4cba408915825add260ac84a8e7bffffffffffffffff")) {
+	//	fmt.Printf("Val: %x\n")
+	//}
+	fmt.Fprintf(badgerf, "Seek: %s %x -> %x %x \n", c.prefix[:c.bucket.nameLen], seek, c.k, c.v)
 	if c.err != nil {
 		return []byte{}, nil, c.err
 	}
@@ -349,6 +366,7 @@ func (c *badgerCursor) Next() ([]byte, []byte, error) {
 	if c.v == nil {
 		c.v = []byte{}
 	}
+	fmt.Fprintf(badgerf, "Next: %s -> %x %x \n", c.prefix[:c.bucket.nameLen], c.k, c.v)
 	return c.k, c.v, nil
 }
 

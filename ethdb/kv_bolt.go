@@ -3,11 +3,17 @@ package ethdb
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"io"
+	"io/ioutil"
 
 	"github.com/ledgerwatch/bolt"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/log"
 )
+
+var boltf io.Writer = ioutil.Discard
+var Boltf2 io.Writer = ioutil.Discard
 
 type boltOpts struct {
 	Bolt *bolt.Options
@@ -184,6 +190,7 @@ func (c *boltCursor) NoValues() NoValuesCursor {
 }
 
 func (b boltBucket) Get(key []byte) (val []byte, err error) {
+	//fmt.Fprintf(boltf, "Get: %s %x\n", b.prefix, key)
 	select {
 	case <-b.tx.ctx.Done():
 		return nil, b.tx.ctx.Err()
@@ -200,6 +207,8 @@ func (b boltBucket) Put(key []byte, value []byte) error {
 		return b.tx.ctx.Err()
 	default:
 	}
+
+	fmt.Fprintf(boltf, "Put: %s %x %x \n", b.name, key, value)
 	err := b.bolt.Put(key, value)
 	return err
 }
@@ -210,6 +219,7 @@ func (b boltBucket) Delete(key []byte) error {
 		return b.tx.ctx.Err()
 	default:
 	}
+	fmt.Fprintf(boltf, "Delete: %s -> %x  \n", b.name, key)
 
 	return b.bolt.Delete(key)
 }
@@ -249,6 +259,7 @@ func (c *boltCursor) Seek(seek []byte) ([]byte, []byte, error) {
 	if !bytes.HasPrefix(c.k, c.prefix) {
 		c.k, c.v = nil, nil
 	}
+	//fmt.Fprintf(boltf, "Seek: %s %x -> %x %x \n", c.bucket.name, seek, c.k, c.v)
 	return c.k, c.v, nil
 }
 
@@ -263,6 +274,7 @@ func (c *boltCursor) SeekTo(seek []byte) ([]byte, []byte, error) {
 	if !bytes.HasPrefix(c.k, c.prefix) {
 		c.k, c.v = nil, nil
 	}
+	//fmt.Fprintf(boltf, "Seek: %s %x -> %x %x \n", c.bucket.name, seek, c.k, c.v)
 	return c.k, c.v, nil
 }
 
@@ -277,6 +289,7 @@ func (c *boltCursor) Next() ([]byte, []byte, error) {
 	if !bytes.HasPrefix(c.k, c.prefix) {
 		c.k, c.v = nil, nil
 	}
+	//fmt.Fprintf(boltf, "Next: %s -> %x %x \n", c.bucket.name, c.k, c.v)
 	return c.k, c.v, nil
 }
 
