@@ -19,7 +19,7 @@ package ethdb
 import (
 	"bytes"
 	"os"
-	"runtime"
+	//"runtime"
 	"time"
 
 	"github.com/dgraph-io/badger/v2"
@@ -48,11 +48,11 @@ type BadgerDatabase struct {
 func NewBadgerDatabase(dir string) (*BadgerDatabase, error) {
 	logger := log.New("database", dir)
 
-	oldMaxProcs := runtime.GOMAXPROCS(0)
-	if oldMaxProcs < minGoMaxProcs {
-		runtime.GOMAXPROCS(minGoMaxProcs)
-		logger.Info("Bumping GOMAXPROCS", "old", oldMaxProcs, "new", minGoMaxProcs)
-	}
+	//oldMaxProcs := runtime.GOMAXPROCS(0)
+	//if oldMaxProcs < minGoMaxProcs {
+	//	runtime.GOMAXPROCS(minGoMaxProcs)
+	//	logger.Info("Bumping GOMAXPROCS", "old", oldMaxProcs, "new", minGoMaxProcs)
+	//}
 	options := badger.DefaultOptions(dir).WithMaxTableSize(512 << 21)
 
 	db, err := badger.Open(options)
