@@ -15,8 +15,10 @@ import (
 
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/core/rawdb"
+	"github.com/ledgerwatch/turbo-geth/core/vm/stack"
 
 	"github.com/ledgerwatch/bolt"
+
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/consensus/ethash"
 	"github.com/ledgerwatch/turbo-geth/core"
@@ -67,10 +69,10 @@ func (tt TokenTracer) CaptureStart(depth int, from common.Address, to common.Add
 	tt.startMode[depth] = true
 	return nil
 }
-func (tt TokenTracer) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost uint64, memory *vm.Memory, stack *vm.Stack, contract *vm.Contract, depth int, err error) error {
+func (tt TokenTracer) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost uint64, memory *vm.Memory, stack *stack.Stack, contract *vm.Contract, depth int, err error) error {
 	return nil
 }
-func (tt TokenTracer) CaptureFault(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost uint64, memory *vm.Memory, stack *vm.Stack, contract *vm.Contract, depth int, err error) error {
+func (tt TokenTracer) CaptureFault(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost uint64, memory *vm.Memory, stack *stack.Stack, contract *vm.Contract, depth int, err error) error {
 	return nil
 }
 func (tt TokenTracer) CaptureEnd(depth int, output []byte, gasUsed uint64, t time.Duration, err error) error {

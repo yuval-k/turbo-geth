@@ -50,8 +50,7 @@ func (l *progressLogger) Start(numberRef *uint64) {
 			var m runtime.MemStats
 			runtime.ReadMemStats(&m)
 			log.Info("Executed blocks:", "currentBlock", now, "speed (blk/second)", speed, "state batch", common.StorageSize(l.batch.BatchSize()),
-				"alloc", int(m.Alloc/1024), "sys", int(m.Sys/1024), "numGC", int(m.NumGC),
-				"cached", vm.Jumpdests.Len(), "cacheGC", vm.Jumpdests.GcCount, "cacheGCCleaned", vm.Jumpdests.GcTotal)
+				"alloc", int(m.Alloc/1024), "sys", int(m.Sys/1024), "numGC", int(m.NumGC), "cache", vm.Jumpdests.String())
 			prev = now
 		}
 		for {
@@ -73,7 +72,6 @@ func (l *progressLogger) Stop() {
 
 const StateBatchSize = 50 * 1024 * 1024 // 50 Mb
 const ChangeBatchSize = 1024 * 2014     // 1 Mb
-const stopNum = 6_600_000
 const prof = false
 
 func spawnExecuteBlocksStage(stateDB ethdb.Database, blockchain BlockChain, quit chan struct{}) (uint64, error) {
@@ -187,11 +185,8 @@ func spawnExecuteBlocksStage(stateDB ethdb.Database, blockchain BlockChain, quit
 			if blockNum-profileNumber == 100000 {
 				// Flush the profiler
 				pprof.StopCPUProfile()
+				return 0, errCanceled
 			}
-		}
-
-		if lastProcessedBlockNumber >= stopNum {
-			return 0, errCanceled
 		}
 	}
 

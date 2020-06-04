@@ -30,7 +30,12 @@ type Memory struct {
 
 // NewMemory returns a new memory model.
 func NewMemory() *Memory {
-	return &Memory{}
+	return &Memory{store: make([]byte, 0, 128)}
+}
+
+func (m *Memory) Reset() {
+	m.lastGasCost = 0
+	m.store = m.store[:0]
 }
 
 // Set sets offset + size to value

@@ -17,13 +17,14 @@
 package vm
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/pool"
 )
 
-var Jumpdests = newJumpDests(50000, 10, 1)
+var Jumpdests = newJumpDests(50000, 10, 5)
 
 type cache interface {
 	Set(hash common.Hash, v *pool.ByteBuffer)
@@ -31,13 +32,11 @@ type cache interface {
 	Clear(codeHash common.Hash, local *pool.ByteBuffer)
 }
 
-// var jumpdests = fastcache.New(2 * 1024 * 1024* 1024)
-
 type jumpDests struct {
 	maps       map[common.Hash]*item
 	lru        []map[common.Hash]struct{}
 	chunks     []int
-	minToClear int // 1..1000
+	minToClear int // 1..100
 	maxSize    int
 
 	GcCount int
@@ -49,7 +48,7 @@ type item struct {
 	used int
 }
 
-func newJumpDests(maxSize, nChunks, perMilleToClear int) *jumpDests {
+func newJumpDests(maxSize, nChunks, percentToClear int) *jumpDests {
 	lru := make([]map[common.Hash]struct{}, nChunks)
 	chunks := make([]int, nChunks)
 	chunkSize := maxSize / nChunks
@@ -62,7 +61,7 @@ func newJumpDests(maxSize, nChunks, perMilleToClear int) *jumpDests {
 		make(map[common.Hash]*item, maxSize),
 		lru,
 		chunks,
-		maxSize * perMilleToClear / 1000,
+		maxSize * percentToClear / 100,
 		maxSize,
 		0,
 		0,
@@ -137,6 +136,16 @@ func (j *jumpDests) Clear(codeHash common.Hash, local *pool.ByteBuffer) {
 	}
 	// analysis is a local one
 	pool.PutBuffer(local)
+}
+
+func (j *jumpDests) String() string {
+	res := ""
+	for i, size := range j.chunks {
+		res += fmt.Sprintf("chunk %d:%d; ", size, len(j.lru[i]))
+	}
+
+	return fmt.Sprintf("cached %d, cacheGC %d, cacheGCCleaned %d, buckets: %s",
+		j.Len(), j.GcCount, j.GcTotal, res)
 }
 
 // codeBitmap collects data locations in code.

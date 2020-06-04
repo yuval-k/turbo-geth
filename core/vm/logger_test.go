@@ -24,6 +24,7 @@ import (
 
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/core/state"
+	stack2 "github.com/ledgerwatch/turbo-geth/core/vm/stack"
 	"github.com/ledgerwatch/turbo-geth/params"
 )
 
@@ -55,7 +56,7 @@ func TestStoreCapture(t *testing.T) {
 		env      = NewEVM(Context{}, &dummyStatedb{}, params.TestChainConfig, Config{})
 		logger   = NewStructLogger(nil)
 		mem      = NewMemory()
-		stack    = newstack()
+		stack    = stack2.New()
 		contract = NewContract(&dummyContractRef{}, &dummyContractRef{}, new(uint256.Int), 0)
 	)
 	stack.push(uint256.NewInt().SetOne())
