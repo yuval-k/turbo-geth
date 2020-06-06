@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"os"
 	"runtime"
 	"runtime/pprof"
-	"os"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -40,7 +40,6 @@ func init() {
 func spawnRecoverSendersStage(s *StageState, stateDB ethdb.Database, config *params.ChainConfig, quitCh chan struct{}) error {
 	lastProcessedBlockNumber := s.BlockNumber
 	nextBlockNumber := lastProcessedBlockNumber + 1
-
 
 	profileNumber := nextBlockNumber
 	f, err := os.Create(fmt.Sprintf("cpu-rec-%d.prof", profileNumber))

@@ -2382,6 +2382,22 @@ func testStage5(chaindata string) error {
 	return nil
 }
 
+func queryProgress(chaindata string) error {
+	db, err := ethdb.NewBoltDatabase(chaindata)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	var progress uint64
+	for stage := stages.SyncStage(0); stage < stages.Finish; stage++ {
+		if progress, err = stages.GetStageProgress(db, stage); err != nil {
+			return err
+		}
+		fmt.Printf("Stage: %d, progress: %d\n", stage, progress)
+	}
+	return nil
+}
+
 func main() {
 	var (
 		ostream log.Handler
@@ -2533,6 +2549,11 @@ func main() {
 	}
 	if *action == "stage5" {
 		if err := testStage5(*chaindata); err != nil {
+			fmt.Printf("Error: %v\n", err)
+		}
+	}
+	if *action == "queryProgress" {
+		if err := queryProgress(*chaindata); err != nil {
 			fmt.Printf("Error: %v\n", err)
 		}
 	}
