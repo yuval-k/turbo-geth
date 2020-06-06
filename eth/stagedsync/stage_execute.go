@@ -49,8 +49,14 @@ func (l *progressLogger) Start(numberRef *uint64) {
 			speed := float64(now-prev) / float64(l.interval)
 			var m runtime.MemStats
 			runtime.ReadMemStats(&m)
-			log.Info("Executed blocks:", "currentBlock", now, "speed (blk/second)", speed, "state batch", common.StorageSize(l.batch.BatchSize()),
-				"alloc", int(m.Alloc/1024), "sys", int(m.Sys/1024), "numGC", int(m.NumGC))
+			log.Info("Executed blocks:",
+				"currentBlock", now,
+				"speed (blk/second)", speed,
+				"state batch", common.StorageSize(l.batch.BatchSize()),
+				"alloc", int(m.Alloc/1024),
+				"sys", int(m.Sys/1024),
+				"numGC", int(m.NumGC))
+
 			prev = now
 		}
 		for {
@@ -72,6 +78,7 @@ func (l *progressLogger) Stop() {
 
 const StateBatchSize = 50 * 1024 * 1024 // 50 Mb
 const ChangeBatchSize = 1024 * 2014     // 1 Mb
+const prof = true
 
 func spawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, blockchain BlockChain, quit chan struct{}) error {
 	lastProcessedBlockNumber := s.BlockNumber
@@ -80,15 +87,18 @@ func spawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, blockchain B
 
 	atomic.StoreUint64(&nextBlockNumber, lastProcessedBlockNumber+1)
 	profileNumber := atomic.LoadUint64(&nextBlockNumber)
-	f, err := os.Create(fmt.Sprintf("cpu-%d.prof", profileNumber))
-	if err != nil {
-		log.Error("could not create CPU profile", "error", err)
-		return err
+	if prof {
+		f, err := os.Create(fmt.Sprintf("cpu-%d.prof", profileNumber))
+		if err != nil {
+			log.Error("could not create CPU profile", "error", err)
+			return err
+		}
+		if err = pprof.StartCPUProfile(f); err != nil {
+			log.Error("could not start CPU profile", "error", err)
+			return err
+		}
 	}
-	if err1 := pprof.StartCPUProfile(f); err1 != nil {
-		log.Error("could not start CPU profile", "error", err1)
-		return err
-	}
+
 	stateBatch := stateDB.NewBatch()
 	changeBatch := stateDB.NewBatch()
 
@@ -172,18 +182,19 @@ func spawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, blockchain B
 				return err
 			}
 		}
-		if blockNum-profileNumber == 100000 {
-			// Flush the profiler
-			pprof.StopCPUProfile()
+
+		if prof {
+			if blockNum-profileNumber == 100000 {
+				// Flush the profiler
+				pprof.StopCPUProfile()
+			}
 		}
 	}
 
-	_, err = stateBatch.Commit()
-	if err != nil {
+	if _, err := stateBatch.Commit(); err != nil {
 		return fmt.Errorf("sync Execute: failed to write state batch commit: %v", err)
 	}
-	_, err = changeBatch.Commit()
-	if err != nil {
+	if _, err := changeBatch.Commit(); err != nil {
 		return fmt.Errorf("sync Execute: failed to write change batch commit: %v", err)
 	}
 	s.Done()
