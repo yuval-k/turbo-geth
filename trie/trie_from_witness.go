@@ -4,80 +4,52 @@ import (
 	"fmt"
 
 	"github.com/holiman/uint256"
-
-	"github.com/ledgerwatch/turbo-geth/trie/rlphacks"
+	"github.com/ledgerwatch/turbo-geth/common"
+	"github.com/ledgerwatch/turbo-geth/core/types/accounts"
 )
 
 func BuildTrieFromWitness(witness *Witness, isBinary bool, trace bool) (*Trie, error) {
-	hb := NewHashBuilder(false)
+	t := New(common.Hash{})
+	fmt.Println(t)
 	for _, operator := range witness.Operators {
 		switch op := operator.(type) {
 		case *OperatorLeafValue:
 			if trace {
 				fmt.Printf("LEAF ")
 			}
-			keyHex := op.Key
-			val := op.Value
-			if err := hb.leaf(len(op.Key), keyHex, rlphacks.RlpSerializableBytes(val)); err != nil {
-				return nil, err
-			}
-		case *OperatorExtension:
-			if trace {
-				fmt.Printf("EXTENSION ")
-			}
-			if err := hb.extension(op.Key); err != nil {
-				return nil, err
-			}
-		case *OperatorBranch:
-			if trace {
-				fmt.Printf("BRANCH ")
-			}
-			if err := hb.branch(uint16(op.Mask)); err != nil {
-				return nil, err
-			}
-		case *OperatorHash:
+			t.Update(hexToKeybytes(op.Key), op.Value)
+
+		case *OperatorIntermediateHash:
 			if trace {
 				fmt.Printf("HASH ")
 			}
-			if err := hb.hash(op.Hash[:], 0); err != nil {
-				return nil, err
-			}
+			_, t.root = t.insert(t.root, op.Key, hashNode{op.Hash[:], 0})
+
 		case *OperatorCode:
 			if trace {
 				fmt.Printf("CODE ")
 			}
-
-			if err := hb.code(op.Code); err != nil {
-				return nil, err
-			}
+			t.UpdateAccountCode(hexToKeybytes(op.Key), codeNode(op.Code))
 
 		case *OperatorLeafAccount:
 			if trace {
-				fmt.Printf("ACCOUNTLEAF(code=%v storage=%v) ", op.HasCode, op.HasStorage)
+				fmt.Printf("ACCOUNTLEAF ")
 			}
 			balance := uint256.NewInt()
 			balance.SetBytes(op.Balance.Bytes())
 			nonce := op.Nonce
 
-			// FIXME: probably not needed, fix hb.accountLeaf
-			fieldSet := uint32(3)
-			if op.HasCode && op.HasStorage {
-				fieldSet = 15
+			acc := accounts.Account{
+				Initialised: true,
+				Nonce:       nonce,
+				Balance:     *balance,
+				Root:        op.Root,
+				CodeHash:    op.CodeHash,
+				Incarnation: 0,
 			}
 
-			// Incarnation is always needed for a hashbuilder.
-			// but it is just our implementation detail needed for contract self-descruction suport with our
-			// db structure. Stateless clients don't access the DB so we can just pass 0 here.
-			incarnaton := uint64(0)
+			t.UpdateAccount(hexToKeybytes(op.Key), &acc)
 
-			if err := hb.accountLeaf(len(op.Key), op.Key, balance, nonce, incarnaton, fieldSet); err != nil {
-				return nil, err
-			}
-		case *OperatorEmptyRoot:
-			if trace {
-				fmt.Printf("EMPTYROOT ")
-			}
-			hb.emptyRoot()
 		default:
 			return nil, fmt.Errorf("unknown operand type: %T", operator)
 		}
@@ -85,19 +57,6 @@ func BuildTrieFromWitness(witness *Witness, isBinary bool, trace bool) (*Trie, e
 	if trace {
 		fmt.Printf("\n")
 	}
-	if !hb.hasRoot() {
-		if isBinary {
-			return NewBinary(EmptyRoot), nil
-		}
-		return New(EmptyRoot), nil
-	}
-	r := hb.root()
-	var tr *Trie
-	if isBinary {
-		tr = NewBinary(hb.rootHash())
-	} else {
-		tr = New(hb.rootHash())
-	}
-	tr.root = r
-	return tr, nil
+	_ = t.Hash()
+	return t, nil
 }

@@ -353,7 +353,6 @@ func Stateless(
 				fmt.Printf("error extracting witness for block %d: %v\n", blockNum, err)
 				return
 			}
-
 			var buf bytes.Buffer
 			blockWitnessStats, err = bw.WriteTo(&buf)
 			if err != nil {

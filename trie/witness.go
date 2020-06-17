@@ -93,19 +93,13 @@ func NewWitnessFromReader(input io.Reader, trace bool) (*Witness, error) {
 		var op WitnessOperator
 		switch OperatorKindCode(opcode[0]) {
 		case OpHash:
-			op = &OperatorHash{}
+			op = &OperatorIntermediateHash{}
 		case OpLeaf:
 			op = &OperatorLeafValue{}
 		case OpAccountLeaf:
 			op = &OperatorLeafAccount{}
 		case OpCode:
 			op = &OperatorCode{}
-		case OpBranch:
-			op = &OperatorBranch{}
-		case OpEmptyRoot:
-			op = &OperatorEmptyRoot{}
-		case OpExtension:
-			op = &OperatorExtension{}
 		case OpNewTrie:
 			/* end of the current trie, end the function */
 			break
@@ -162,16 +156,8 @@ func (w *Witness) WriteDiff(w2 *Witness, output io.Writer) {
 			continue
 		}
 		switch o1 := op.(type) {
-		case *OperatorBranch:
-			o2, ok := w2.Operators[i].(*OperatorBranch)
-			if !ok {
-				fmt.Fprintf(output, "o1[%d] = %T %+v; o2[%d] = %T %+v\n", i, o1, o1, i, o2, o2)
-			}
-			if o1.Mask != o2.Mask {
-				fmt.Fprintf(output, "o1[%d].Mask = %v; o2[%d].Mask = %v", i, o1.Mask, i, o2.Mask)
-			}
-		case *OperatorHash:
-			o2, ok := w2.Operators[i].(*OperatorHash)
+		case *OperatorIntermediateHash:
+			o2, ok := w2.Operators[i].(*OperatorIntermediateHash)
 			if !ok {
 				fmt.Fprintf(output, "o1[%d] = %T %+v; o2[%d] = %T %+v\n", i, o1, o1, i, o2, o2)
 			}
@@ -186,19 +172,6 @@ func (w *Witness) WriteDiff(w2 *Witness, output io.Writer) {
 			if !bytes.Equal(o1.Code, o2.Code) {
 				fmt.Fprintf(output, "o1[%d].Code = %x; o2[%d].Code = %x\n", i, o1.Code, i, o2.Code)
 			}
-		case *OperatorEmptyRoot:
-			o2, ok := w2.Operators[i].(*OperatorEmptyRoot)
-			if !ok {
-				fmt.Fprintf(output, "o1[%d] = %T %+v; o2[%d] = %T %+v\n", i, o1, o1, i, o2, o2)
-			}
-		case *OperatorExtension:
-			o2, ok := w2.Operators[i].(*OperatorExtension)
-			if !ok {
-				fmt.Fprintf(output, "o1[%d] = %T %+v; o2[%d] = %T %+v\n", i, o1, o1, i, o2, o2)
-			}
-			if !bytes.Equal(o1.Key, o2.Key) {
-				fmt.Fprintf(output, "extension o1[%d].Key = %x; o2[%d].Key = %x\n", i, o1.Key, i, o2.Key)
-			}
 		case *OperatorLeafAccount:
 			o2, ok := w2.Operators[i].(*OperatorLeafAccount)
 			if !ok {
@@ -212,12 +185,6 @@ func (w *Witness) WriteDiff(w2 *Witness, output io.Writer) {
 			}
 			if o1.Balance.String() != o2.Balance.String() {
 				fmt.Fprintf(output, "leafAcc o1[%d].Balance = %v; o2[%d].Balance = %v\n", i, o1.Balance.String(), i, o2.Balance.String())
-			}
-			if o1.HasCode != o2.HasCode {
-				fmt.Fprintf(output, "leafAcc o1[%d].HasCode = %v; o2[%d].HasCode = %v\n", i, o1.HasCode, i, o2.HasCode)
-			}
-			if o1.HasStorage != o2.HasStorage {
-				fmt.Fprintf(output, "leafAcc o1[%d].HasStorage = %v; o2[%d].HasStorage = %v\n", i, o1.HasStorage, i, o2.HasStorage)
 			}
 		case *OperatorLeafValue:
 			o2, ok := w2.Operators[i].(*OperatorLeafValue)

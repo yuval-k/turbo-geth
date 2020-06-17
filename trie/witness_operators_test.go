@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ugorji/go/codec"
 )
 
@@ -58,8 +59,8 @@ func TestAccountBigBalance(t *testing.T) {
 		key,
 		0,
 		balance,
-		false,
-		false,
+		EmptyRoot,
+		EmptyCodeHash,
 	}
 
 	var buff bytes.Buffer
@@ -95,8 +96,8 @@ func TestAccountCompactWriteTo(t *testing.T) {
 		key,
 		0,
 		big.NewInt(0),
-		false,
-		false,
+		EmptyRoot,
+		EmptyCodeHash,
 	}
 
 	var buff bytes.Buffer
@@ -123,8 +124,8 @@ func TestAccountFullWriteTo(t *testing.T) {
 		key,
 		20,
 		big.NewInt(10),
-		true,
-		true,
+		common.HexToHash("0x0001"),
+		common.HexToHash("0x0002"),
 	}
 
 	var buff bytes.Buffer
@@ -163,8 +164,8 @@ func TestAccountPartialNoNonceWriteTo(t *testing.T) {
 		key,
 		0,
 		big.NewInt(10),
-		true,
-		true,
+		common.HexToHash("0x0001"),
+		common.HexToHash("0x0002"),
 	}
 
 	var buff bytes.Buffer
@@ -202,8 +203,8 @@ func TestAccountPartialNoBalanceWriteTo(t *testing.T) {
 		key,
 		22,
 		big.NewInt(0),
-		true,
-		true,
+		common.HexToHash("0x0001"),
+		common.HexToHash("0x0002"),
 	}
 
 	var buff bytes.Buffer

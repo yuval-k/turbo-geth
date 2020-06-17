@@ -1,6 +1,8 @@
 package trie
 
-import "errors"
+import (
+	"errors"
+)
 
 func (t *Trie) ExtractWitness(trace bool, rl RetainDecider) (*Witness, error) {
 	var rd RetainDecider

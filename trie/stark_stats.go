@@ -187,21 +187,7 @@ func StarkStats(witness *Witness, w io.Writer, trace bool) error {
 			if err := hb.leaf(len(op.Key), keyHex, rlphacks.RlpSerializableBytes(val)); err != nil {
 				return err
 			}
-		case *OperatorExtension:
-			if trace {
-				fmt.Printf("EXTENSION ")
-			}
-			if err := hb.extension(op.Key); err != nil {
-				return err
-			}
-		case *OperatorBranch:
-			if trace {
-				fmt.Printf("BRANCH ")
-			}
-			if err := hb.branch(uint16(op.Mask)); err != nil {
-				return err
-			}
-		case *OperatorHash:
+		case *OperatorIntermediateHash:
 			if trace {
 				fmt.Printf("HASH ")
 			}
@@ -215,7 +201,7 @@ func StarkStats(witness *Witness, w io.Writer, trace bool) error {
 
 		case *OperatorLeafAccount:
 			if trace {
-				fmt.Printf("ACCOUNTLEAF(code=%v storage=%v) ", op.HasCode, op.HasStorage)
+				fmt.Printf("ACCOUNTLEAF ")
 			}
 			balance := uint256.NewInt()
 			balance.SetBytes(op.Balance.Bytes())
@@ -223,9 +209,6 @@ func StarkStats(witness *Witness, w io.Writer, trace bool) error {
 
 			// FIXME: probably not needed, fix hb.accountLeaf
 			fieldSet := uint32(3)
-			if op.HasCode && op.HasStorage {
-				fieldSet = 15
-			}
 
 			// Incarnation is always needed for a hashbuilder.
 			// but it is just our implementation detail needed for contract self-descruction suport with our
@@ -235,11 +218,6 @@ func StarkStats(witness *Witness, w io.Writer, trace bool) error {
 			if err := hb.accountLeaf(len(op.Key), op.Key, 0, balance, nonce, incarnaton, fieldSet); err != nil {
 				return err
 			}
-		case *OperatorEmptyRoot:
-			if trace {
-				fmt.Printf("EMPTYROOT ")
-			}
-			hb.emptyRoot()
 		default:
 			return fmt.Errorf("unknown operand type: %T", operator)
 		}

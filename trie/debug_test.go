@@ -44,6 +44,12 @@ var debugTests = []struct {
 	{
 		aHexKeys:   []string{"0x0000000000000000"},
 		aBalances:  []uint64{13},
+		sHexKeys:   []string{"0x00000000000000000100000000000001"},
+		sHexValues: []string{"0x01"},
+	},
+	{
+		aHexKeys:   []string{"0x0000000000000000"},
+		aBalances:  []uint64{13},
 		sHexKeys:   []string{"0x00000000000000000100000000000001", "0x00000000000000000020000000000002"},
 		sHexValues: []string{"0x01", "0x02"},
 	},

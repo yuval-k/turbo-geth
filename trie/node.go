@@ -78,6 +78,16 @@ type (
 	codeNode []byte
 )
 
+func (an *accountNode) Hash() common.Hash {
+	b := make([]byte, an.Account.EncodingLengthForHashing())
+	an.Account.EncodeForHashing(b)
+	res, err := common.HashData(b)
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
 // nilValueNode is used when collapsing internal trie nodes for hashing, since
 // unset children need to serialize correctly.
 var nilValueNode = valueNode(nil)

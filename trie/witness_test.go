@@ -11,39 +11,36 @@ import (
 
 func generateOperands() []WitnessOperator {
 	return []WitnessOperator{
-		&OperatorBranch{Mask: 0xFF},
-		&OperatorEmptyRoot{},
-		&OperatorCode{[]byte("code-operand-1")},
-		&OperatorExtension{[]byte{5, 5, 4, 6, 6, 6}},
+		&OperatorCode{[]byte{5, 5, 4, 3, 2, 0}, []byte("code-operand-1")},
 		&OperatorLeafValue{[]byte{5, 5, 4, 3, 2, 1}, []byte("leaf-value-value-1")},
-		&OperatorHash{common.HexToHash("0xabcabcabcabc")},
+		&OperatorIntermediateHash{[]byte{5, 5, 4, 3, 2, 2}, common.HexToHash("0xabcabcabcabc")},
 		&OperatorLeafAccount{
 			[]byte{2, 2, 4, 5, 6},
 			999,
 			big.NewInt(552),
-			true,
-			false,
+			common.HexToHash("0x0001"),
+			EmptyCodeHash,
 		},
 		&OperatorLeafAccount{
 			[]byte{2, 2, 4, 5, 7},
 			757,
 			big.NewInt(334),
-			true,
-			true,
+			EmptyRoot,
+			common.HexToHash("0x0002"),
 		},
 		&OperatorLeafAccount{
 			[]byte{2, 2, 4, 5, 8},
 			333,
 			big.NewInt(11112),
-			false,
-			false,
+			EmptyRoot,
+			EmptyCodeHash,
 		},
 		&OperatorLeafAccount{
 			[]byte{2, 2, 4, 5, 9},
 			0,
 			big.NewInt(0),
-			false,
-			false,
+			EmptyRoot,
+			EmptyCodeHash,
 		},
 	}
 }

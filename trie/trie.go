@@ -581,6 +581,10 @@ func (t *Trie) insertRecursive(origNode node, key []byte, pos int, value node) (
 	case nil:
 		return true, NewShortNode(common.CopyBytes(key[pos:]), value)
 	case *accountNode:
+		// needed for recovering stuff from witness
+		if _, ok := n.storage.(hashNode); ok {
+			n.storage = nil
+		}
 		updated, nn = t.insertRecursive(n.storage, key, pos, value)
 		if updated {
 			n.storage = nn

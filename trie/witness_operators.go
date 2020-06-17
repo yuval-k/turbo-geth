@@ -1,10 +1,10 @@
 package trie
 
 import (
+	"bytes"
 	"math/big"
 
 	"github.com/ledgerwatch/turbo-geth/common"
-	"github.com/ugorji/go/codec"
 )
 
 const (
@@ -41,36 +41,56 @@ const (
 
 // WitnessOperator is a single operand in the block witness. It knows how to serialize/deserialize itself.
 type WitnessOperator interface {
+	GetKey() []byte
 	WriteTo(*OperatorMarshaller) error
 
 	// LoadFrom always assumes that the opcode value was already read
 	LoadFrom(*OperatorUnmarshaller) error
 }
 
-type OperatorHash struct {
+type OperatorIntermediateHash struct {
+	Key  []byte
 	Hash common.Hash
 }
 
-func (o *OperatorHash) WriteTo(output *OperatorMarshaller) error {
+func (o *OperatorIntermediateHash) GetKey() []byte {
+	return o.Key
+}
+
+func (o *OperatorIntermediateHash) WriteTo(output *OperatorMarshaller) error {
 	if err := output.WriteOpCode(OpHash); err != nil {
 		return nil
 	}
-	return output.WriteHash(o.Hash)
-}
 
-func (o *OperatorHash) LoadFrom(loader *OperatorUnmarshaller) error {
-	hash, err := loader.ReadHash()
-	if err != nil {
+	if err := output.WriteKey(o.Key); err != nil {
 		return err
 	}
 
-	o.Hash = hash
+	return output.WriteHash(o.Hash)
+}
+
+func (o *OperatorIntermediateHash) LoadFrom(loader *OperatorUnmarshaller) error {
+	if key, err := loader.ReadKey(); err == nil {
+		o.Key = key
+	} else {
+		return err
+	}
+
+	if hash, err := loader.ReadHash(); err == nil {
+		o.Hash = hash
+	} else {
+		return err
+	}
 	return nil
 }
 
 type OperatorLeafValue struct {
 	Key   []byte
 	Value []byte
+}
+
+func (o *OperatorLeafValue) GetKey() []byte {
+	return o.Key
 }
 
 func (o *OperatorLeafValue) WriteTo(output *OperatorMarshaller) error {
@@ -103,11 +123,15 @@ func (o *OperatorLeafValue) LoadFrom(loader *OperatorUnmarshaller) error {
 }
 
 type OperatorLeafAccount struct {
-	Key        []byte
-	Nonce      uint64
-	Balance    *big.Int
-	HasCode    bool
-	HasStorage bool
+	Key      []byte
+	Nonce    uint64
+	Balance  *big.Int
+	Root     common.Hash
+	CodeHash common.Hash
+}
+
+func (o *OperatorLeafAccount) GetKey() []byte {
+	return o.Key
 }
 
 func (o *OperatorLeafAccount) WriteTo(output *OperatorMarshaller) error {
@@ -120,18 +144,20 @@ func (o *OperatorLeafAccount) WriteTo(output *OperatorMarshaller) error {
 	}
 
 	flags := byte(0)
-	if o.HasCode {
-		flags |= flagCode
-	}
-	if o.HasStorage {
-		flags |= flagStorage
-	}
 	if o.Nonce > 0 {
 		flags |= flagNonce
 	}
 
 	if o.Balance.Sign() != 0 {
 		flags |= flagBalance
+	}
+
+	if !bytes.Equal(o.Root[:], EmptyRoot[:]) {
+		flags |= flagStorage
+	}
+
+	if !bytes.Equal(o.CodeHash[:], EmptyCodeHash[:]) {
+		flags |= flagCode
 	}
 
 	if err := output.WriteByteValue(flags); err != nil {
@@ -145,7 +171,21 @@ func (o *OperatorLeafAccount) WriteTo(output *OperatorMarshaller) error {
 	}
 
 	if o.Balance.Sign() != 0 {
-		return output.WriteByteArrayValue(o.Balance.Bytes())
+		if err := output.WriteByteArrayValue(o.Balance.Bytes()); err != nil {
+			return err
+		}
+	}
+
+	if flags&flagStorage != 0 {
+		if err := output.WriteHash(o.Root); err != nil {
+			return err
+		}
+	}
+
+	if flags&flagCode != 0 {
+		if err := output.WriteHash(o.CodeHash); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -156,15 +196,13 @@ func (o *OperatorLeafAccount) LoadFrom(loader *OperatorUnmarshaller) error {
 	if err != nil {
 		return err
 	}
+
 	o.Key = key
 
 	flags, err := loader.ReadByte()
 	if err != nil {
 		return err
 	}
-
-	o.HasCode = flags&flagCode != 0
-	o.HasStorage = flags&flagStorage != 0
 
 	if flags&flagNonce != 0 {
 		o.Nonce, err = loader.ReadUInt64()
@@ -186,11 +224,36 @@ func (o *OperatorLeafAccount) LoadFrom(loader *OperatorUnmarshaller) error {
 
 	o.Balance = balance
 
+	if flags&flagStorage != 0 {
+		if root, err := loader.ReadHash(); err == nil {
+			o.Root = root
+		} else {
+			return err
+		}
+	} else {
+		o.Root = EmptyRoot
+	}
+
+	if flags&flagCode != 0 {
+		if codeHash, err := loader.ReadHash(); err == nil {
+			o.CodeHash = codeHash
+		} else {
+			return err
+		}
+	} else {
+		o.CodeHash = EmptyCodeHash
+	}
+
 	return nil
 }
 
 type OperatorCode struct {
+	Key  []byte
 	Code []byte
+}
+
+func (o *OperatorCode) GetKey() []byte {
+	return o.Key
 }
 
 func (o *OperatorCode) WriteTo(output *OperatorMarshaller) error {
@@ -198,69 +261,24 @@ func (o *OperatorCode) WriteTo(output *OperatorMarshaller) error {
 		return err
 	}
 
+	if err := output.WriteKey(o.Key); err != nil {
+		return err
+	}
+
 	return output.WriteCode(o.Code)
 }
 
 func (o *OperatorCode) LoadFrom(loader *OperatorUnmarshaller) error {
-	code, err := loader.ReadByteArray()
-	if err != nil {
-		return err
-	}
-	o.Code = code
-	return nil
-}
-
-type OperatorBranch struct {
-	Mask uint32
-}
-
-func (o *OperatorBranch) WriteTo(output *OperatorMarshaller) error {
-	if err := output.WriteOpCode(OpBranch); err != nil {
+	if key, err := loader.ReadKey(); err == nil {
+		o.Key = key
+	} else {
 		return err
 	}
 
-	encoder := codec.NewEncoder(output.WithColumn(ColumnStructure), &cbor)
-	return encoder.Encode(o.Mask)
-}
-
-func (o *OperatorBranch) LoadFrom(loader *OperatorUnmarshaller) error {
-	mask, err := loader.ReadUint32()
-	if err != nil {
+	if code, err := loader.ReadByteArray(); err == nil {
+		o.Code = code
+	} else {
 		return err
 	}
-
-	o.Mask = mask
-	return nil
-}
-
-type OperatorEmptyRoot struct{}
-
-func (o *OperatorEmptyRoot) WriteTo(output *OperatorMarshaller) error {
-	return output.WriteOpCode(OpEmptyRoot)
-}
-
-func (o *OperatorEmptyRoot) LoadFrom(loader *OperatorUnmarshaller) error {
-	// no-op
-	return nil
-}
-
-type OperatorExtension struct {
-	Key []byte
-}
-
-func (o *OperatorExtension) WriteTo(output *OperatorMarshaller) error {
-	if err := output.WriteOpCode(OpExtension); err != nil {
-		return err
-	}
-	return output.WriteKey(o.Key)
-}
-
-func (o *OperatorExtension) LoadFrom(loader *OperatorUnmarshaller) error {
-	key, err := loader.ReadKey()
-	if err != nil {
-		return err
-	}
-	o.Key = key
-
 	return nil
 }
