@@ -10,7 +10,6 @@ import (
 
 func BuildTrieFromWitness(witness *Witness, isBinary bool, trace bool) (*Trie, error) {
 	t := New(common.Hash{})
-	fmt.Println(t)
 	for _, operator := range witness.Operators {
 		switch op := operator.(type) {
 		case *OperatorLeafValue:
