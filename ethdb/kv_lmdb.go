@@ -251,25 +251,22 @@ func (db *LmdbKV) IdealBatchSize() int {
 }
 
 func (db *LmdbKV) Get(ctx context.Context, bucket, key []byte) (val []byte, err error) {
-	//defer lmdbGetTimer.UpdateSince(time.Now())
-	err = db.View(ctx, func(tx Tx) error {
-		c := tx.Bucket(bucket).Cursor().(*lmdbCursor)
-		c.initCursor()
-		_, v, err2 := c.cursor.Get(key, nil, lmdb.SetKey)
-		if err2 != nil {
-			if lmdb.IsNotFound(err2) {
-				return nil
-			}
-			return err2
-		}
-		if v != nil {
-			val = v
-			//val = make([]byte, len(v))
-			//copy(val, v)
-		}
-		return nil
-	})
+	defer lmdbGetTimer.UpdateSince(time.Now())
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	tx, err := db.lmdbTxPool.BeginTxn(lmdb.Readonly)
 	if err != nil {
+		return nil, err
+	}
+	defer db.lmdbTxPool.Abort(tx)
+	tx.Pooled = true
+	tx.RawRead = false
+	val, err = tx.Get(db.dbi(bucket), key) // no copy because RawRead = false
+	if err != nil {
+		if lmdb.IsNotFound(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
 
@@ -277,35 +274,12 @@ func (db *LmdbKV) Get(ctx context.Context, bucket, key []byte) (val []byte, err 
 }
 
 func (db *LmdbKV) Get2(ctx context.Context, bucket, key []byte) (val []byte, err error) {
-	//defer lmdbGetTimer.UpdateSince(time.Now())
-	err = db.View(ctx, func(tx Tx) error {
-		v, err2 := tx.(*lmdbTx).tx.Get(db.dbi(bucket), key)
-		if err2 != nil {
-			if lmdb.IsNotFound(err2) {
-				return nil
-			}
-			return err2
-		}
-		if v != nil {
-			val = v
-			//val = make([]byte, len(v))
-			//copy(val, v)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return val, nil
-}
-
-func (db *LmdbKV) Get3(ctx context.Context, bucket, key []byte) (val []byte, err error) {
+	defer lmdbGetTimer.UpdateSince(time.Now())
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
 	err = db.lmdbTxPool.View(func(tx *lmdb.Txn) error {
-		tx.Pooled, tx.RawRead = true, true
+		tx.Pooled, tx.RawRead = true, false
 		v, err2 := tx.Get(db.dbi(bucket), key)
 		if err2 != nil {
 			if lmdb.IsNotFound(err2) {
@@ -314,6 +288,7 @@ func (db *LmdbKV) Get3(ctx context.Context, bucket, key []byte) (val []byte, err
 			return err2
 		}
 		if v != nil {
+			val = v // no copy because RawRead = false
 			//val = make([]byte, len(v))
 			//copy(val, v)
 		}
@@ -325,85 +300,6 @@ func (db *LmdbKV) Get3(ctx context.Context, bucket, key []byte) (val []byte, err
 
 	return val, nil
 }
-
-func (db *LmdbKV) Get4(ctx context.Context, bucket, key []byte) (val []byte, err error) {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-	tx, err := db.lmdbTxPool.BeginTxn(lmdb.Readonly)
-	if err != nil {
-		return nil, err
-	}
-	defer db.lmdbTxPool.Abort(tx)
-	tx.Pooled, tx.RawRead = true, true
-	v, err2 := tx.Get(db.dbi(bucket), key)
-	if err2 != nil {
-		if lmdb.IsNotFound(err2) {
-			return nil, nil
-		}
-		return nil, err2
-	}
-	if v != nil {
-		val = v
-		//val = make([]byte, len(v))
-		//copy(val, v)
-	}
-
-	return val, nil
-}
-
-//func (db *LmdbKV) Get2(ctx context.Context, bucket, key []byte) (val []byte, err error) {
-//	//defer lmdbGetTimer.UpdateSince(time.Now())
-//	err = db.View(ctx, func(tx Tx) error {
-//		c := tx.Bucket(bucket).Cursor().(*lmdbCursor)
-//		c.initCursor()
-//		_, v, err2 := c.cursor.Get(key, nil, lmdb.SetKey)
-//		//v, err2 := tx.(*lmdbTx).tx.Get(db.dbi(bucket), key)
-//		if err2 != nil {
-//			if lmdb.IsNotFound(err2) {
-//				return nil
-//			}
-//			return err2
-//		}
-//		if v != nil {
-//			val = make([]byte, len(v))
-//			copy(val, v)
-//		}
-//		return nil
-//	})
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	var tx Tx
-//	tx, err = db.Begin(ctx, false)
-//	if err != nil {
-//		return nil, err
-//	}
-//	defer tx.Rollback()
-//	txi := tx.(*lmdbTx).tx
-//	txi.Pooled = true
-//	txi.RawRead = true
-//	v, err2 := txi.Get(db.dbi(bucket), key)
-//	//c := tx.Bucket(bucket).Cursor().(*lmdbCursor)
-//	//c.initCursor()
-//	//k, v, err2 := c.cursor.Get(key, nil, lmdb.SetKey)
-//	if err2 != nil {
-//		if lmdb.IsNotFound(err2) {
-//			return nil, nil
-//		}
-//		return nil, err2
-//	}
-//	//if !bytes.Equal(k, key) {
-//	//	return nil, nil
-//	//}
-//
-//	if v != nil {
-//		val = make([]byte, len(v))
-//		copy(val, v)
-//	}
-//
-//	return val, nil
-//}
 
 func (db *LmdbKV) Has(ctx context.Context, bucket, key []byte) (has bool, err error) {
 	err = db.View(ctx, func(tx Tx) error {
