@@ -248,8 +248,6 @@ func (db *LmdbKV) IdealBatchSize() int {
 }
 
 func (db *LmdbKV) Get(ctx context.Context, bucket, key []byte) (val []byte, err error) {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
 	err = db.View(ctx, func(tx Tx) error {
 		v, err2 := tx.(*lmdbTx).tx.Get(db.dbi(bucket), key)
 		if err2 != nil {
