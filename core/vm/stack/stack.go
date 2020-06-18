@@ -18,7 +18,6 @@ package stack
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/holiman/uint256"
 )
@@ -100,12 +99,8 @@ type ReturnStack struct {
 	data []uint64
 }
 
-var stackPool = sync.Pool{New: func() interface{} { return make([]uint64, 0, 1024) }}
-
 func NewReturnStack() *ReturnStack {
-	buf := stackPool.Get().([]uint64)
-	buf = buf[:0]
-	return &ReturnStack{data: buf}
+	return &ReturnStack{data: make([]uint64, 0, 1024)}
 }
 
 func (st *ReturnStack) Push(d uint64) {
@@ -120,9 +115,4 @@ func (st *ReturnStack) Pop() (ret uint64) {
 
 func (st *ReturnStack) Data() []uint64 {
 	return st.data
-}
-
-// Release - call it when stack no longer needed to release memory
-func (st *ReturnStack) Release() {
-	stackPool.Put(st.data)
 }
