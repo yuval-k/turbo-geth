@@ -75,7 +75,7 @@ func (opts lmdbOpts) Open() (KV, error) {
 	}
 
 	var logger log.Logger
-	env.SetMaxReaders(10024)
+
 	if opts.inMem {
 		err = env.SetMapSize(64 << 20) // 64MB
 		logger = log.New("lmdb", "inMem")
