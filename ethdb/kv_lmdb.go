@@ -19,7 +19,10 @@ import (
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/log"
+	"github.com/ledgerwatch/turbo-geth/metrics"
 )
+
+var lmdbGetTimer = metrics.NewRegisteredTimer("db/native/get", nil)
 
 func init() {
 	// go tool pprof -http=:8081 http://localhost:6060/
@@ -248,8 +251,13 @@ func (db *LmdbKV) IdealBatchSize() int {
 }
 
 func (db *LmdbKV) Get(ctx context.Context, bucket, key []byte) (val []byte, err error) {
+	defer lmdbGetTimer.UpdateSince(time.Now())
+
 	err = db.View(ctx, func(tx Tx) error {
-		v, err2 := tx.(*lmdbTx).tx.Get(db.dbi(bucket), key)
+		c := tx.Bucket(bucket).Cursor().(*lmdbCursor)
+		c.initCursor()
+		_, v, err2 := c.cursor.Get(key, nil, lmdb.SetKey)
+		//v, err2 := tx.(*lmdbTx).tx.Get(db.dbi(bucket), key)
 		if err2 != nil {
 			if lmdb.IsNotFound(err2) {
 				return nil
