@@ -5,8 +5,12 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
+	"net/http"
+	"net/http/pprof"
 	"os"
 	"path"
+	"runtime"
 	"sync"
 	"time"
 
@@ -16,6 +20,22 @@ import (
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/log"
 )
+
+func init() {
+	// go tool pprof -http=:8081 http://localhost:6060/
+	_ = pprof.Handler // just to avoid adding manually: import _ "net/http/pprof"
+	go func() {
+		r := rand.New(rand.NewSource(int64(time.Now().Nanosecond())))
+		randomPort := func(min, max int) int {
+			return r.Intn(max-min) + min
+		}
+		port := randomPort(6000, 7000)
+
+		fmt.Fprintf(os.Stderr, "go tool pprof -lines -http=: :%d/%s\n", port, "\\?seconds\\=20")
+		fmt.Fprintf(os.Stderr, "go tool pprof -lines -http=: :%d/%s\n", port, "debug/pprof/heap")
+		fmt.Fprintf(os.Stderr, "%s\n", http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", port), nil))
+	}()
+}
 
 var (
 	lmdbKvTxPool     = sync.Pool{New: func() interface{} { return &lmdbTx{} }}
@@ -55,7 +75,7 @@ func (opts lmdbOpts) Open() (KV, error) {
 	}
 
 	var logger log.Logger
-
+	env.SetMaxReaders(10024)
 	if opts.inMem {
 		err = env.SetMapSize(64 << 20) // 64MB
 		logger = log.New("lmdb", "inMem")
@@ -228,23 +248,42 @@ func (db *LmdbKV) IdealBatchSize() int {
 }
 
 func (db *LmdbKV) Get(ctx context.Context, bucket, key []byte) (val []byte, err error) {
-	err = db.View(ctx, func(tx Tx) error {
-		v, err2 := tx.(*lmdbTx).tx.Get(db.dbi(bucket), key)
-		if err2 != nil {
-			if lmdb.IsNotFound(err2) {
-				return nil
-			}
-			return err2
-		}
-		if v != nil {
-			val = make([]byte, len(v))
-			copy(val, v)
-		}
-		return nil
-	})
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	var tx Tx
+	tx, err = db.Begin(ctx, false)
 	if err != nil {
 		return nil, err
 	}
+	defer tx.Rollback()
+	txi := tx.(*lmdbTx).tx
+	txi.Pooled = true
+	txi.RawRead = true
+	t := time.Now()
+	v, err2 := txi.Get(db.dbi(bucket), key)
+	//c := tx.Bucket(bucket).Cursor().(*lmdbCursor)
+	//c.initCursor()
+	//k, v, err2 := c.cursor.Get(key, nil, lmdb.SetKey)
+	if err2 != nil {
+		if lmdb.IsNotFound(err2) {
+			return nil, nil
+		}
+		return nil, err2
+	}
+	//if !bytes.Equal(k, key) {
+	//	return nil, nil
+	//}
+	s := time.Since(t)
+	if s > 1000*time.Microsecond {
+		fmt.Printf("Get: %s %s %x\n", s, bucket, key)
+	}
+
+	if v != nil {
+		val = make([]byte, len(v))
+		copy(val, v)
+	}
+
 	return val, nil
 }
 
@@ -316,6 +355,9 @@ type lmdbCursor struct {
 }
 
 func (db *LmdbKV) View(ctx context.Context, f func(tx Tx) error) (err error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	t := lmdbKvTxPool.Get().(*lmdbTx)
 	defer lmdbKvTxPool.Put(t)
 	t.ctx = ctx
@@ -329,11 +371,14 @@ func (db *LmdbKV) View(ctx context.Context, f func(tx Tx) error) (err error) {
 }
 
 func (db *LmdbKV) Update(ctx context.Context, f func(tx Tx) error) (err error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	t := lmdbKvTxPool.Get().(*lmdbTx)
 	defer lmdbKvTxPool.Put(t)
 	t.ctx = ctx
 	t.db = db
-	return db.env.Update(func(tx *lmdb.Txn) error {
+	return db.env.UpdateLocked(func(tx *lmdb.Txn) error {
 		defer t.closeCursors()
 		tx.RawRead = true
 		t.tx = tx
@@ -426,7 +471,6 @@ func (b *lmdbBucket) Put(key []byte, value []byte) error {
 		return b.tx.ctx.Err()
 	default:
 	}
-
 	if len(key) == 0 {
 		return fmt.Errorf("lmdb doesn't support empty keys. bucket: %s", dbutils.Buckets[b.id])
 	}

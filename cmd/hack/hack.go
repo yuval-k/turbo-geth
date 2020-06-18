@@ -23,7 +23,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/AskAlexSharov/lmdb-go/lmdb"
 	"github.com/dustin/go-humanize"
 	"github.com/ledgerwatch/bolt"
 	"github.com/ledgerwatch/turbo-geth/common"
@@ -399,20 +398,14 @@ func bucketStats(chaindata string) {
 			return nil
 		})
 	case ethdb.Lmdb:
-		env, err := lmdb.NewEnv()
-		check(err)
-		err = env.Open(chaindata, lmdb.Readonly, 0664)
-		check(err)
-
-		fmt.Printf(",BranchPageN,LeafPageN,OverflowN,Entries\n")
-		_ = env.View(func(tx *lmdb.Txn) error {
+		db, _ := ethdb.Open(chaindata)
+		_ = db.KV().View(context.Background(), func(tx ethdb.Tx) error {
 			for _, bucket := range bucketList {
-				dbi, bucketErr := tx.OpenDBI(string(bucket), lmdb.Readonly)
-				check(bucketErr)
-				bs, statErr := tx.Stat(dbi)
-				check(statErr)
-				fmt.Printf("%s,%d,%d,%d,%d\n", string(bucket),
-					bs.BranchPages, bs.LeafPages, bs.OverflowPages, bs.Entries)
+				size, bucketErr := tx.Bucket(bucket).Size()
+				if bucketErr != nil {
+					panic(fmt.Errorf("bucket: %s, open failed, %w\n", bucket, bucketErr))
+				}
+				fmt.Printf("%s,%d\n", string(bucket), size)
 			}
 			return nil
 		})
