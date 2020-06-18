@@ -250,39 +250,56 @@ func (db *LmdbKV) IdealBatchSize() int {
 func (db *LmdbKV) Get(ctx context.Context, bucket, key []byte) (val []byte, err error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-
-	var tx Tx
-	tx, err = db.Begin(ctx, false)
+	err = db.View(ctx, func(tx Tx) error {
+		v, err2 := tx.(*lmdbTx).tx.Get(db.dbi(bucket), key)
+		if err2 != nil {
+			if lmdb.IsNotFound(err2) {
+				return nil
+			}
+			return err2
+		}
+		if v != nil {
+			val = make([]byte, len(v))
+			copy(val, v)
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
-	txi := tx.(*lmdbTx).tx
-	txi.Pooled = true
-	txi.RawRead = true
-	t := time.Now()
-	v, err2 := txi.Get(db.dbi(bucket), key)
-	//c := tx.Bucket(bucket).Cursor().(*lmdbCursor)
-	//c.initCursor()
-	//k, v, err2 := c.cursor.Get(key, nil, lmdb.SetKey)
-	if err2 != nil {
-		if lmdb.IsNotFound(err2) {
-			return nil, nil
-		}
-		return nil, err2
-	}
-	//if !bytes.Equal(k, key) {
-	//	return nil, nil
-	//}
-	s := time.Since(t)
-	if s > 1000*time.Microsecond {
-		fmt.Printf("Get: %s %s %x\n", s, bucket, key)
-	}
 
-	if v != nil {
-		val = make([]byte, len(v))
-		copy(val, v)
-	}
+	//var tx Tx
+	//tx, err = db.Begin(ctx, false)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//defer tx.Rollback()
+	//txi := tx.(*lmdbTx).tx
+	//txi.Pooled = true
+	//txi.RawRead = true
+	//t := time.Now()
+	//v, err2 := txi.Get(db.dbi(bucket), key)
+	////c := tx.Bucket(bucket).Cursor().(*lmdbCursor)
+	////c.initCursor()
+	////k, v, err2 := c.cursor.Get(key, nil, lmdb.SetKey)
+	//if err2 != nil {
+	//	if lmdb.IsNotFound(err2) {
+	//		return nil, nil
+	//	}
+	//	return nil, err2
+	//}
+	////if !bytes.Equal(k, key) {
+	////	return nil, nil
+	////}
+	//s := time.Since(t)
+	//if s > 1000*time.Microsecond {
+	//	fmt.Printf("Get: %s %s %x\n", s, bucket, key)
+	//}
+	//
+	//if v != nil {
+	//	val = make([]byte, len(v))
+	//	copy(val, v)
+	//}
 
 	return val, nil
 }
