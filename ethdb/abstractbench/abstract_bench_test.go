@@ -161,47 +161,11 @@ func BenchmarkGet(b *testing.B) {
 	//		_, _ = db.Get(dbutils.CurrentStateBucket, k)
 	//	}
 	//})
-	ctx := context.Background()
+	//ctx := context.Background()
 
 	rand.Seed(time.Now().Unix())
 
-	b.Run("lmdb2", func(b *testing.B) {
-		k := make([]byte, 9)
-		k[8] = dbutils.HeaderHashSuffix[0]
-		k1 := make([]byte, 8+32)
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			j := rand.Uint64() % 4_000_000
-			binary.BigEndian.PutUint64(k, j)
-			canonicalHash, _ := lmdbKV.Get2(ctx, dbutils.HeaderPrefix, k)
-			_ = canonicalHash
-			copy(k1[8:], canonicalHash)
-			binary.BigEndian.PutUint64(k1, uint64(j))
-			v1, _ := lmdbKV.Get2(ctx, dbutils.HeaderPrefix, k1)
-			v2, _ := lmdbKV.Get2(ctx, dbutils.BlockBodyPrefix, k1)
-			_, _, _ = len(canonicalHash), len(v1), len(v2)
-		}
-	})
-
-	b.Run("lmdb1", func(b *testing.B) {
-		k := make([]byte, 9)
-		k[8] = dbutils.HeaderHashSuffix[0]
-		k1 := make([]byte, 8+32)
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			j := rand.Uint64() % 4_000_000
-			binary.BigEndian.PutUint64(k, j)
-			canonicalHash, _ := lmdbKV.Get(ctx, dbutils.HeaderPrefix, k)
-			_ = canonicalHash
-			copy(k1[8:], canonicalHash)
-			binary.BigEndian.PutUint64(k1, uint64(j))
-			v1, _ := lmdbKV.Get(ctx, dbutils.HeaderPrefix, k1)
-			v2, _ := lmdbKV.Get(ctx, dbutils.BlockBodyPrefix, k1)
-			_, _, _ = len(canonicalHash), len(v1), len(v2)
-		}
-	})
-
-	//b.Run("lmdb3", func(b *testing.B) {
+	//b.Run("lmdb2", func(b *testing.B) {
 	//	k := make([]byte, 9)
 	//	k[8] = dbutils.HeaderHashSuffix[0]
 	//	k1 := make([]byte, 8+32)
@@ -209,17 +173,17 @@ func BenchmarkGet(b *testing.B) {
 	//	for i := 0; i < b.N; i++ {
 	//		j := rand.Uint64() % 4_000_000
 	//		binary.BigEndian.PutUint64(k, j)
-	//		canonicalHash, _ := lmdbKV.Get3(ctx, dbutils.HeaderPrefix, k)
+	//		canonicalHash, _ := lmdbKV.Get2(ctx, dbutils.HeaderPrefix, k)
 	//		_ = canonicalHash
 	//		copy(k1[8:], canonicalHash)
 	//		binary.BigEndian.PutUint64(k1, uint64(j))
-	//		v1, _ := lmdbKV.Get3(ctx, dbutils.HeaderPrefix, k1)
-	//		v2, _ := lmdbKV.Get3(ctx, dbutils.BlockBodyPrefix, k1)
+	//		v1, _ := lmdbKV.Get2(ctx, dbutils.HeaderPrefix, k1)
+	//		v2, _ := lmdbKV.Get2(ctx, dbutils.BlockBodyPrefix, k1)
 	//		_, _, _ = len(canonicalHash), len(v1), len(v2)
 	//	}
 	//})
 	//
-	//b.Run("lmdb4", func(b *testing.B) {
+	//b.Run("lmdb1", func(b *testing.B) {
 	//	k := make([]byte, 9)
 	//	k[8] = dbutils.HeaderHashSuffix[0]
 	//	k1 := make([]byte, 8+32)
@@ -227,7 +191,7 @@ func BenchmarkGet(b *testing.B) {
 	//	for i := 0; i < b.N; i++ {
 	//		j := rand.Uint64() % 4_000_000
 	//		binary.BigEndian.PutUint64(k, j)
-	//		canonicalHash, _ := lmdbKV.Get4(ctx, dbutils.HeaderPrefix, k)
+	//		canonicalHash, _ := lmdbKV.Get(ctx, dbutils.HeaderPrefix, k)
 	//		_ = canonicalHash
 	//		copy(k1[8:], canonicalHash)
 	//		binary.BigEndian.PutUint64(k1, uint64(j))
