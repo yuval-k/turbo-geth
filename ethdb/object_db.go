@@ -120,10 +120,6 @@ func (db *ObjectDatabase) MultiPut(tuples ...[]byte) (uint64, error) {
 }
 
 func (db *ObjectDatabase) Has(bucket, key []byte) (bool, error) {
-	if getter, ok := db.kv.(NativeGet); ok {
-		return getter.Has(context.Background(), bucket, key)
-	}
-
 	var has bool
 	err := db.kv.View(context.Background(), func(tx Tx) error {
 		v, _ := tx.Bucket(bucket).Get(key)
@@ -148,32 +144,19 @@ func (db *ObjectDatabase) BucketsStat(ctx context.Context) (map[string]common.St
 }
 
 // Get returns the value for a given key if it's present.
-func (db *ObjectDatabase) Get(bucket, key []byte) (dat []byte, err error) {
-	// Retrieve the key and increment the miss counter if not found
-	if getter, ok := db.kv.(NativeGet); ok {
-		dat, err = getter.Get(context.Background(), bucket, key)
+func (db *ObjectDatabase) Get(bucket, key []byte) ([]byte, error) {
+	var dat []byte
+	if err := db.kv.View(context.Background(), func(tx Tx) error {
+		v, err := tx.Bucket(bucket).Get(key)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		if dat == nil {
-			return nil, ErrKeyNotFound
-		}
-		return dat, nil
-	}
-
-	return db.get(bucket, key)
-}
-
-func (db *ObjectDatabase) get(bucket, key []byte) (dat []byte, err error) {
-	err = db.kv.View(context.Background(), func(tx Tx) error {
-		v, _ := tx.Bucket(bucket).Get(key)
 		if v != nil {
 			dat = make([]byte, len(v))
 			copy(dat, v)
 		}
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, err
 	}
 	if dat == nil {
