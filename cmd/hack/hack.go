@@ -20,11 +20,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/ledgerwatch/bolt"
 	"github.com/ledgerwatch/lmdb-go/lmdb"
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/changeset"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
+	"github.com/ledgerwatch/turbo-geth/common/debug"
 	"github.com/ledgerwatch/turbo-geth/common/etl"
 	"github.com/ledgerwatch/turbo-geth/consensus/ethash"
 	"github.com/ledgerwatch/turbo-geth/core"
@@ -1834,6 +1836,108 @@ func fixStages(chaindata string) error {
 	return nil
 }
 
+func bitmapIndex(chaindata string) error {
+	db := ethdb.MustOpen(chaindata)
+	defer db.Close()
+	maps := map[string]*roaring.Bitmap{}
+
+	l := 0
+	t := time.Now()
+	db.KV().View(context.Background(), func(tx ethdb.Tx) error {
+		return tx.Bucket(dbutils.AccountsHistoryBucket).Cursor().Walk(func(k, v []byte) (bool, error) {
+			//bigAccount := bytes.HasPrefix(k, common.FromHex("52bc44d5378309ee2abf1539bf71de1b7d7be3b5")) || bytes.HasPrefix(k, common.FromHex("2a65aca4d5fc5b5c859090a6c34d164135398226"))
+			//if !bigAccount {
+			//	return true, nil
+			//}
+			l += len(v)
+			index := dbutils.WrapHistoryIndex(v)
+			numbers, _, err := index.Decode()
+			if err != nil {
+				return false, err
+			}
+			m, ok := maps[string(k[:20])]
+			if !ok {
+				m = roaring.NewBitmap()
+				maps[string(k[:20])] = m
+			}
+			//t := time.Now()
+			m.AddMany(numbers)
+			//fmt.Printf("AddMany: %d, Took: %s\n", len(numbers), time.Since(t))
+
+			//for j := 0; j < 30; j++ {
+			//	for i := range numbers {
+			//		numbers[i] = numbers[i] + 3_000_000
+			//	}
+			//	m.AddMany(numbers)
+			//}
+
+			return true, nil
+		})
+	})
+	fmt.Printf("Walk took: %s, amount of bitmaps: %d\n", time.Since(t), len(maps))
+	fmt.Printf("Total size of values: %dK\n", l/1024)
+	debug.PrintMemStats(false)
+	l = 0
+	for _, m := range maps {
+		l += int(m.GetSerializedSizeInBytes())
+	}
+	fmt.Printf("Total size of values: %dK\n", l/1024)
+
+	//for addr, m := range maps {
+	//	if m.GetCardinality() < 100_000 {
+	//		continue
+	//	}
+	//	fmt.Printf("\nAddr: %x\n", addr)
+	//	fmt.Printf("Cardinality: %d\n", m.GetCardinality())
+	//	fmt.Printf("Stats: %+v\n", m.Stats())
+	//	buf := new(bytes.Buffer)
+	//	size, err := m.WriteTo(buf)
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//	fmt.Printf("Buf Len: %dK Bytes\n", size/1024)
+	//	fmt.Printf("HasRunCompression: %t\n", m.HasRunCompression())
+	//	m.RunOptimize()
+	//	buf.Reset()
+	//	size, err = m.WriteTo(buf)
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//	fmt.Printf("Buf Len after compress: %dK Bytes\n", size/1024)
+	//
+	//	m2 := roaring.NewBitmap()
+	//	t2 := time.Now()
+	//	m2.AddRange(2_000_000, 30_000_000)
+	//	fmt.Printf("AddRange, took: %s\n", time.Since(t2))
+	//	t2 = time.Now()
+	//	fmt.Printf("AndCardinality: %d, took: %s\n", m2.AndCardinality(m), time.Since(t2))
+	//	t2 = time.Now()
+	//	fmt.Printf("Intersect: %t, Took: %s\n", m2.Intersects(m), time.Since(t2))
+	//	t2 = time.Now()
+	//	m.RemoveRange(0, 2_000_000)
+	//	fmt.Printf("RemoveRange Took: %s\n", time.Since(t2))
+	//	t2 = time.Now()
+	//	fmt.Printf("Minimum: %d, Took: %s\n", m.Minimum(), time.Since(t2))
+	//	m2.Clear()
+	//	t2 = time.Now()
+	//	m2.AddRange(0, 2_000_000)
+	//	fmt.Printf("AddRange, took: %s\n", time.Since(t2))
+	//	t2 = time.Now()
+	//	m2.AndNot(m)
+	//	fmt.Printf("AndNot, took: %s\n", time.Since(t2))
+	//	t2 = time.Now()
+	//	fmt.Printf("Minimum: %d, Took: %s\n", m.Minimum(), time.Since(t2))
+	//	t2 = time.Now()
+	//	fmt.Printf("Maximum: %d, Took: %s\n", m.Maximum(), time.Since(t2))
+	//	m2.Clear()
+	//	t2 = time.Now()
+	//	m2.FromBuffer(buf.Bytes())
+	//	fmt.Printf("FromBuffer, Took: %s\n", time.Since(t2))
+	//}
+
+	return nil
+}
+
 func searchChangeSet(chaindata string, key []byte, block uint64) error {
 	fmt.Printf("Searching changesets\n")
 	db := ethdb.MustOpen(chaindata)
@@ -2031,6 +2135,11 @@ func main() {
 	}
 	if *action == "searchChangeSet" {
 		if err := searchChangeSet(*chaindata, common.FromHex(*hash), uint64(*block)); err != nil {
+			fmt.Printf("Error: %v\n", err)
+		}
+	}
+	if *action == "bitmapIndex" {
+		if err := bitmapIndex(*chaindata); err != nil {
 			fmt.Printf("Error: %v\n", err)
 		}
 	}

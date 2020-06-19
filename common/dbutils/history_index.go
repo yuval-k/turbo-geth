@@ -5,9 +5,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/ledgerwatch/turbo-geth/common"
 	"sort"
 	"strconv"
+
+	"github.com/ledgerwatch/turbo-geth/common"
 )
 
 const (
@@ -39,7 +40,7 @@ func (hi HistoryIndexBytes) String() string {
 }
 
 // decode is used for debugging and in tests
-func (hi HistoryIndexBytes) Decode() ([]uint64, []bool, error) {
+func (hi HistoryIndexBytes) Decode() ([]uint32, []bool, error) {
 	if len(hi) < 8 {
 		return nil, nil, fmt.Errorf("minimal length of index chunk is %d, got %d", 8, len(hi))
 	}
@@ -48,10 +49,10 @@ func (hi HistoryIndexBytes) Decode() ([]uint64, []bool, error) {
 	}
 	numElements := (len(hi) - 8) / 3
 	minElement := binary.BigEndian.Uint64(hi[:8])
-	numbers := make([]uint64, 0, numElements)
+	numbers := make([]uint32, 0, numElements)
 	sets := make([]bool, 0, numElements)
 	for i := 8; i < len(hi); i += 3 {
-		numbers = append(numbers, minElement+(uint64(hi[i]&0x7f)<<16)+(uint64(hi[i+1])<<8)+uint64(hi[i+2]))
+		numbers = append(numbers, uint32(minElement+(uint64(hi[i]&0x7f)<<16)+(uint64(hi[i+1])<<8)+uint64(hi[i+2])))
 		sets = append(sets, hi[i]&0x80 != 0)
 	}
 	return numbers, sets, nil
