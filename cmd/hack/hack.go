@@ -403,7 +403,7 @@ func bucketStats(chaindata string) {
 			for _, bucket := range bucketList {
 				size, bucketErr := tx.Bucket(bucket).Size()
 				if bucketErr != nil {
-					panic(fmt.Errorf("bucket: %s, open failed, %w\n", bucket, bucketErr))
+					panic(fmt.Errorf("bucket: %s, open failed, %w", bucket, bucketErr))
 				}
 				fmt.Printf("%s,%d\n", string(bucket), size)
 			}
