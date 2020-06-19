@@ -229,6 +229,7 @@ func (db *LmdbKV) IdealBatchSize() int {
 }
 
 func (db *LmdbKV) Begin(ctx context.Context, writable bool) (Tx, error) {
+	runtime.LockOSThread()
 	flags := uint(0)
 	var tx *lmdb.Txn
 	if writable {
@@ -330,11 +331,13 @@ func (tx *lmdbTx) Bucket(name []byte) Bucket {
 }
 
 func (tx *lmdbTx) Commit(ctx context.Context) error {
+	defer runtime.UnlockOSThread()
 	tx.closeCursors()
 	return tx.tx.Commit()
 }
 
 func (tx *lmdbTx) Rollback() error {
+	defer runtime.UnlockOSThread()
 	tx.closeCursors()
 	tx.tx.Reset()
 	return nil
