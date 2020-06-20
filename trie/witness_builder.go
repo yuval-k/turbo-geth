@@ -45,6 +45,18 @@ func (b *WitnessBuilder) Build(limiter *MerklePathLimiter) (*Witness, error) {
 				return false
 			}
 		}
+		// check operands, code should always go last
+		opI := b.operands[i]
+		opJ := b.operands[j]
+
+		if _, ok := opI.(*OperatorCode); ok {
+			return false
+		}
+
+		if _, ok := opJ.(*OperatorCode); ok {
+			return true
+		}
+
 		return true
 	})
 	/*
