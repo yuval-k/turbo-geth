@@ -1,6 +1,9 @@
 package trie
 
-import "github.com/ledgerwatch/turbo-geth/common"
+import (
+	"github.com/ledgerwatch/turbo-geth/common"
+	"github.com/ledgerwatch/turbo-geth/common/dbutils"
+)
 
 // RetainListBuilder is the structure that accumulates the list of keys that were read or changes (touched) during
 // the execution of a block. It also tracks the contract codes that were created and used during the execution
@@ -62,7 +65,7 @@ func (rlb *RetainListBuilder) CreateCode(codeHash common.Hash) {
 	}
 }
 
-func (rlb *RetainListBuilder) Build(isBinary bool) *RetainList {
+func (rlb *RetainListBuilder) Build(isBinary bool, ignoreIncarnations bool) *RetainList {
 	var rl *RetainList
 	if isBinary {
 		rl = NewBinaryRetainList(0)
@@ -77,6 +80,10 @@ func (rlb *RetainListBuilder) Build(isBinary bool) *RetainList {
 		rl.AddKey(touch)
 	}
 	for _, touch := range storageTouches {
+		if ignoreIncarnations {
+			acc, _, key := dbutils.ParseCompositeStorageKey(touch)
+			touch = dbutils.GenerateCompositeTrieKey(acc, key)
+		}
 		rl.AddKey(touch)
 	}
 	for codeHash := range codeTouches {

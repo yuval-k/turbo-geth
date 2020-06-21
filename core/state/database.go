@@ -439,9 +439,7 @@ func (tds *TrieDbState) buildStorageWrites() (common.StorageKeys, [][]byte) {
 // Populate pending block proof so that it will be sufficient for accessing all storage slots in storageTouches
 func (tds *TrieDbState) populateStorageBlockProof(storageTouches common.StorageKeys) error { //nolint
 	for _, storageKey := range storageTouches {
-		addr, _, hash := dbutils.ParseCompositeStorageKey(storageKey[:])
-		key := dbutils.GenerateCompositeTrieKey(addr, hash)
-		tds.retainListBuilder.AddStorageTouch(key[:])
+		tds.retainListBuilder.AddStorageTouch(storageKey[:])
 	}
 	return nil
 }
@@ -1379,14 +1377,14 @@ func (tsw *TrieStateWriter) WriteAccountStorage(_ context.Context, address commo
 
 // ExtractWitness produces block witness for the block just been processed, in a serialised form
 func (tds *TrieDbState) ExtractWitness(trace bool, isBinary bool) (*trie.Witness, error) {
-	rs := tds.retainListBuilder.Build(isBinary)
+	rs := tds.retainListBuilder.Build(isBinary, true /* ignoreIncarnations */)
 
 	return tds.makeBlockWitness(trace, rs, isBinary)
 }
 
 // ExtractWitness produces block witness for the block just been processed, in a serialised form
 func (tds *TrieDbState) ExtractWitnessForPrefix(prefix []byte, trace bool, isBinary bool) (*trie.Witness, error) {
-	rs := tds.retainListBuilder.Build(isBinary)
+	rs := tds.retainListBuilder.Build(isBinary, true /* ignoreIncarnations */)
 
 	return tds.makeBlockWitnessForPrefix(prefix, trace, rs, isBinary)
 }
