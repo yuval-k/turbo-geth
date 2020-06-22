@@ -26,7 +26,7 @@ func BuildTrieFromWitness(witness *Witness, isBinary bool, trace bool) (*Trie, e
 
 		case *OperatorCode:
 			if trace {
-				fmt.Printf("CODE 0x%x->%v\n", key, len(op.Code))
+				fmt.Printf("CODE 0x%x->%v\n", op.Key, len(op.Code))
 			}
 			err := t.UpdateAccountCode(hexToKeybytes(op.Key), codeNode(op.Code))
 			if err != nil {
