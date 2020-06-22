@@ -200,9 +200,11 @@ func keyBytesToNibbles(b []byte) []byte {
 	if len(b) < 1 {
 		return []byte{}
 	}
-	if len(b) < 2 {
-		return b
-	}
+	/*
+		if len(b) < 2 {
+			return b
+		}
+	*/
 
 	hasTerminator := b[0]&(1<<1) != 0
 

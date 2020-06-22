@@ -1,7 +1,6 @@
 package trie
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,6 +14,8 @@ func TestCompressWitnessKeyCorrectness(t *testing.T) {
 		{0x00, 0x01, 0x01, 0x01, 0x04, 0x05},
 		{0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01},
 		{0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02},
+
+		{0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x10},
 	}
 
 	expectedCompressedLengths := []int{
@@ -24,6 +25,7 @@ func TestCompressWitnessKeyCorrectness(t *testing.T) {
 		2,
 		10,
 		3,
+		2,
 	}
 
 	prevKey := []byte{}
@@ -31,7 +33,6 @@ func TestCompressWitnessKeyCorrectness(t *testing.T) {
 	compressedKeys := [][]byte{}
 
 	for i, key := range keys {
-		fmt.Println("ci =", i)
 		cKey := CompressWitnessKey(key, prevKey)
 		assert.Equal(t, expectedCompressedLengths[i], len(cKey))
 		compressedKeys = append(compressedKeys, cKey)
@@ -41,7 +42,6 @@ func TestCompressWitnessKeyCorrectness(t *testing.T) {
 	prevKey = []byte{}
 
 	for i, cKey := range compressedKeys {
-		fmt.Println("ui =", i)
 		key := UncompressWitnessKey(cKey, prevKey)
 		prevKey = key
 		assert.Equal(t, keys[i], key)
