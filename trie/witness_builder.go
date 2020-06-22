@@ -49,12 +49,12 @@ func (b *WitnessBuilder) Build(limiter *MerklePathLimiter) (*Witness, error) {
 		opI := b.operands[i]
 		opJ := b.operands[j]
 
-		if _, ok := opI.(*OperatorCode); ok {
-			return false
+		if _, ok := opI.(*OperatorLeafAccount); ok {
+			return true
 		}
 
-		if _, ok := opJ.(*OperatorCode); ok {
-			return true
+		if _, ok := opJ.(*OperatorLeafAccount); ok {
+			return false
 		}
 
 		return true
