@@ -165,9 +165,11 @@ func keyNibblesToBytes(nibbles []byte) []byte {
 	if len(nibbles) < 1 {
 		return []byte{}
 	}
-	if len(nibbles) < 2 {
-		return nibbles
-	}
+	/*
+		if len(nibbles) < 2 {
+			return nibbles
+		}
+	*/
 	hasTerminator := false
 	if nibbles[len(nibbles)-1] == 0x10 {
 		nibbles = nibbles[:len(nibbles)-1]

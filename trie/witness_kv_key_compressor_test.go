@@ -1,0 +1,49 @@
+package trie
+
+import (
+	"fmt"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestCompressWitnessKeyCorrectness(t *testing.T) {
+	keys := [][]byte{
+		{0x00, 0x01, 0x01, 0x01, 0x01},
+		{0x00, 0x01, 0x01, 0x01, 0x02},
+		{0x00, 0x01, 0x01, 0x01, 0x03},
+		{0x00, 0x01, 0x01, 0x01, 0x04, 0x05},
+		{0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01},
+		{0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x02},
+	}
+
+	expectedCompressedLengths := []int{
+		4,
+		2,
+		2,
+		2,
+		10,
+		3,
+	}
+
+	prevKey := []byte{}
+
+	compressedKeys := [][]byte{}
+
+	for i, key := range keys {
+		fmt.Println("ci =", i)
+		cKey := CompressWitnessKey(key, prevKey)
+		assert.Equal(t, expectedCompressedLengths[i], len(cKey))
+		compressedKeys = append(compressedKeys, cKey)
+		prevKey = key
+	}
+
+	prevKey = []byte{}
+
+	for i, cKey := range compressedKeys {
+		fmt.Println("ui =", i)
+		key := UncompressWitnessKey(cKey, prevKey)
+		prevKey = key
+		assert.Equal(t, keys[i], key)
+	}
+}
