@@ -59,11 +59,6 @@ func (b *WitnessBuilder) Build(limiter *MerklePathLimiter) (*Witness, error) {
 
 		return true
 	})
-	/*
-		for i, o := range b.operands {
-			fmt.Printf("%d. K=%x\n", i, o.GetKey())
-		}
-	*/
 	witness := NewWitness(b.operands)
 	b.operands = nil
 	return witness, err
