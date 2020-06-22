@@ -20,19 +20,22 @@ func BuildTrieFromWitness(witness *Witness, isBinary bool, trace bool) (*Trie, e
 
 		case *OperatorIntermediateHash:
 			if trace {
-				fmt.Printf("HASH ")
+				fmt.Printf("HASH %x\n", op.Key)
 			}
 			_, t.root = t.insert(t.root, op.Key, hashNode{op.Hash[:], 0})
 
 		case *OperatorCode:
 			if trace {
-				fmt.Printf("CODE ")
+				fmt.Printf("CODE 0x%x->%v\n", key, len(op.Code))
 			}
-			t.UpdateAccountCode(hexToKeybytes(op.Key), codeNode(op.Code))
+			err := t.UpdateAccountCode(hexToKeybytes(op.Key), codeNode(op.Code))
+			if err != nil {
+				fmt.Printf("err while updating code: %v\n", err)
+			}
 
 		case *OperatorLeafAccount:
 			if trace {
-				fmt.Printf("ACCOUNTLEAF ")
+				fmt.Printf("ACCOUNTLEAF %x\n", op.Key)
 			}
 			balance := uint256.NewInt()
 			balance.SetBytes(op.Balance.Bytes())
