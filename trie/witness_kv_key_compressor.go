@@ -1,6 +1,12 @@
 package trie
 
+import (
+	"github.com/ledgerwatch/turbo-geth/common"
+)
+
 func CompressWitnessKey(nibbles []byte, previousNibbles []byte) []byte {
+	nibbles = common.CopyBytes(nibbles)
+
 	commonPrefixLen := 0
 	for i := 0; i < len(previousNibbles) && i < len(nibbles); i++ {
 		if nibbles[i] == previousNibbles[i] {
@@ -47,5 +53,7 @@ func UncompressWitnessKey(compressedKey []byte, previousNibbles []byte) []byte {
 		return nibbles
 	}
 
-	return append(previousNibbles[:commonPrefixLen], nibbles...)
+	result := append(previousNibbles[:commonPrefixLen], nibbles...)
+
+	return result
 }

@@ -62,12 +62,12 @@ func (l *OperatorUnmarshaller) ReadByte() (byte, error) {
 	return values[0], nil
 }
 
-func (l *OperatorUnmarshaller) ReadKey() ([]byte, error) {
+func (l *OperatorUnmarshaller) ReadKey(previousNibbles []byte) ([]byte, error) {
 	b, err := l.ReadByteArray()
 	if err != nil {
 		return nil, err
 	}
-	return keyBytesToNibbles(b), nil
+	return UncompressWitnessKey(b, previousNibbles), nil
 }
 
 func (l *OperatorUnmarshaller) ReadUInt64() (uint64, error) {
@@ -104,9 +104,9 @@ func (w *OperatorMarshaller) WriteOpCode(opcode OperatorKindCode) error {
 	return err
 }
 
-func (w *OperatorMarshaller) WriteKey(keyNibbles []byte) error {
+func (w *OperatorMarshaller) WriteKey(keyNibbles []byte, previousNibbles []byte) error {
 	w.WithColumn(ColumnLeafKeys)
-	return w.encoder.Encode(keyNibblesToBytes(keyNibbles))
+	return w.encoder.Encode(CompressWitnessKey(keyNibbles, previousNibbles))
 }
 
 func (w *OperatorMarshaller) WriteByteValue(value byte) error {

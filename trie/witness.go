@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+
+	"github.com/ledgerwatch/turbo-geth/common"
 )
 
 // WitnessStorage is an interface representing a single
@@ -60,10 +62,13 @@ func (w *Witness) WriteTo(out io.Writer) (*BlockWitnessStats, error) {
 		return nil, err
 	}
 
+	var previousNibbles []byte
+
 	for _, op := range w.Operators {
-		if err := op.WriteTo(statsCollector); err != nil {
+		if err := op.WriteTo(statsCollector, previousNibbles); err != nil {
 			return nil, err
 		}
+		previousNibbles = op.GetKey()
 	}
 	return statsCollector.GetStats(), nil
 }
@@ -83,6 +88,9 @@ func NewWitnessFromReader(input io.Reader, trace bool) (*Witness, error) {
 	opcode := make([]byte, 1)
 	var err error
 	operands := make([]WitnessOperator, 0)
+
+	var previousNibbles []byte
+
 	for _, err = input.Read(opcode); ; _, err = input.Read(opcode) {
 		if err == io.EOF {
 			break
@@ -111,10 +119,12 @@ func NewWitnessFromReader(input io.Reader, trace bool) (*Witness, error) {
 			break
 		}
 
-		err = op.LoadFrom(operatorLoader)
+		err = op.LoadFrom(operatorLoader, previousNibbles)
 		if err != nil {
 			return nil, err
 		}
+
+		previousNibbles = common.CopyBytes(op.GetKey())
 
 		if trace {
 			fmt.Printf("read op %T -> %+v\n", op, op)

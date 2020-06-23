@@ -42,10 +42,10 @@ const (
 // WitnessOperator is a single operand in the block witness. It knows how to serialize/deserialize itself.
 type WitnessOperator interface {
 	GetKey() []byte
-	WriteTo(*OperatorMarshaller) error
+	WriteTo(m *OperatorMarshaller, previousNibbles []byte) error
 
 	// LoadFrom always assumes that the opcode value was already read
-	LoadFrom(*OperatorUnmarshaller) error
+	LoadFrom(u *OperatorUnmarshaller, previousNibbles []byte) error
 }
 
 type OperatorIntermediateHash struct {
@@ -57,20 +57,20 @@ func (o *OperatorIntermediateHash) GetKey() []byte {
 	return o.Key
 }
 
-func (o *OperatorIntermediateHash) WriteTo(output *OperatorMarshaller) error {
+func (o *OperatorIntermediateHash) WriteTo(output *OperatorMarshaller, previousNibbles []byte) error {
 	if err := output.WriteOpCode(OpHash); err != nil {
 		return nil
 	}
 
-	if err := output.WriteKey(o.Key); err != nil {
+	if err := output.WriteKey(o.Key, previousNibbles); err != nil {
 		return err
 	}
 
 	return output.WriteHash(o.Hash)
 }
 
-func (o *OperatorIntermediateHash) LoadFrom(loader *OperatorUnmarshaller) error {
-	if key, err := loader.ReadKey(); err == nil {
+func (o *OperatorIntermediateHash) LoadFrom(loader *OperatorUnmarshaller, previousNibbles []byte) error {
+	if key, err := loader.ReadKey(previousNibbles); err == nil {
 		o.Key = key
 	} else {
 		return err
@@ -93,20 +93,20 @@ func (o *OperatorLeafValue) GetKey() []byte {
 	return o.Key
 }
 
-func (o *OperatorLeafValue) WriteTo(output *OperatorMarshaller) error {
+func (o *OperatorLeafValue) WriteTo(output *OperatorMarshaller, previousNibbles []byte) error {
 	if err := output.WriteOpCode(OpLeaf); err != nil {
 		return err
 	}
 
-	if err := output.WriteKey(o.Key); err != nil {
+	if err := output.WriteKey(o.Key, previousNibbles); err != nil {
 		return err
 	}
 
 	return output.WriteByteArrayValue(o.Value)
 }
 
-func (o *OperatorLeafValue) LoadFrom(loader *OperatorUnmarshaller) error {
-	key, err := loader.ReadKey()
+func (o *OperatorLeafValue) LoadFrom(loader *OperatorUnmarshaller, previousNibbles []byte) error {
+	key, err := loader.ReadKey(previousNibbles)
 	if err != nil {
 		return err
 	}
@@ -134,12 +134,12 @@ func (o *OperatorLeafAccount) GetKey() []byte {
 	return o.Key
 }
 
-func (o *OperatorLeafAccount) WriteTo(output *OperatorMarshaller) error {
+func (o *OperatorLeafAccount) WriteTo(output *OperatorMarshaller, previousNibbles []byte) error {
 	if err := output.WriteOpCode(OpAccountLeaf); err != nil {
 		return err
 	}
 
-	if err := output.WriteKey(o.Key); err != nil {
+	if err := output.WriteKey(o.Key, previousNibbles); err != nil {
 		return err
 	}
 
@@ -191,13 +191,13 @@ func (o *OperatorLeafAccount) WriteTo(output *OperatorMarshaller) error {
 	return nil
 }
 
-func (o *OperatorLeafAccount) LoadFrom(loader *OperatorUnmarshaller) error {
-	key, err := loader.ReadKey()
+func (o *OperatorLeafAccount) LoadFrom(loader *OperatorUnmarshaller, previousNibbles []byte) error {
+	key, err := loader.ReadKey(previousNibbles)
 	if err != nil {
 		return err
 	}
 
-	o.Key = key
+	o.Key = common.CopyBytes(key)
 
 	flags, err := loader.ReadByte()
 	if err != nil {
@@ -256,20 +256,20 @@ func (o *OperatorCode) GetKey() []byte {
 	return o.Key
 }
 
-func (o *OperatorCode) WriteTo(output *OperatorMarshaller) error {
+func (o *OperatorCode) WriteTo(output *OperatorMarshaller, previousNibbles []byte) error {
 	if err := output.WriteOpCode(OpCode); err != nil {
 		return err
 	}
 
-	if err := output.WriteKey(o.Key); err != nil {
+	if err := output.WriteKey(o.Key, previousNibbles); err != nil {
 		return err
 	}
 
 	return output.WriteCode(o.Code)
 }
 
-func (o *OperatorCode) LoadFrom(loader *OperatorUnmarshaller) error {
-	if key, err := loader.ReadKey(); err == nil {
+func (o *OperatorCode) LoadFrom(loader *OperatorUnmarshaller, previousNibbles []byte) error {
+	if key, err := loader.ReadKey(previousNibbles); err == nil {
 		o.Key = key
 	} else {
 		return err
