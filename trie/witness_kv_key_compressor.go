@@ -21,7 +21,11 @@ func CompressWitnessKey(nibbles []byte, previousNibbles []byte) []byte {
 	if commonPrefixLen < 15 {
 		key[0] += byte(commonPrefixLen) << 4
 	} else {
-		prefix := []byte{key[0], 0}
+		byte0 := byte(0)
+		if len(key) > 0 {
+			byte0 = key[0]
+		}
+		prefix := []byte{byte0, 0}
 		prefix[0] += byte(15) << 4
 		commonPrefixLen -= 15
 		prefix[1] = byte(commonPrefixLen)
