@@ -50,6 +50,7 @@ func PrepareStagedSync(
 			ExecFunc: func(s *StageState, u Unwinder) error {
 				return spawnRecoverSendersStage(s, stateDB, blockchain.Config(), quitCh)
 			},
+			Disabled: true,
 			UnwindFunc: func(u *UnwindState, s *StageState) error {
 				return unwindSendersStage(u, stateDB)
 			},
@@ -60,6 +61,7 @@ func PrepareStagedSync(
 			ExecFunc: func(s *StageState, u Unwinder) error {
 				return SpawnExecuteBlocksStage(s, stateDB, blockchain, 0 /* limit (meaning no limit) */, quitCh, dests, storageMode.Receipts)
 			},
+			Disabled: true,
 			UnwindFunc: func(u *UnwindState, s *StageState) error {
 				return UnwindExecutionStage(u, s, stateDB)
 			},
@@ -70,6 +72,7 @@ func PrepareStagedSync(
 			ExecFunc: func(s *StageState, u Unwinder) error {
 				return SpawnHashStateStage(s, stateDB, datadir, quitCh)
 			},
+			Disabled: true,
 			UnwindFunc: func(u *UnwindState, s *StageState) error {
 				return UnwindHashStateStage(u, s, stateDB, datadir, quitCh)
 			},
@@ -77,7 +80,7 @@ func PrepareStagedSync(
 		{
 			ID:                  stages.AccountHistoryIndex,
 			Description:         "Generating account history index",
-			Disabled:            !storageMode.History,
+			Disabled:            true,
 			DisabledDescription: "Enable by adding `h` to --storage-mode",
 			ExecFunc: func(s *StageState, u Unwinder) error {
 				return spawnAccountHistoryIndex(s, stateDB, datadir, core.UsePlainStateExecution, quitCh)
@@ -89,7 +92,7 @@ func PrepareStagedSync(
 		{
 			ID:                  stages.StorageHistoryIndex,
 			Description:         "Generating storage history index",
-			Disabled:            !storageMode.History,
+			Disabled:            true,
 			DisabledDescription: "Enable by adding `h` to --storage-mode",
 			ExecFunc: func(s *StageState, u Unwinder) error {
 				return spawnStorageHistoryIndex(s, stateDB, datadir, core.UsePlainStateExecution, quitCh)
@@ -101,7 +104,7 @@ func PrepareStagedSync(
 		{
 			ID:                  stages.TxLookup,
 			Description:         "Generating tx lookup index",
-			Disabled:            !storageMode.TxIndex,
+			Disabled:            true,
 			DisabledDescription: "Enable by adding `t` to --storage-mode",
 			ExecFunc: func(s *StageState, u Unwinder) error {
 				return spawnTxLookup(s, stateDB, datadir, quitCh)
