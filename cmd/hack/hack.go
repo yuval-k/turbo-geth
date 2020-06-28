@@ -1842,7 +1842,7 @@ func bitmapIndex(chaindata string) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
 	_, _, _ = pilosa.Bitmap{}, croaring.Bitmap{}, roaring.Bitmap{}
-	maps := map[string]*pilosa.Bitmap{}
+	maps := map[string]*croaring.Bitmap{}
 	l1 := 0
 	t := time.Now()
 	db.KV().View(context.Background(), func(tx ethdb.Tx) error {
@@ -1858,7 +1858,7 @@ func bitmapIndex(chaindata string) error {
 			l1 += len(v)
 			m, ok := maps[string(k[:20])]
 			if !ok {
-				m = pilosa.NewBitmap()
+				m = croaring.New()
 				maps[string(k[:20])] = m
 			}
 			m.Add(numbers...)
@@ -1871,19 +1871,19 @@ func bitmapIndex(chaindata string) error {
 	db.ClearBuckets(dbutils.AccountsHistoryBucket2)
 
 	batch := db.NewBatch()
-	buf := new(bytes.Buffer)
-	//buf := make([]byte, 0, 10_000_000)
+	//buf := new(bytes.Buffer)
+	buf := make([]byte, 0, 10_000_000)
 	for addr, m := range maps {
-		buf.Reset()
+		//buf.Reset()
 		//buf = buf[:m.FrozenSizeInBytes()]
 		//err := m.WriteFrozen(buf)
-		//buf = buf[:m.SerializedSizeInBytes()]
-		//err := m.Write(buf)
-		_, err := m.WriteTo(buf)
+		buf = buf[:m.SerializedSizeInBytes()]
+		err := m.Write(buf)
+		//_, err := m.WriteTo(buf)
 		if err != nil {
 			panic(err)
 		}
-		batch.Put(dbutils.AccountsHistoryBucket2, []byte(addr), common.CopyBytes(buf.Bytes()))
+		batch.Put(dbutils.AccountsHistoryBucket2, []byte(addr), common.CopyBytes(buf))
 		if batch.BatchSize() > batch.IdealBatchSize() {
 			t := time.Now()
 			batch.Commit()
@@ -1894,6 +1894,7 @@ func bitmapIndex(chaindata string) error {
 
 	l2 := 0
 	max := 0
+	maxCardinality := uint64(0)
 	maxAcc := []byte{}
 	db.KV().View(context.Background(), func(tx ethdb.Tx) error {
 		return tx.Bucket(dbutils.AccountsHistoryBucket2).Cursor().Walk(func(k, v []byte) (bool, error) {
@@ -1901,12 +1902,20 @@ func bitmapIndex(chaindata string) error {
 			if len(v) > max {
 				max = len(v)
 				maxAcc = common.CopyBytes(k)
+				b, _ := croaring.Read(v)
+				maxCardinality = b.Cardinality()
+			}
+			if bytes.Equal(k, common.FromHex("689dacb52e18f08d8dfcdd62415c7776aed8fb89")) {
+				//i := b.Iterator()
+				//for i.HasNext() {
+				//	fmt.Println(i.Next())
+				//}
 			}
 			return true, nil
 		})
 	})
 	fmt.Printf("Ratio: %.03f,Total size of values in new bucket: %dM\n", float64(l2)/float64(l1), l2/1024/1024)
-	fmt.Printf("Biggest acc: %dK %x\n", max/1024, maxAcc)
+	fmt.Printf("Biggest acc: %d %dK %x\n", maxCardinality, max/1024, maxAcc)
 
 	//for addr, m := range maps {
 	//	if m.GetCardinality() < 100_000 {
