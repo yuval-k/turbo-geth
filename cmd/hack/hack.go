@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	croaring "github.com/RoaringBitmap/gocroaring"
 	"github.com/RoaringBitmap/roaring"
 	"github.com/ledgerwatch/bolt"
 	"github.com/ledgerwatch/lmdb-go/lmdb"
@@ -45,6 +46,7 @@ import (
 	"github.com/ledgerwatch/turbo-geth/trie"
 	"github.com/mattn/go-colorable"
 	"github.com/mattn/go-isatty"
+	pilosa "github.com/pilosa/pilosa/v2/roaring"
 	"github.com/wcharczuk/go-chart"
 	"github.com/wcharczuk/go-chart/util"
 )
@@ -1839,49 +1841,72 @@ func fixStages(chaindata string) error {
 func bitmapIndex(chaindata string) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
-	maps := map[string]*roaring.Bitmap{}
-
-	l := 0
+	_, _, _ = pilosa.Bitmap{}, croaring.Bitmap{}, roaring.Bitmap{}
+	maps := map[string]*pilosa.Bitmap{}
+	l1 := 0
 	t := time.Now()
 	db.KV().View(context.Background(), func(tx ethdb.Tx) error {
 		return tx.Bucket(dbutils.AccountsHistoryBucket).Cursor().Walk(func(k, v []byte) (bool, error) {
-			//bigAccount := bytes.HasPrefix(k, common.FromHex("52bc44d5378309ee2abf1539bf71de1b7d7be3b5")) || bytes.HasPrefix(k, common.FromHex("2a65aca4d5fc5b5c859090a6c34d164135398226"))
-			//if !bigAccount {
-			//	return true, nil
-			//}
-			l += len(v)
 			index := dbutils.WrapHistoryIndex(v)
 			numbers, _, err := index.Decode()
 			if err != nil {
 				return false, err
 			}
+			if len(numbers) <= 999 {
+				return true, nil
+			}
+			l1 += len(v)
 			m, ok := maps[string(k[:20])]
 			if !ok {
-				m = roaring.NewBitmap()
+				m = pilosa.NewBitmap()
 				maps[string(k[:20])] = m
 			}
-			//t := time.Now()
-			m.AddMany(numbers)
-			//fmt.Printf("AddMany: %d, Took: %s\n", len(numbers), time.Since(t))
-
-			//for j := 0; j < 30; j++ {
-			//	for i := range numbers {
-			//		numbers[i] = numbers[i] + 3_000_000
-			//	}
-			//	m.AddMany(numbers)
-			//}
-
+			m.Add(numbers...)
 			return true, nil
 		})
 	})
 	fmt.Printf("Walk took: %s, amount of bitmaps: %d\n", time.Since(t), len(maps))
-	fmt.Printf("Total size of values: %dK\n", l/1024)
+	fmt.Printf("Total size of values in current bucket: %dM\n", l1/1024/1024)
 	debug.PrintMemStats(false)
-	l = 0
-	for _, m := range maps {
-		l += int(m.GetSerializedSizeInBytes())
+	db.ClearBuckets(dbutils.AccountsHistoryBucket2)
+
+	batch := db.NewBatch()
+	buf := new(bytes.Buffer)
+	//buf := make([]byte, 0, 10_000_000)
+	for addr, m := range maps {
+		buf.Reset()
+		//buf = buf[:m.FrozenSizeInBytes()]
+		//err := m.WriteFrozen(buf)
+		//buf = buf[:m.SerializedSizeInBytes()]
+		//err := m.Write(buf)
+		_, err := m.WriteTo(buf)
+		if err != nil {
+			panic(err)
+		}
+		batch.Put(dbutils.AccountsHistoryBucket2, []byte(addr), common.CopyBytes(buf.Bytes()))
+		if batch.BatchSize() > batch.IdealBatchSize() {
+			t := time.Now()
+			batch.Commit()
+			fmt.Printf("Commit: %s\n", time.Since(t))
+		}
 	}
-	fmt.Printf("Total size of values: %dK\n", l/1024)
+	batch.Commit()
+
+	l2 := 0
+	max := 0
+	maxAcc := []byte{}
+	db.KV().View(context.Background(), func(tx ethdb.Tx) error {
+		return tx.Bucket(dbutils.AccountsHistoryBucket2).Cursor().Walk(func(k, v []byte) (bool, error) {
+			l2 += len(v)
+			if len(v) > max {
+				max = len(v)
+				maxAcc = common.CopyBytes(k)
+			}
+			return true, nil
+		})
+	})
+	fmt.Printf("Ratio: %.03f,Total size of values in new bucket: %dM\n", float64(l2)/float64(l1), l2/1024/1024)
+	fmt.Printf("Biggest acc: %dK %x\n", max/1024, maxAcc)
 
 	//for addr, m := range maps {
 	//	if m.GetCardinality() < 100_000 {

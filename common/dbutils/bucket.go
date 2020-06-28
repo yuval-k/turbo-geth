@@ -48,7 +48,8 @@ var (
 	//layout experiment
 	//key - address hash
 	//value - list of block where it's changed
-	AccountsHistoryBucket = []byte("hAT")
+	AccountsHistoryBucket  = []byte("hAT")
+	AccountsHistoryBucket2 = []byte("hAT2")
 
 	//current
 	//key - address hash + incarnation + storage key hash
@@ -161,6 +162,7 @@ var (
 var Buckets = [][]byte{
 	CurrentStateBucket,
 	AccountsHistoryBucket,
+	AccountsHistoryBucket2,
 	StorageHistoryBucket,
 	CodeBucket,
 	ContractCodeBucket,
