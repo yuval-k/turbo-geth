@@ -160,6 +160,9 @@ func (s *Stateless) ReadAccountCodeSize(address common.Address, codeHash common.
 		return len(code), nil
 	}
 
+	if codeSize, ok := s.t.GetAccountCodeSize(addrHash[:]); ok {
+		return codeSize, nil
+	}
 	if code, ok := s.t.GetAccountCode(addrHash[:]); ok {
 		return len(code), nil
 	}
