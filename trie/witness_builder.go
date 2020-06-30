@@ -82,7 +82,7 @@ func (b *WitnessBuilder) addLeafOp(key []byte, value []byte) error {
 	return nil
 }
 
-func (b *WitnessBuilder) addAccountLeafOp(key []byte, accountNode *accountNode) error {
+func (b *WitnessBuilder) addAccountLeafOp(key []byte, accountNode *accountNode, codeSize int) error {
 	if b.trace {
 		fmt.Printf("LEAF_ACCOUNT: k %x acc:%x\n", key, accountNode.Hash())
 	}
@@ -96,6 +96,7 @@ func (b *WitnessBuilder) addAccountLeafOp(key []byte, accountNode *accountNode) 
 	op.Balance.SetBytes(accountNode.Balance.Bytes())
 	copy(op.Root[:], accountNode.Root[:])
 	copy(op.CodeHash[:], accountNode.CodeHash[:])
+	op.CodeSize = uint64(codeSize)
 
 	b.operands = append(b.operands, &op)
 
@@ -144,16 +145,20 @@ func (b *WitnessBuilder) addCodeOp(key []byte, code []byte) error {
 	return nil
 }
 
-func (b *WitnessBuilder) processAccountCode(key []byte, n *accountNode, retainDec RetainDecider) error {
+func (b *WitnessBuilder) processAccountCode(key []byte, n *accountNode, retainDec RetainDecider) (int, error) {
 	if n.IsEmptyRoot() && n.IsEmptyCodeHash() {
-		return nil
+		return 0, nil
 	}
 
-	if n.code == nil || (retainDec != nil && !retainDec.IsCodeTouched(n.CodeHash)) {
-		return nil
+	if n.code == nil {
+		return n.codeSize, nil
 	}
 
-	return b.addCodeOp(key, n.code)
+	if retainDec != nil && !retainDec.IsCodeTouched(n.CodeHash) {
+		return len(n.code), nil
+	}
+
+	return len(n.code), b.addCodeOp(key, n.code)
 }
 
 func (b *WitnessBuilder) processAccountStorage(n *accountNode, hex []byte, limiter *MerklePathLimiter) error {
@@ -176,13 +181,16 @@ func (b *WitnessBuilder) makeBlockWitness(
 		if limiter != nil {
 			retainDec = limiter.RetainDecider
 		}
-		if err := b.processAccountCode(key, n, retainDec); err != nil {
+		codeSize := 0
+		if cs, err := b.processAccountCode(key, n, retainDec); err != nil {
 			return err
+		} else {
+			codeSize = cs
 		}
 		if err := b.processAccountStorage(n, storageKey, limiter); err != nil {
 			return err
 		}
-		return b.addAccountLeafOp(key, n)
+		return b.addAccountLeafOp(key, n, codeSize)
 	}
 
 	switch n := nd.(type) {

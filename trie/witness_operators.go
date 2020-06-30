@@ -128,6 +128,7 @@ type OperatorLeafAccount struct {
 	Balance  *big.Int
 	Root     common.Hash
 	CodeHash common.Hash
+	CodeSize uint64
 }
 
 func (o *OperatorLeafAccount) GetKey() []byte {
@@ -186,6 +187,9 @@ func (o *OperatorLeafAccount) WriteTo(output *OperatorMarshaller, previousNibble
 		if err := output.WriteHash(o.CodeHash); err != nil {
 			return err
 		}
+		if err := output.WriteUint64Value(o.CodeSize); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -237,6 +241,11 @@ func (o *OperatorLeafAccount) LoadFrom(loader *OperatorUnmarshaller, previousNib
 	if flags&flagCode != 0 {
 		if codeHash, err := loader.ReadHash(); err == nil {
 			o.CodeHash = codeHash
+		} else {
+			return err
+		}
+		if codeSize, err := loader.ReadUInt64(); err == nil {
+			o.CodeSize = codeSize
 		} else {
 			return err
 		}

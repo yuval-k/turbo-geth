@@ -50,7 +50,14 @@ func BuildTrieFromWitness(witness *Witness, isBinary bool, trace bool) (*Trie, e
 				Incarnation: 0,
 			}
 
-			t.UpdateAccount(hexToKeybytes(op.Key), &acc)
+			k := hexToKeybytes(op.Key)
+			fmt.Printf("inserting acc %x\n", k)
+
+			t.UpdateAccount(k, &acc)
+			if op.CodeSize > 0 {
+				fmt.Printf("updating code size of %x -> %d\n", k, op.CodeSize)
+				t.UpdateAccountCodeSize(k, int(op.CodeSize))
+			}
 
 		default:
 			return nil, fmt.Errorf("unknown operand type: %T", operator)

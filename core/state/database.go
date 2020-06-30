@@ -1195,6 +1195,7 @@ func (tds *TrieDbState) ReadAccountCodeSize(address common.Address, codeHash com
 		// during the block executuion, so we are always
 		// storing the latest code hash
 		tds.currentBuffer.codeSizeReads[addrHash] = codeHash
+		tds.currentBuffer.codeReads[addrHash] = codeHash
 		// FIXME: support codeSize in witnesses if makes sense
 		tds.retainListBuilder.ReadCode(codeHash)
 	}
