@@ -51,11 +51,9 @@ func BuildTrieFromWitness(witness *Witness, isBinary bool, trace bool) (*Trie, e
 			}
 
 			k := hexToKeybytes(op.Key)
-			fmt.Printf("inserting acc %x\n", k)
 
 			t.UpdateAccount(k, &acc)
 			if op.CodeSize > 0 {
-				fmt.Printf("updating code size of %x -> %d\n", k, op.CodeSize)
 				t.UpdateAccountCodeSize(k, int(op.CodeSize))
 			}
 
