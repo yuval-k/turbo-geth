@@ -724,10 +724,9 @@ func (fstl *FlatDbSubTrieLoader) LoadSubTries() (SubTries, error) {
 	if err := fstl.kv.View(context.Background(), func(tx ethdb.Tx) error {
 		c := NewStateCursor(tx.Bucket(dbutils.CurrentStateBucket).Cursor())
 		var filter = func(k []byte) bool {
-			//fmt.Printf("%x\n", k)
 			if fstl.rl.Retain(k) {
 				if fstl.hc != nil {
-					//_ = fstl.hc(k, nil)
+					_ = fstl.hc(k, nil)
 				}
 				return false
 			}
@@ -740,8 +739,8 @@ func (fstl *FlatDbSubTrieLoader) LoadSubTries() (SubTries, error) {
 		}
 
 		ihc := Filter(filter, IHDecompress(tx.Bucket(dbutils.IntermediateTrieHashBucket).Cursor()))
-		t2 := Filter(filter, fstl.t2)
-		ih := IH(t2, ihc)
+		t2c := Filter(filter, fstl.t2)
+		ih := IH(t2c, ihc)
 
 		//sz, _ := tx.Bucket(dbutils.IntermediateTrieHashBucket).Size()
 		//ii := 0
@@ -790,7 +789,7 @@ func (fstl *FlatDbSubTrieLoader) LoadSubTries() (SubTries, error) {
 		fmt.Printf("ih.SeekTo called: 1=%d, 2=%d, 3=%d, 4=%d, 5=%d, 6=%d, 7=%d\n", fstl.seekIHCounter, fstl.seekIHCounter2, fstl.seekIHCounter3, fstl.seekIHCounter4, fstl.seekIHCounter5, fstl.seekIHCounter6, fstl.seekIHCounter7)
 		fmt.Printf("c.SeekTo called: 1=%d, 2=%d,3=%d,4=%d,5=%d,6=%d,7=%d\n", fstl.seekCounter, fstl.seekCounter2, fstl.seekCounter3, fstl.seekCounter4, fstl.seekCounter5, fstl.seekCounter6, fstl.seekCounter7)
 		fmt.Printf("c.Next called: 1=%d, counterSkip5=%d, counterSkip6=%d\n", fstl.nextCounter, fstl.seekCounterSkip5, fstl.seekCounterSkip6)
-		//fmt.Printf("2As1: skipSeek2Counter=%d, dbSeek=%d, dbSeekLong=%d\n", ih.c.skipSeek2Counter, ih.c.dbSeek, ih.c.dbSeekLong)
+		fmt.Printf("2As1: skipSeek2Counter=%d, db.seekAccCouner=%d, db.seekStorageCouner=%d, db.nextCounter=%d\n", ih.skipSeek2Counter, ihc.seekAccCouner, ihc.seekStorageCouner, ihc.nextCounter)
 		return nil
 	}); err != nil {
 		return SubTries{}, err

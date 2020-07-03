@@ -131,9 +131,10 @@ func TestTwoAs1(t *testing.T) {
 		var filter = func(k []byte) bool {
 			return true
 		}
+
 		ihc := Filter(filter, IHDecompress(tx.Bucket(dbutils.IntermediateTrieHashBucket).Cursor()))
-		t2 := Filter(filter, t2)
-		ih := IH(t2, ihc)
+		t2c := Filter(filter, t2)
+		ih := IH(t2c, ihc)
 
 		for _, c := range cases {
 			res, v, _, err := ih.SeekTo(common.FromHex(c.in))
@@ -154,6 +155,7 @@ func TestTwoAs1(t *testing.T) {
 		ih.SeekTo([]byte{})
 		ih.SeekTo(common.FromHex("0102"))
 		fmt.Printf("1: %d\n", ih.skipSeek2Counter)
+		fmt.Printf("2: seeks=%d, next=%d\n", ihc.seekCouner, ihc.nextCounter)
 		return nil
 	}))
 }

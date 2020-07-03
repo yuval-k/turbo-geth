@@ -28,6 +28,8 @@ import (
 	"github.com/ledgerwatch/turbo-geth/ethdb"
 )
 
+const LevelsInMem = 5
+
 type Trie2 struct {
 	rl     *RetainList
 	values [][]byte
@@ -107,7 +109,7 @@ func (t *Trie2) Next() ([]byte, []byte, error) {
 
 func (t *Trie2) wrapHashCollector(hc HashCollector) HashCollector {
 	return func(keyHex []byte, hash []byte) error {
-		if len(keyHex) < 6 {
+		if len(keyHex) <= LevelsInMem {
 			if hash == nil {
 				delete(t.batch, string(keyHex))
 			} else {
@@ -129,8 +131,11 @@ func (t *Trie2) wrapHashCollector(hc HashCollector) HashCollector {
 type FilterCursor struct {
 	c cursor
 
-	k, v   []byte
-	filter func(k []byte) bool
+	k, v              []byte
+	filter            func(k []byte) bool
+	seekAccCouner     int
+	seekStorageCouner int
+	nextCounter       int
 }
 
 func Filter(filter func(k []byte) bool, c cursor) *FilterCursor {
@@ -138,6 +143,12 @@ func Filter(filter func(k []byte) bool, c cursor) *FilterCursor {
 }
 
 func (c *FilterCursor) _seekTo(seek []byte) (err error) {
+	if len(seek) > 64 {
+		c.seekStorageCouner++
+	} else {
+		c.seekAccCouner++
+	}
+
 	c.k, c.v, err = c.c.SeekTo(seek)
 	if err != nil {
 		return err
@@ -154,6 +165,7 @@ func (c *FilterCursor) _seekTo(seek []byte) (err error) {
 }
 
 func (c *FilterCursor) _next() (err error) {
+	c.nextCounter++
 	c.k, c.v, err = c.c.Next()
 	if err != nil {
 		return err
@@ -167,6 +179,7 @@ func (c *FilterCursor) _next() (err error) {
 			return nil
 		}
 
+		c.nextCounter++
 		c.k, c.v, err = c.c.Next()
 		if err != nil {
 			return err
@@ -194,8 +207,6 @@ type IHCursor struct {
 	used2                 bool
 	skipSeek2             bool
 	skipSeek2Counter      int
-	dbSeek                int
-	dbSeekLong            int
 	k1, k1Old, v1, k2, v2 []byte
 }
 
@@ -208,11 +219,6 @@ func IH(c1 *FilterCursor, c2 *FilterCursor) *IHCursor {
 
 func (c *IHCursor) _seek1(seek []byte) error {
 	var err error
-	needSeek := len(seek) == 0 || (c.k1 == nil && !c.used1) || keyIsBefore(c.k1, seek)
-	if !needSeek {
-		return nil
-	}
-	c.used1 = false
 	c.k1, c.v1, err = c.c1.SeekTo(seek)
 	if err != nil {
 		return err
@@ -222,12 +228,6 @@ func (c *IHCursor) _seek1(seek []byte) error {
 }
 
 func (c *IHCursor) _seek2(seek []byte) error {
-	if len(seek) > 10 {
-		c.dbSeekLong++
-	} else {
-		//fmt.Printf("4: %x, %x, %x\n", seek, c.k2, c.k1)
-		c.dbSeek++
-	}
 	var err error
 	c.k2, c.v2, err = c.c2.SeekTo(seek)
 	if err != nil {
@@ -256,23 +256,24 @@ func (c *IHCursor) SeekTo(seek []byte) ([]byte, []byte, bool, error) {
 		}
 
 		if isSequence {
-			c.used1 = true
 			c.skipSeek2 = true
 			c.skipSeek2Counter++
 			return c.k1, c.v1, true, nil
 		}
 	}
 
+	//fmt.Printf("Before: %x, k1=%x, k2=%x\n", seek, c.k1, c.k2)
 	if err := c._seek2(seek); err != nil {
 		return []byte{}, nil, false, err
 	}
+	//fmt.Printf("After: k1=%x, k2=%x, %t\n", c.k1, c.k2, keyIsBefore(c.k1, c.k2))
 
 	if c.k1 != nil && keyIsBefore(c.k1, c.k2) {
-		c.used1 = true
 		return c.k1, c.v1, false, nil
 	}
 
 	c.used2 = true
+
 	if c.k2 != nil {
 		isSequence := false
 		if bytes.HasPrefix(c.k2, seek) {
@@ -290,33 +291,8 @@ func (c *IHCursor) SeekTo(seek []byte) ([]byte, []byte, bool, error) {
 			return c.k2, c.v2, true, nil
 		}
 	}
-
 	return c.k2, c.v2, false, nil
 }
-
-//func (c *TwoAs1Cursor) Next() ([]byte, []byte, error) {
-//	var err error
-//	if c.used1 {
-//		c.k1, c.v1 = c.c1._next()
-//		c.used1 = false
-//	}
-//
-//	if c.used2 {
-//		c.k2, c.v2, err = c.c2.Next()
-//		if err != nil {
-//			return []byte{}, nil, err
-//		}
-//		c.used2 = false
-//	}
-//
-//	if c.k1 != nil && keyIsBefore(c.k1, c.k2) {
-//		c.used1 = true
-//		return c.k1, c.v1, nil
-//	}
-//
-//	c.used2 = true
-//	return c.k2, c.v2, nil
-//}
 
 // StateCursor - does decompression of keys
 type IHDecompressCursor struct {
