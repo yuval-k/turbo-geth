@@ -1672,8 +1672,8 @@ func testUnwind5(chaindata string, rewind uint64) error {
 	var err error
 
 	t2 := trie.NewTrie2()
+	ch := make(chan struct{})
 	for i := 0; i < 10; i++ {
-		ch := make(chan struct{})
 		var stage5progress uint64
 		if stage5progress, _, err = stages.GetStageProgress(db, stages.IntermediateHashes); err != nil {
 			return err
@@ -1686,12 +1686,16 @@ func testUnwind5(chaindata string, rewind uint64) error {
 		if err = stagedsync.UnwindIntermediateHashesStage(u, s, db, t2, "", ch); err != nil {
 			return err
 		}
+
+		if stage5progress, _, err = stages.GetStageProgress(db, stages.IntermediateHashes); err != nil {
+			return err
+		}
 		stageState := &stagedsync.StageState{Stage: stages.IntermediateHashes, BlockNumber: stage5progress}
 		if err = stagedsync.SpawnIntermediateHashesStage(stageState, db, t2, "", ch); err != nil {
 			return err
 		}
-		close(ch)
 	}
+	close(ch)
 
 	return nil
 }

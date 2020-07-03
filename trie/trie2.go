@@ -29,31 +29,31 @@ import (
 )
 
 type Trie2 struct {
-	rl      *RetainList
-	rl2     *RetainList
-	values  [][]byte
-	values2 [][]byte
-	accs    map[common.Hash]*accounts.Account
+	rl     *RetainList
+	values [][]byte
+	batch  map[string][]byte
+	accs   map[common.Hash]*accounts.Account
 }
 
 func NewTrie2() *Trie2 {
 	return &Trie2{
-		rl:  NewRetainList(0),
-		rl2: NewRetainList(0),
+		rl:    NewRetainList(0),
+		batch: map[string][]byte{},
 	}
 }
 
 func (t *Trie2) Reset() {
-	t.rl, t.rl2 = t.rl2, t.rl
-	t.values, t.values2 = t.values2, t.values
+	t.rl.hexes = t.rl.hexes[:0]
+	t.values = t.values[:0]
+	for k, v := range t.batch {
+		t.rl.hexes = append(t.rl.hexes, []byte(k))
+		t.values = append(t.values, v)
+	}
 	t.rl.Rewind()
-	t.rl2.Rewind()
-	t.rl2.hexes = t.rl2.hexes[:0]
-	t.values2 = t.values2[:0]
-
-	fmt.Printf("t2: %d %d\n", len(t.values), len(t.rl.hexes))
 
 	sort.Sort(t)
+
+	fmt.Printf("t2: %d %d\n", len(t.values), len(t.rl.hexes))
 }
 
 func (t *Trie2) Len() int           { return len(t.values) }
@@ -63,7 +63,7 @@ func (t *Trie2) Swap(i, j int) {
 	t.values[i], t.values[j] = t.values[j], t.values[i]
 }
 
-func (t *Trie2) Seek(prefix []byte) ([]byte, []byte) {
+func (t *Trie2) SeekTo(prefix []byte) ([]byte, []byte, error) {
 	rl := t.rl
 
 	// Adjust "GT" if necessary
@@ -80,37 +80,38 @@ func (t *Trie2) Seek(prefix []byte) ([]byte, []byte) {
 
 	if rl.lteIndex < len(rl.hexes) {
 		if bytes.Compare(prefix, rl.hexes[rl.lteIndex]) <= 0 {
-			return rl.hexes[rl.lteIndex], t.values[rl.lteIndex]
+			return rl.hexes[rl.lteIndex], t.values[rl.lteIndex], nil
 		}
 	}
 
 	if rl.lteIndex < len(rl.hexes)-1 {
 		if bytes.Compare(prefix, rl.hexes[rl.lteIndex+1]) <= 0 {
 			rl.lteIndex++
-			return rl.hexes[rl.lteIndex], t.values[rl.lteIndex]
+			return rl.hexes[rl.lteIndex], t.values[rl.lteIndex], nil
 		}
 	}
 
-	return nil, nil
+	return nil, nil, nil
 }
 
-// _next - assume to be called after at least 1 .Seek call
-func (t *Trie2) _next() ([]byte, []byte) {
+// Next - assume to be called after at least 1 .Seek call
+func (t *Trie2) Next() ([]byte, []byte, error) {
 	rl := t.rl
 	if rl.lteIndex >= len(rl.hexes)-1 {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	rl.lteIndex++
-	return rl.hexes[rl.lteIndex], t.values[rl.lteIndex]
+	return rl.hexes[rl.lteIndex], t.values[rl.lteIndex], nil
 }
 
 func (t *Trie2) wrapHashCollector(hc HashCollector) HashCollector {
 	return func(keyHex []byte, hash []byte) error {
 		if len(keyHex) < 6 {
-			if hash != nil {
-				//t.rl2.AddHex(common.CopyBytes(keyHex))
-				//t.values2 = append(t.values2, common.CopyBytes(hash))
+			if hash == nil {
+				delete(t.batch, string(keyHex))
+			} else {
+				t.batch[string(keyHex)] = common.CopyBytes(hash)
 			}
 		}
 
@@ -124,22 +125,19 @@ func (t *Trie2) wrapHashCollector(hc HashCollector) HashCollector {
 	}
 }
 
-// IHCursor - skip all elements for which RetainDecider returns true
-type IHCursor struct {
-	c *TwoAs1Cursor
+// FilterCursor - skip all elements for which RetainDecider returns true
+type FilterCursor struct {
+	c cursor
 
 	k, v   []byte
 	filter func(k []byte) bool
 }
 
-func SkipRetain(c *TwoAs1Cursor) *IHCursor { return &IHCursor{c: c} }
-
-func (c *IHCursor) Filter(filter func(k []byte) bool) *IHCursor {
-	c.filter = filter
-	return c
+func Filter(filter func(k []byte) bool, c cursor) *FilterCursor {
+	return &FilterCursor{c: c, filter: filter}
 }
 
-func (c *IHCursor) _seekTo(seek []byte) (err error) {
+func (c *FilterCursor) _seekTo(seek []byte) (err error) {
 	c.k, c.v, err = c.c.SeekTo(seek)
 	if err != nil {
 		return err
@@ -155,7 +153,7 @@ func (c *IHCursor) _seekTo(seek []byte) (err error) {
 	return c._next()
 }
 
-func (c *IHCursor) _next() (err error) {
+func (c *FilterCursor) _next() (err error) {
 	c.k, c.v, err = c.c.Next()
 	if err != nil {
 		return err
@@ -176,21 +174,78 @@ func (c *IHCursor) _next() (err error) {
 	}
 }
 
-func (c *IHCursor) SeekTo(seek []byte) ([]byte, []byte, bool, error) {
+func (c *FilterCursor) SeekTo(seek []byte) ([]byte, []byte, error) {
 	if err := c._seekTo(seek); err != nil {
+		return []byte{}, nil, err
+	}
+
+	return c.k, c.v, nil
+}
+
+func IHIsValid(nibbles []byte) bool {
+	return len(nibbles) != 0 && len(nibbles)%2 == 0
+}
+
+// IHCursor - manage 2 cursors - make it looks as 1
+type IHCursor struct {
+	c1                    *FilterCursor
+	c2                    *FilterCursor
+	used1                 bool
+	used2                 bool
+	skipSeek2             bool
+	skipSeek2Counter      int
+	dbSeek                int
+	dbSeekLong            int
+	k1, k1Old, v1, k2, v2 []byte
+}
+
+func IH(c1 *FilterCursor, c2 *FilterCursor) *IHCursor {
+	return &IHCursor{
+		c1: c1,
+		c2: c2,
+	}
+}
+
+func (c *IHCursor) _seek1(seek []byte) error {
+	var err error
+	needSeek := len(seek) == 0 || (c.k1 == nil && !c.used1) || keyIsBefore(c.k1, seek)
+	if !needSeek {
+		return nil
+	}
+	c.used1 = false
+	c.k1, c.v1, err = c.c1.SeekTo(seek)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *IHCursor) _seek2(seek []byte) error {
+	if len(seek) > 10 {
+		c.dbSeekLong++
+	} else {
+		//fmt.Printf("4: %x, %x, %x\n", seek, c.k2, c.k1)
+		c.dbSeek++
+	}
+	var err error
+	c.k2, c.v2, err = c.c2.SeekTo(seek)
+	if err != nil {
+		return err
+	}
+	c.used2 = false
+	c.skipSeek2 = false
+	return nil
+}
+
+func (c *IHCursor) SeekTo(seek []byte) ([]byte, []byte, bool, error) {
+	if err := c._seek1(seek); err != nil {
 		return []byte{}, nil, false, err
 	}
-
-	isSequence := false
-	if c.k == nil {
-		return c.k, c.v, false, nil
-	}
-
-	if len(seek) == common.HashLength*2+common.IncarnationLength*2 {
-		isSequence = bytes.Equal(c.k, seek)
-	} else {
-		if bytes.HasPrefix(c.k, seek) {
-			tail := c.k[len(seek):] // if tail has only zeroes, then no state records can be between fstl.nextHex and fstl.ihK
+	if c.k1 != nil {
+		isSequence := false
+		if bytes.HasPrefix(c.k1, seek) {
+			tail := c.k1[len(seek):] // if tail has only zeroes, then no state records can be between fstl.nextHex and fstl.ihK
 			isSequence = true
 			for _, n := range tail {
 				if n != 0 {
@@ -198,106 +253,70 @@ func (c *IHCursor) SeekTo(seek []byte) ([]byte, []byte, bool, error) {
 					break
 				}
 			}
-		} else {
-			if bytes.HasPrefix(seek, c.k) {
-				//fmt.Printf("1: %x, %x\n", seek, c.k)
-			}
 		}
-	}
 
-	return c.k, c.v, isSequence, nil
-}
-
-func IHIsValid(nibbles []byte) bool {
-	return len(nibbles) != 0 && len(nibbles)%2 == 0
-}
-
-// TowAs1 - manage 2 cursors - make it looks as 1
-type TwoAs1Cursor struct {
-	c1               *Trie2
-	c2               *IHDecompressCursor
-	used1            bool
-	used2            bool
-	skipSeek2        bool
-	skipSeek2Counter int
-	k1, v1, k2, v2   []byte
-}
-
-func TwoAs1(c1 *Trie2, c2 *IHDecompressCursor) *TwoAs1Cursor {
-	return &TwoAs1Cursor{
-		c1: c1,
-		c2: c2,
-	}
-}
-
-func (c *TwoAs1Cursor) SeekTo(seek []byte) ([]byte, []byte, error) {
-	var err error
-	if len(seek) == 0 || (c.k1 == nil && !c.used1) || keyIsBefore(c.k1, seek) {
-		c.k1, c.v1 = c.c1.Seek(seek)
-		if c.k1 != nil && len(seek) == len(c.k1) && bytes.Equal(seek, c.k1) {
+		if isSequence {
 			c.used1 = true
 			c.skipSeek2 = true
 			c.skipSeek2Counter++
-			return c.k1, c.v1, nil
+			return c.k1, c.v1, true, nil
 		}
-		c.used1 = false
 	}
 
-	if len(seek) == 0 || (c.k2 == nil && !c.used2) || keyIsBefore(c.k2, seek) {
-		c.k2, c.v2, err = c.c2.SeekTo(seek)
-		if err != nil {
-			return []byte{}, nil, err
-		}
-		c.used2 = false
-	}
-
-	if c.k1 != nil && keyIsBefore(c.k1, c.k2) {
-		if c.k1 != nil {
-			//fmt.Printf("2: %x, %x\n", seek, c.k1)
-		}
-		c.used1 = true
-		return c.k1, c.v1, nil
-	}
-
-	if c.k1 != nil {
-		//fmt.Printf("3: %x, %x, %x\n", seek, c.k1, c.k2)
-	}
-	c.used2 = true
-	return c.k2, c.v2, nil
-}
-
-func (c *TwoAs1Cursor) Next() ([]byte, []byte, error) {
-	var err error
-	if c.skipSeek2 {
-		c.k2, c.v2, err = c.c2.SeekTo(c.k1)
-		if err != nil {
-			return []byte{}, nil, err
-		}
-		c.skipSeek2 = false
-		c.used2 = true
-	}
-
-	if c.used1 {
-		c.k1, c.v1 = c.c1._next()
-		c.used1 = false
-	}
-
-	if c.used2 {
-		c.k2, c.v2, err = c.c2.Next()
-		if err != nil {
-			return []byte{}, nil, err
-		}
-		c.used2 = false
+	if err := c._seek2(seek); err != nil {
+		return []byte{}, nil, false, err
 	}
 
 	if c.k1 != nil && keyIsBefore(c.k1, c.k2) {
 		c.used1 = true
-		return c.k1, c.v1, nil
+		return c.k1, c.v1, false, nil
 	}
 
 	c.used2 = true
-	return c.k2, c.v2, nil
+	if c.k2 != nil {
+		isSequence := false
+		if bytes.HasPrefix(c.k2, seek) {
+			tail := c.k2[len(seek):] // if tail has only zeroes, then no state records can be between fstl.nextHex and fstl.ihK
+			isSequence = true
+			for _, n := range tail {
+				if n != 0 {
+					isSequence = false
+					break
+				}
+			}
+		}
+
+		if isSequence {
+			return c.k2, c.v2, true, nil
+		}
+	}
+
+	return c.k2, c.v2, false, nil
 }
+
+//func (c *TwoAs1Cursor) Next() ([]byte, []byte, error) {
+//	var err error
+//	if c.used1 {
+//		c.k1, c.v1 = c.c1._next()
+//		c.used1 = false
+//	}
+//
+//	if c.used2 {
+//		c.k2, c.v2, err = c.c2.Next()
+//		if err != nil {
+//			return []byte{}, nil, err
+//		}
+//		c.used2 = false
+//	}
+//
+//	if c.k1 != nil && keyIsBefore(c.k1, c.k2) {
+//		c.used1 = true
+//		return c.k1, c.v1, nil
+//	}
+//
+//	c.used2 = true
+//	return c.k2, c.v2, nil
+//}
 
 // StateCursor - does decompression of keys
 type IHDecompressCursor struct {

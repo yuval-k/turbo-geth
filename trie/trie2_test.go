@@ -19,6 +19,7 @@ package trie
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/ledgerwatch/turbo-geth/common"
@@ -42,52 +43,52 @@ func TestTrie2Seek(t *testing.T) {
 	require.NoError(hc(common.FromHex("0a0d000000"), []byte{8}))
 	t2.Reset()
 
+	_, _, _ = t2.SeekTo([]byte{})
+	res, v, _ := t2.Next()
+	assert.Equal("0102", common.Bytes2Hex(res))
+	assert.Equal([]byte{2}, v)
+
+	res, v, _ = t2.Next()
+	assert.Equal("010203", common.Bytes2Hex(res))
+	assert.Equal([]byte{1}, v)
+
+	_, _, _ = t2.SeekTo(common.FromHex("0a"))
+	res, v, _ = t2.Next()
+	assert.Equal("0a0d000000", common.Bytes2Hex(res))
+	assert.Equal([]byte{8}, v)
+
 	cases := []struct {
 		in, expect string
 		expectV    byte
 	}{
 		{"", "01", 4},
-		{"0100", "010203", 1},
+		{"0100", "0102", 2},
 		{"04", "0a", 7},
 		{"0a0d00", "0a0d000000", 8},
 	}
 
-	_, _ = t2.Seek([]byte{})
-	res, v := t2._next()
-	assert.Equal("010203", common.Bytes2Hex(res))
-	assert.Equal([]byte{1}, v)
-
-	res, v = t2._next()
-	assert.Equal("020908", common.Bytes2Hex(res))
-	assert.Equal([]byte{6}, v)
-
-	_, _ = t2.Seek(common.FromHex("0a"))
-	res, v = t2._next()
-	assert.Equal("0a0d000000", common.Bytes2Hex(res))
-	assert.Equal([]byte{8}, v)
-
 	for _, c := range cases {
-		res, v := t2.Seek(common.FromHex(c.in))
+		res, v, _ := t2.SeekTo(common.FromHex(c.in))
 		assert.Equal(c.expect, common.Bytes2Hex(res), "seek to "+c.in)
 		assert.Equal([]byte{c.expectV}, v, "seek to "+c.in)
 	}
 
-	res, v = t2.Seek(common.FromHex("0f"))
+	res, v, _ = t2.SeekTo(common.FromHex("0f"))
 	require.Nil(res)
 	require.Nil(v)
-	res, v = t2.Seek(common.FromHex("0f0e"))
+	res, v, _ = t2.SeekTo(common.FromHex("0f0e"))
 	require.Nil(res)
 	require.Nil(v)
-	res, v = t2.Seek(common.FromHex("0f0f"))
+	res, v, _ = t2.SeekTo(common.FromHex("0f0f"))
 	require.Nil(res)
 	require.Nil(v)
-	res, v = t2.Seek(common.FromHex("0f0f0f"))
+	res, v, _ = t2.SeekTo(common.FromHex("0f0f0f"))
 	require.Nil(res)
 	require.Nil(v)
-	res, v = t2._next()
+	res, v, _ = t2.Next()
 	require.Nil(res)
 	require.Nil(v)
-	res, v = t2._next()
+	res, v, _ = t2.Next()
 	require.Nil(res)
 	require.Nil(v)
 }
@@ -127,25 +128,32 @@ func TestTwoAs1(t *testing.T) {
 	}
 
 	require.NoError(db.KV().View(context.Background(), func(tx ethdb.Tx) error {
-		ihc := IHDecompress(tx.Bucket(dbutils.IntermediateTrieHashBucket).Cursor())
-		ih := TwoAs1(t2, ihc)
+		var filter = func(k []byte) bool {
+			return true
+		}
+		ihc := Filter(filter, IHDecompress(tx.Bucket(dbutils.IntermediateTrieHashBucket).Cursor()))
+		t2 := Filter(filter, t2)
+		ih := IH(t2, ihc)
 
 		for _, c := range cases {
-			res, v, err := ih.SeekTo(common.FromHex(c.in))
+			res, v, _, err := ih.SeekTo(common.FromHex(c.in))
 			require.NoError(err)
 			assert.Equal(c.expect, common.Bytes2Hex(res), "seek to "+c.in)
 			assert.Equal(c.expectV, v, "seek to "+c.in)
 		}
 
-		res, v, err := ih.SeekTo(common.FromHex("fe"))
+		res, v, _, err := ih.SeekTo(common.FromHex("fe"))
 		require.NoError(err)
 		require.Nil(res)
 		require.Nil(v)
-		res, v, err = ih.SeekTo(common.FromHex("ff"))
+		res, v, _, err = ih.SeekTo(common.FromHex("ff"))
 		require.NoError(err)
 		require.Nil(res)
 		require.Nil(v)
 
+		ih.SeekTo([]byte{})
+		ih.SeekTo(common.FromHex("0102"))
+		fmt.Printf("1: %d\n", ih.skipSeek2Counter)
 		return nil
 	}))
 }
