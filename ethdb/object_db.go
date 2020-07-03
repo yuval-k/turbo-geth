@@ -101,7 +101,6 @@ func (db *ObjectDatabase) MultiPut(tuples ...[]byte) (uint64, error) {
 				return err
 			}
 			isEndOfBucket := firstKey == nil
-
 			l := (bucketEnd - bucketStart) / 3
 			for i := 0; i < l; i++ {
 				k := tuples[bucketStart+3*i+1]

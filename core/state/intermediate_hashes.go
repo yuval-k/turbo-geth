@@ -3,6 +3,7 @@ package state
 import (
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
+	"github.com/ledgerwatch/turbo-geth/common/hexutil"
 	"github.com/ledgerwatch/turbo-geth/common/pool"
 	"github.com/ledgerwatch/turbo-geth/ethdb"
 	"github.com/ledgerwatch/turbo-geth/log"
@@ -37,7 +38,7 @@ func (ih *IntermediateHashes) WillUnloadBranchNode(prefixAsNibbles []byte, nodeH
 
 	buf := pool.GetBuffer(keyBufferSize)
 	defer pool.PutBuffer(buf)
-	trie.CompressNibbles(prefixAsNibbles, &buf.B)
+	hexutil.FromNibbles(prefixAsNibbles, &buf.B)
 
 	var key []byte
 	if len(buf.B) >= common.HashLength {
@@ -60,7 +61,7 @@ func (ih *IntermediateHashes) BranchNodeLoaded(prefixAsNibbles []byte, incarnati
 
 	buf := pool.GetBuffer(keyBufferSize)
 	defer pool.PutBuffer(buf)
-	trie.CompressNibbles(prefixAsNibbles, &buf.B)
+	hexutil.FromNibbles(prefixAsNibbles, &buf.B)
 
 	var key []byte
 	if len(buf.B) >= common.HashLength {

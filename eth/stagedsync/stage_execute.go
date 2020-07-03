@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/fastcache"
-
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/core"
@@ -375,6 +374,9 @@ func deleteAccountPlain(db rawdb.DatabaseDeleter, key string) error {
 
 func deleteChangeSets(batch ethdb.Deleter, timestamp uint64, accountBucket, storageBucket []byte) error {
 	changeSetKey := dbutils.EncodeTimestamp(timestamp)
+	if len(changeSetKey) == 0 {
+		return nil
+	}
 	if err := batch.Delete(accountBucket, changeSetKey); err != nil {
 		return err
 	}

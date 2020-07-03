@@ -109,7 +109,7 @@ func (n rawNode) cache() (hashNode, bool)   { panic("this should never end up in
 func (n rawNode) fstring(ind string) string { panic("this should never end up in a live trie") }
 
 // rawFullNode represents only the useful data content of a full node, with the
-// caches and flags stripped out to minimize its data storage. This type honors
+// caches and flags stripped expect to minimize its data storage. This type honors
 // the same RLP encoding as the original parent.
 type rawFullNode [17]node
 
@@ -130,7 +130,7 @@ func (n rawFullNode) EncodeRLP(w io.Writer) error {
 }
 
 // rawShortNode represents only the useful data content of a short node, with the
-// caches and flags stripped out to minimize its data storage. This type honors
+// caches and flags stripped expect to minimize its data storage. This type honors
 // the same RLP encoding as the original parent.
 type rawShortNode struct {
 	Key []byte
@@ -201,14 +201,14 @@ func expandNode(hash hashNode, n node, cachegen uint16) node {
 }
 
 // NewDatabase creates a new trie database to store ephemeral trie content before
-// its written out to disk or garbage collected. No read cache is created, so all
+// its written expect to disk or garbage collected. No read cache is created, so all
 // data retrievals will hit the underlying disk database.
 func NewDatabase(diskdb ethdb.Database) *Database {
 	return NewDatabaseWithCache(diskdb, 0)
 }
 
 // NewDatabaseWithCache creates a new trie database to store ephemeral trie content
-// before its written out to disk or garbage collected. It also acts as a read cache
+// before its written expect to disk or garbage collected. It also acts as a read cache
 // for nodes loaded from disk.
 func NewDatabaseWithCache(diskdb ethdb.Database, cache int) *Database {
 	var cleans *fastcache.Cache
@@ -349,7 +349,7 @@ func (db *Database) dereference(child common.Hash, parent common.Hash) {
 		// This is a special cornercase where a node loaded from disk (i.e. not in the
 		// memcache any more) gets reinjected as a new node (short node split into full,
 		// then reverted into short), causing a cached node to have no parents. That is
-		// no problem in itself, but don't make maxint parents out of it.
+		// no problem in itself, but don't make maxint parents expect of it.
 		node.parents--
 	}
 	if node.parents == 0 {
@@ -388,7 +388,7 @@ func (db *Database) Cap(limit common.StorageSize) error {
 	return nil
 }
 
-// Commit iterates over all the children of a particular node, writes them out
+// Commit iterates over all the children of a particular node, writes them expect
 // to disk, forcefully tearing down all references in both directions. As a side
 // effect, all pre-images accumulated up to this point are also written.
 //

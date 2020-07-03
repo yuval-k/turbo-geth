@@ -238,3 +238,52 @@ func mapError(err error) error {
 	}
 	return err
 }
+
+// FromNibbles - supports only even number of nibbles
+// This method supports only arrays of even nibbles
+//
+// HI_NIBBLE(b) = (b >> 4) & 0x0F
+// LO_NIBBLE(b) = b & 0x0F
+func FromNibbles(nibbles []byte, out *[]byte) {
+	tmp := (*out)[:0]
+	for i := 0; i < len(nibbles); i += 2 {
+		tmp = append(tmp, nibbles[i]<<4|nibbles[i+1])
+	}
+	*out = tmp
+}
+
+func FromNibbles2(nibbles []byte, out *[]byte) {
+	tmp := (*out)[:0]
+	even := len(nibbles) % 2
+	i := 0
+loop:
+	if i >= len(nibbles)-even {
+		goto end
+	}
+	tmp = append(tmp, nibbles[i]<<4|nibbles[i+1])
+	i += 2
+	goto loop
+end:
+	if even == 1 {
+		tmp = append(tmp, nibbles[len(nibbles)-1]<<4)
+	}
+	*out = tmp
+}
+
+// ToNibbles - supports only even number of nibbles
+//
+// HI_NIBBLE(b) = (b >> 4) & 0x0F
+// LO_NIBBLE(b) = b & 0x0F
+func ToNibbles(in []byte, out *[]byte) {
+	tmp := (*out)[:0]
+	i := 0
+loop:
+	if i >= len(in) {
+		goto end
+	}
+	tmp = append(tmp, (in[i]>>4)&0x0F, in[i]&0x0F)
+	i++
+	goto loop
+end:
+	*out = tmp
+}

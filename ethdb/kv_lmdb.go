@@ -74,7 +74,7 @@ func (opts lmdbOpts) Open() (KV, error) {
 		return nil, fmt.Errorf("could not create dir: %s, %w", opts.path, err)
 	}
 
-	var flags uint = lmdb.NoReadahead
+	var flags uint = lmdb.NoReadahead | lmdb.NoSync | lmdb.NoMetaSync
 	if opts.readOnly {
 		flags |= lmdb.Readonly
 	}
@@ -237,8 +237,9 @@ func (db *LmdbKV) Get(ctx context.Context, bucket, key []byte) (val []byte, err 
 			return err2
 		}
 		if v != nil {
-			val = make([]byte, len(v))
-			copy(val, v)
+			val = v
+			//val = make([]byte, len(v))
+			//copy(val, v)
 		}
 		return nil
 	})
@@ -534,7 +535,7 @@ func (c *LmdbCursor) Seek(seek []byte) (k, v []byte, err error) {
 		if lmdb.IsNotFound(err) {
 			return nil, nil, nil
 		}
-		return []byte{}, nil, fmt.Errorf("failed LmdbKV cursor.Seek(): %w, key: %x", err, seek)
+		return []byte{}, nil, fmt.Errorf("failed LmdbKV cursor.SeekTo(): %w, key: %x", err, seek)
 	}
 	if c.prefix != nil && !bytes.HasPrefix(k, c.prefix) {
 		k, v = nil, nil
@@ -581,6 +582,10 @@ func (c *LmdbCursor) Delete(key []byte) error {
 		}
 	}
 
+	if len(key) == 0 {
+		return fmt.Errorf("lmdb doesn't support empty keys. bucket: %s", dbutils.Buckets[c.bucket.id])
+	}
+
 	k, _, err := c.Seek(key)
 	if err != nil {
 		return err
@@ -589,7 +594,10 @@ func (c *LmdbCursor) Delete(key []byte) error {
 	if !bytes.Equal(k, key) {
 		return nil
 	}
-	return c.cursor.Del(0)
+	if err := c.cursor.Del(0); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *LmdbCursor) Put(key []byte, value []byte) error {

@@ -323,7 +323,7 @@ func TestCursorOperations(t *testing.T) {
 	assert.Nil(encoder.Encode(bucketHandle), "Could not encode bucketHandler for CmdCursor")
 	assert.Nil(encoder.Encode(cursorPrefix), "Could not encode cursorPrefix for CmdCursor")
 
-	// Logic of test: .Seek(), .Next(), .First(), .Next()
+	// Logic of test: .SeekTo(), .Next(), .First(), .Next()
 
 	var cursorHandle uint64 = 2
 	var seekKey = []byte("key1") // Should find key1

@@ -59,6 +59,13 @@ type sortableBuffer struct {
 func (b *sortableBuffer) Put(k, v []byte) {
 	b.size += len(k)
 	b.size += len(v)
+	l := len(b.entries)
+	if cap(b.entries) > l {
+		b.entries = b.entries[:l+1]
+		b.entries[l].key = k
+		b.entries[l].value = v
+		return
+	}
 	b.entries = append(b.entries, sortableBufferEntry{k, v})
 }
 
@@ -203,6 +210,13 @@ func (b *oldestEntrySortableBuffer) Len() int {
 }
 func (b *oldestEntrySortableBuffer) Sort() {
 	for k, v := range b.entries {
+		l := len(b.sortedBuf)
+		if cap(b.sortedBuf) > l {
+			b.sortedBuf = b.sortedBuf[:l+1]
+			b.sortedBuf[l].key = []byte(k)
+			b.sortedBuf[l].value = v
+			continue
+		}
 		b.sortedBuf = append(b.sortedBuf, sortableBufferEntry{key: []byte(k), value: v})
 	}
 	sort.Sort(b)

@@ -155,7 +155,6 @@ func testPrefixFilter(t *testing.T, db ethdb.KV) {
 	}); err != nil {
 		assert.NoError(err)
 	}
-
 }
 func testCtxCancel(t *testing.T, db ethdb.KV) {
 	assert := assert.New(t)

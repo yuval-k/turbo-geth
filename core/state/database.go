@@ -211,6 +211,7 @@ func (b *Buffer) merge(other *Buffer) {
 // TrieDbState implements StateReader by wrapping a trie and a database, where trie acts as a cache for the database
 type TrieDbState struct {
 	t                 *trie.Trie
+	t2                *trie.Trie2 // in-memory database - new way of trie representation
 	tMu               *sync.Mutex
 	db                ethdb.Database
 	blockNr           uint64
@@ -235,6 +236,7 @@ func NewTrieDbState(root common.Hash, db ethdb.Database, blockNr uint64) *TrieDb
 
 	tds := &TrieDbState{
 		t:                 t,
+		t2:                trie.NewTrie2(),
 		tMu:               new(sync.Mutex),
 		db:                db,
 		blockNr:           blockNr,
@@ -248,7 +250,7 @@ func NewTrieDbState(root common.Hash, db ethdb.Database, blockNr uint64) *TrieDb
 	tp.SetBlockNumber(blockNr)
 
 	t.AddObserver(tp)
-	t.AddObserver(NewIntermediateHashes(tds.db, tds.db))
+	//t.AddObserver(NewIntermediateHashes(tds.db, tds.db))
 
 	return tds
 }
@@ -657,7 +659,7 @@ func (tds *TrieDbState) ResolveStateTrie(extractWitnesses bool, trace bool) ([]*
 		if loader == nil {
 			return trie.SubTries{}, nil
 		}
-		subTries, err := loader.LoadSubTries(tds.db, tds.blockNr, rl, nil /* hashCollector */, dbPrefixes, fixedbits, trace)
+		subTries, err := loader.LoadSubTries(tds.db, tds.t2, tds.blockNr, rl, nil /* hashCollector */, dbPrefixes, fixedbits, trace)
 		if err != nil {
 			return subTries, err
 		}

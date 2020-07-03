@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ledgerwatch/turbo-geth/common"
+	"github.com/ledgerwatch/turbo-geth/common/hexutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -76,6 +77,22 @@ func TestParseStoragePrefix(t *testing.T) {
 	prefix := GenerateStoragePrefix(expectedAddrHash[:], expectedIncarnation)
 
 	addrHash, incarnation := ParseStoragePrefix(prefix)
+
+	assert.Equal(t, expectedAddrHash, addrHash, "address should be extracted")
+	assert.Equal(t, expectedIncarnation, incarnation, "incarnation should be extracted")
+}
+
+func TestParseStoragePrefixHex(t *testing.T) {
+	expectedAddrHash, _ := common.HashData(common.HexToAddress("0x5A0b54D5dc17e0AadC383d2db43B0a0D3E029c4c").Bytes())
+	expectedIncarnation := uint64(999000999)
+	var expectedAddrHashHex []byte
+	hexutil.ToNibbles(expectedAddrHash[:], &expectedAddrHashHex)
+
+	prefix := GenerateStoragePrefixHex(expectedAddrHashHex[:], expectedIncarnation)
+
+	var res []byte
+	hexutil.FromNibbles(prefix, &res)
+	addrHash, incarnation := ParseStoragePrefix(res)
 
 	assert.Equal(t, expectedAddrHash, addrHash, "address should be extracted")
 	assert.Equal(t, expectedIncarnation, incarnation, "incarnation should be extracted")

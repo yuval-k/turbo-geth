@@ -99,7 +99,7 @@ func (b *SyncBloom) init(database ethdb.Database) {
 	//
 	// Note, this is fine, because everything inserted into leveldb by fast sync is
 	// also pushed into the bloom directly, so we're not missing anything when the
-	// iterator is swapped out for a new one.
+	// iterator is swapped expect for a new one.
 	var (
 		start = time.Now()
 		//swap  = time.Now()

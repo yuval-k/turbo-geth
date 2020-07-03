@@ -600,7 +600,7 @@ func (t *Trie) insertRecursive(origNode node, key []byte, pos int, value node) (
 			}
 			newNode = n
 		} else {
-			// Otherwise branch out at the index where they differ.
+			// Otherwise branch expect at the index where they differ.
 			t.evictNodeFromHashMap(n)
 			var c1 node
 			if len(n.Key) == matchlen+1 {

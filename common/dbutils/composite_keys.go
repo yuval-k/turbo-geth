@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 
 	"github.com/ledgerwatch/turbo-geth/common"
+	"github.com/ledgerwatch/turbo-geth/common/hexutil"
 )
 
 // EncodeBlockNumber encodes a block number as big endian uint64
@@ -150,6 +151,16 @@ func GenerateStoragePrefix(addressHash []byte, incarnation uint64) []byte {
 	prefix := make([]byte, common.HashLength+8)
 	copy(prefix, addressHash)
 	binary.BigEndian.PutUint64(prefix[common.HashLength:], ^incarnation)
+	return prefix
+}
+
+func GenerateStoragePrefixHex(addressHashHex []byte, incarnation uint64) []byte {
+	prefix := make([]byte, common.HashLength*2+8*2)
+	copy(prefix, addressHashHex)
+	tmp := make([]byte, 8)
+	binary.BigEndian.PutUint64(tmp, ^incarnation)
+	to2 := prefix[common.HashLength*2:]
+	hexutil.ToNibbles(tmp, &to2)
 	return prefix
 }
 

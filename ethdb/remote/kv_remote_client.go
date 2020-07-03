@@ -787,7 +787,7 @@ func (c *Cursor) SeekKey(seek []byte) (key []byte, vSize uint32, err error) {
 		}
 	}
 
-	c.cacheLastIdx = 0 // .Next() cache is invalid after .Seek() and .SeekTo() calls
+	c.cacheLastIdx = 0 // .Next() cache is invalid after .SeekTo() and .SeekTo() calls
 
 	select {
 	default:
@@ -841,7 +841,7 @@ func (c *Cursor) Seek(seek []byte) (key []byte, value []byte, err error) {
 		}
 	}
 
-	c.cacheLastIdx = 0 // .Next() cache is invalid after .Seek() and .SeekTo() calls
+	c.cacheLastIdx = 0 // .Next() cache is invalid after .SeekTo() and .SeekTo() calls
 
 	select {
 	default:
@@ -893,7 +893,7 @@ func (c *Cursor) SeekTo(seek []byte) (key []byte, value []byte, err error) {
 		}
 	}
 
-	c.cacheLastIdx = 0 // .Next() cache is invalid after .Seek() and .SeekTo() calls
+	c.cacheLastIdx = 0 // .Next() cache is invalid after .SeekTo() and .SeekTo() calls
 
 	select {
 	default:

@@ -57,6 +57,38 @@ func NextSubtree(in []byte) ([]byte, bool) {
 	return nil, false
 }
 
+// NextSubtreeHex does []byte++. Returns false if overflow.
+func NextSubtreeHex(in []byte) ([]byte, bool) {
+	r := make([]byte, len(in))
+	copy(r, in)
+	for i := len(r) - 1; i >= 0; i-- {
+		if r[i] != 15 {
+			r[i]++
+			return r, true
+		}
+
+		r = r[:i] // make it shorter, because in tries after 11ff goes 12, but not 1200
+	}
+	return nil, false
+}
+
+// NextSubtreeHex does []byte++. Returns false if overflow.
+func NextSubtreeHex2(in []byte, out *[]byte) bool {
+	r := *out
+	r = append(r[:0], in...)
+	for i := len(r) - 1; i >= 0; i-- {
+		if r[i] != 15 {
+			r[i]++
+			*out = r
+			return true
+		}
+
+		r = r[:i] // make it shorter, because in tries after 11ff goes 12, but not 1200
+	}
+	*out = r
+	return false
+}
+
 func NextS(in []byte, out *[]byte) bool {
 	tmp := *out
 	if cap(tmp) < len(in) {
@@ -70,7 +102,7 @@ func NextS(in []byte, out *[]byte) bool {
 			*out = tmp
 			return true
 		}
-		tmp[i] = 0
+		tmp = tmp[:i] // make it shorter, because in tries after 11ff goes 12, but not 1200
 	}
 	*out = tmp
 	return false

@@ -161,7 +161,7 @@ func walkAsOfThinAccounts(db KV, startkey []byte, fixedbits int, timestamp uint6
 // of composite storage key, but without
 // reconstructing the key
 // Instead, the key is split into two parts and
-// functions `Seek` and `Next` deliver both
+// functions `SeekTo` and `Next` deliver both
 // parts as well as the corresponding value
 type splitCursor struct {
 	c          Cursor // Unlerlying bolt cursor
