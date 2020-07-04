@@ -77,9 +77,9 @@ func regenerateIntermediateHashes(db ethdb.Database, t2 *trie.Trie2, datadir str
 	t := time.Now()
 	if subTries, err := loader.LoadSubTries(); err == nil {
 		generationIHTook := time.Since(t)
-		//if subTries.Hashes[0] != expectedRootHash {
-		//	return fmt.Errorf("wrong trie root: %x, expected (from header): %x", subTries.Hashes[0], expectedRootHash)
-		//}
+		if subTries.Hashes[0] != expectedRootHash {
+			return fmt.Errorf("wrong trie root: %x, expected (from header): %x", subTries.Hashes[0], expectedRootHash)
+		}
 		log.Info("Collection finished",
 			"root hash", subTries.Hashes[0].Hex(),
 			"gen IH", generationIHTook,
@@ -456,9 +456,9 @@ func incrementIntermediateHashes(s *StageState, db ethdb.Database, t2 *trie.Trie
 		return err
 	}
 	generationIHTook := time.Since(t)
-	//if subTries.Hashes[0] != expectedRootHash {
-	//	return fmt.Errorf("wrong trie root: %x, expected (from header): %x", subTries.Hashes[0], expectedRootHash)
-	//}
+	if subTries.Hashes[0] != expectedRootHash {
+		return fmt.Errorf("wrong trie root: %x, expected (from header): %x", subTries.Hashes[0], expectedRootHash)
+	}
 	log.Info("Collection finished",
 		"root hash", subTries.Hashes[0].Hex(),
 		"gen IH", generationIHTook,
@@ -533,9 +533,9 @@ func unwindIntermediateHashesStageImpl(u *UnwindState, s *StageState, db ethdb.D
 		return err
 	}
 	generationIHTook := time.Since(t)
-	//if subTries.Hashes[0] != expectedRootHash {
-	//	return fmt.Errorf("wrong trie root: %x, expected (from header): %x", subTries.Hashes[0], expectedRootHash)
-	//}
+	if subTries.Hashes[0] != expectedRootHash {
+		return fmt.Errorf("wrong trie root: %x, expected (from header): %x", subTries.Hashes[0], expectedRootHash)
+	}
 	log.Info("Collection finished",
 		"root hash", subTries.Hashes[0].Hex(),
 		"gen IH", generationIHTook,

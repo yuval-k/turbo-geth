@@ -111,9 +111,9 @@ func (t *Trie2) wrapHashCollector(hc HashCollector) HashCollector {
 	return func(keyHex []byte, hash []byte) error {
 		if len(keyHex) <= LevelsInMem {
 			if hash == nil {
-				delete(t.batch, string(keyHex))
+				//delete(t.batch, string(keyHex))
 			} else {
-				t.batch[string(keyHex)] = common.CopyBytes(hash)
+				//t.batch[string(keyHex)] = common.CopyBytes(hash)
 			}
 		}
 
