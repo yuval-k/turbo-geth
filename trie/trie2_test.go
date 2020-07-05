@@ -155,7 +155,7 @@ func TestTwoAs1(t *testing.T) {
 		ih.SeekTo([]byte{})
 		ih.SeekTo(common.FromHex("0102"))
 		fmt.Printf("1: %d\n", ih.skipSeek2Counter)
-		fmt.Printf("2: seeks=%d, next=%d\n", ihc.seekCouner, ihc.nextCounter)
+		fmt.Printf("2: seeksAcc=%d, seeksSt=%d, next=%d\n", ihc.seekAccCouner, ihc.seekStorageCouner, ihc.nextCounter)
 		return nil
 	}))
 }
