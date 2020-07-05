@@ -11,6 +11,7 @@ import (
 	"github.com/ledgerwatch/turbo-geth/ethdb"
 	"github.com/ledgerwatch/turbo-geth/log"
 	"github.com/ledgerwatch/turbo-geth/params"
+	"github.com/ledgerwatch/turbo-geth/trie"
 	"github.com/spf13/cobra"
 )
 
@@ -41,6 +42,7 @@ func syncBySmallSteps(ctx context.Context, chaindata string) error {
 		return err
 	}
 
+	t2 := trie.NewTrie2()
 	for {
 		select {
 		case <-ctx.Done():
@@ -81,13 +83,13 @@ func syncBySmallSteps(ctx context.Context, chaindata string) error {
 		{
 			u := &stagedsync.UnwindState{Stage: stages.IntermediateHashes, UnwindPoint: stage5progress - rewind}
 			s := &stagedsync.StageState{Stage: stages.IntermediateHashes, BlockNumber: stage5progress}
-			if err = stagedsync.UnwindHashStateStage(u, s, db, "", ctx.Done()); err != nil {
+			if err = stagedsync.UnwindIntermediateHashesStage(u, s, db, t2, "", ctx.Done()); err != nil {
 				return err
 			}
 		}
 		{
 			stageState := &stagedsync.StageState{Stage: stages.IntermediateHashes, BlockNumber: stage5progress}
-			if err = stagedsync.SpawnIntermediateHashesStage(stageState, db, "", ctx.Done()); err != nil {
+			if err = stagedsync.SpawnIntermediateHashesStage(stageState, db, t2, "", ctx.Done()); err != nil {
 				return err
 			}
 		}
