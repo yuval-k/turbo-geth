@@ -789,7 +789,7 @@ func testStartup() {
 	fmt.Printf("Current block root hash: %x\n", currentBlock.Root())
 	l := trie.NewSubTrieLoader(currentBlockNr)
 	rl := trie.NewRetainList(0)
-	subTries, err1 := l.LoadSubTries(ethDb, currentBlockNr, rl, nil /* HashCollector */, [][]byte{nil}, []int{0}, false)
+	subTries, err1 := l.LoadSubTries(ethDb, trie.NewTrie2(), currentBlockNr, rl, nil /* HashCollector */, [][]byte{nil}, []int{0}, false)
 	if err1 != nil {
 		fmt.Printf("%v\n", err1)
 	}
@@ -840,7 +840,7 @@ func testResolve(chaindata string) {
 	key = common.FromHex("0a080d05070c0604040302030508050100020105040e05080c0a0f030d0d050f08070a050b0c08090b02040e0e0200030f0c0b0f0704060a0d0703050009010f")
 	rl := trie.NewRetainList(0)
 	rl.AddHex(key[:3])
-	subTries, err1 := l.LoadSubTries(ethDb, currentBlockNr, rl, nil /* HashCollector */, [][]byte{{0xa8, 0xd0}}, []int{12}, true)
+	subTries, err1 := l.LoadSubTries(ethDb, trie.NewTrie2(), currentBlockNr, rl, nil /* HashCollector */, [][]byte{{0xa8, 0xd0}}, []int{12}, true)
 	if err1 != nil {
 		fmt.Printf("Resolve error: %v\n", err1)
 	}
@@ -1404,7 +1404,7 @@ func regenerate(chaindata string) error {
 		return collector.Collect(k, common.CopyBytes(hash))
 	}
 	loader := trie.NewFlatDbSubTrieLoader()
-	if err := loader.Reset(db, trie.NewRetainList(0), trie.NewRetainList(0), hashCollector /* HashCollector */, [][]byte{nil}, []int{0}, false); err != nil {
+	if err := loader.Reset(db, trie.NewTrie2(), trie.NewRetainList(0), trie.NewRetainList(0), hashCollector /* HashCollector */, [][]byte{nil}, []int{0}, false); err != nil {
 		return err
 	}
 	if subTries, err := loader.LoadSubTries(); err == nil {
@@ -1547,11 +1547,12 @@ func testGetProof(chaindata string, address common.Address, rewind int, regen bo
 	log.Info("Constructed account unfurl lists",
 		"alloc", common.StorageSize(m.Alloc), "sys", common.StorageSize(m.Sys), "numGC", int(m.NumGC))
 	loader := trie.NewFlatDbSubTrieLoader()
-	if err = loader.Reset(db, unfurl, trie.NewRetainList(0), nil /* HashCollector */, [][]byte{nil}, []int{0}, false); err != nil {
+	t2 := trie.NewTrie2()
+	if err = loader.Reset(db, t2, unfurl, trie.NewRetainList(0), nil /* HashCollector */, [][]byte{nil}, []int{0}, false); err != nil {
 		return err
 	}
 	r := &Receiver{defaultReceiver: trie.NewDefaultReceiver(), unfurlList: unfurlList, accountMap: accountMap, storageMap: storageMap}
-	r.defaultReceiver.Reset(rl, nil /* HashCollector */, false)
+	r.defaultReceiver.Reset(rl, nil /* HashCollector */, t2, false)
 	loader.SetStreamReceiver(r)
 	subTries, err1 := loader.LoadSubTries()
 	if err1 != nil {
@@ -1653,8 +1654,8 @@ func testStage5(chaindata string, reset bool) error {
 	defer db.Close()
 	if reset {
 		if err := db.ClearBuckets(
-			dbutils.CurrentStateBucket,
-			dbutils.ContractCodeBucket,
+			//dbutils.CurrentStateBucket,
+			//dbutils.ContractCodeBucket,
 			dbutils.IntermediateTrieHashBucket,
 		); err != nil {
 			return err
@@ -1662,9 +1663,9 @@ func testStage5(chaindata string, reset bool) error {
 		if err := stages.SaveStageProgress(db, stages.IntermediateHashes, 0, nil); err != nil {
 			return err
 		}
-		if err := stages.SaveStageProgress(db, stages.HashState, 0, nil); err != nil {
-			return err
-		}
+		//if err := stages.SaveStageProgress(db, stages.HashState, 0, nil); err != nil {
+		//	return err
+		//}
 	}
 	var err error
 	var stage4progress uint64
@@ -1680,7 +1681,7 @@ func testStage5(chaindata string, reset bool) error {
 	core.UsePlainStateExecution = true
 	ch := make(chan struct{})
 	stageState := &stagedsync.StageState{Stage: stages.IntermediateHashes, BlockNumber: stage5progress}
-	if err = stagedsync.SpawnIntermediateHashesStage(stageState, db, "", ch); err != nil {
+	if err = stagedsync.SpawnIntermediateHashesStage(stageState, db, trie.NewTrie2(), "", ch); err != nil {
 		return err
 	}
 	close(ch)
@@ -1691,19 +1692,26 @@ func testUnwind5(chaindata string, rewind uint64) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
 	var err error
-	var stage5progress uint64
-	if stage5progress, _, err = stages.GetStageProgress(db, stages.IntermediateHashes); err != nil {
-		return err
+	t2 := trie.NewTrie2()
+	for i := 0; i < 10; i++ {
+		ch := make(chan struct{})
+		var stage5progress uint64
+		if stage5progress, _, err = stages.GetStageProgress(db, stages.IntermediateHashes); err != nil {
+			return err
+		}
+		log.Info("Stage5", "progress", stage5progress)
+		core.UsePlainStateExecution = true
+		u := &stagedsync.UnwindState{Stage: stages.IntermediateHashes, UnwindPoint: stage5progress - rewind}
+		s := &stagedsync.StageState{Stage: stages.IntermediateHashes, BlockNumber: stage5progress}
+		if err = stagedsync.UnwindIntermediateHashesStage(u, s, db, t2, "", ch); err != nil {
+			return err
+		}
+		stageState := &stagedsync.StageState{Stage: stages.IntermediateHashes, BlockNumber: stage5progress}
+		if err = stagedsync.SpawnIntermediateHashesStage(stageState, db, t2, "", ch); err != nil {
+			return err
+		}
+		close(ch)
 	}
-	log.Info("Stage5", "progress", stage5progress)
-	core.UsePlainStateExecution = true
-	ch := make(chan struct{})
-	u := &stagedsync.UnwindState{Stage: stages.IntermediateHashes, UnwindPoint: stage5progress - rewind}
-	s := &stagedsync.StageState{Stage: stages.IntermediateHashes, BlockNumber: stage5progress}
-	if err = stagedsync.UnwindHashStateStage(u, s, db, "", ch); err != nil {
-		return err
-	}
-	close(ch)
 	return nil
 }
 
@@ -1749,7 +1757,7 @@ func testUnwind6(chaindata string, rewind uint64) error {
 	ch := make(chan struct{})
 	u := &stagedsync.UnwindState{Stage: stages.HashState, UnwindPoint: stage6progress - rewind}
 	s := &stagedsync.StageState{Stage: stages.HashState, BlockNumber: stage6progress}
-	if err = stagedsync.UnwindIntermediateHashesStage(u, s, db, "", ch); err != nil {
+	if err = stagedsync.UnwindIntermediateHashesStage(u, s, db, trie.NewTrie2(), "", ch); err != nil {
 		return err
 	}
 	close(ch)

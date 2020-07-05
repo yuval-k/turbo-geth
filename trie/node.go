@@ -82,7 +82,6 @@ func NewShortNode(key []byte, value node) *shortNode {
 		Key: key,
 		Val: value,
 	}
-
 	return s
 }
 

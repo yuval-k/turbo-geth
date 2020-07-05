@@ -8,6 +8,7 @@ import (
 	"github.com/ledgerwatch/turbo-geth/eth/stagedsync/stages"
 	"github.com/ledgerwatch/turbo-geth/ethdb"
 	"github.com/ledgerwatch/turbo-geth/log"
+	"github.com/ledgerwatch/turbo-geth/trie"
 )
 
 const prof = false // whether to profile
@@ -25,6 +26,7 @@ func PrepareStagedSync(
 ) (*State, error) {
 	defer log.Info("Staged sync finished")
 
+	t2 := trie.NewTrie2()
 	stages := []*Stage{
 		{
 			ID:          stages.Headers,
@@ -84,10 +86,10 @@ func PrepareStagedSync(
 			ID:          stages.IntermediateHashes,
 			Description: "Generating intermediate hashes and compiting state root",
 			ExecFunc: func(s *StageState, u Unwinder) error {
-				return SpawnIntermediateHashesStage(s, stateDB, datadir, quitCh)
+				return SpawnIntermediateHashesStage(s, stateDB, t2, datadir, quitCh)
 			},
 			UnwindFunc: func(u *UnwindState, s *StageState) error {
-				return UnwindIntermediateHashesStage(u, s, stateDB, datadir, quitCh)
+				return UnwindIntermediateHashesStage(u, s, stateDB, t2, datadir, quitCh)
 			},
 		},
 		{

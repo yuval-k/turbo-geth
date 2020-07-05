@@ -72,5 +72,4 @@ func (ih *IntermediateHashes) BranchNodeLoaded(prefixAsNibbles []byte, incarnati
 	if err := ih.deleter.Delete(dbutils.IntermediateTrieHashBucket, key); err != nil {
 		log.Warn("could not delete intermediate trie hash", "err", err)
 	}
-
 }
