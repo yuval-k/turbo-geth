@@ -67,7 +67,7 @@ func (l *OperatorUnmarshaller) ReadKey(previousNibbles []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return keyBytesToNibbles(b), nil
+	return UncompressWitnessKey(b, previousNibbles), nil
 }
 
 func (l *OperatorUnmarshaller) ReadUInt64() (uint64, error) {
@@ -106,7 +106,7 @@ func (w *OperatorMarshaller) WriteOpCode(opcode OperatorKindCode) error {
 
 func (w *OperatorMarshaller) WriteKey(keyNibbles []byte, previousNibbles []byte) error {
 	w.WithColumn(ColumnLeafKeys)
-	return w.encoder.Encode(keyNibblesToBytes(keyNibbles))
+	return w.encoder.Encode(CompressWitnessKey(keyNibbles, previousNibbles))
 }
 
 func (w *OperatorMarshaller) WriteByteValue(value byte) error {
@@ -165,9 +165,11 @@ func keyNibblesToBytes(nibbles []byte) []byte {
 	if len(nibbles) < 1 {
 		return []byte{}
 	}
-	if len(nibbles) < 2 {
-		return nibbles
-	}
+	/*
+		if len(nibbles) < 2 {
+			return nibbles
+		}
+	*/
 	hasTerminator := false
 	if nibbles[len(nibbles)-1] == 0x10 {
 		nibbles = nibbles[:len(nibbles)-1]
@@ -198,9 +200,12 @@ func keyBytesToNibbles(b []byte) []byte {
 	if len(b) < 1 {
 		return []byte{}
 	}
-	if len(b) < 2 {
-		return b
-	}
+	/*
+		if len(b) < 2 {
+			return b
+		}
+	*/
+
 	hasTerminator := b[0]&(1<<1) != 0
 
 	targetLen := (len(b)-1)*2 - int(b[0]&1)
