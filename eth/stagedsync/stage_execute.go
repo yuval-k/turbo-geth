@@ -1,11 +1,14 @@
 package stagedsync
 
 import (
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"sort"
 	"sync/atomic"
 	"time"
 
@@ -117,6 +120,8 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, blockchain B
 	engine := blockchain.Engine()
 	vmConfig := blockchain.GetVMConfig()
 	log.Info("Blocks execution", "from", atomic.LoadUint64(&nextBlockNumber)+1, "to", limit-1)
+	l := make(RecipientsList, 100)
+
 	for {
 		if err := common.Stopped(quit); err != nil {
 			return err
@@ -167,6 +172,45 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, blockchain B
 		stateWriter.SetStorageCache(storageCache)
 		stateWriter.SetCodeCache(codeCache)
 		stateWriter.SetCodeSizeCache(codeSizeCache)
+
+		l = l[:0]
+		stateBucket := dbutils.CurrentStateBucket
+		if core.UsePlainStateExecution {
+			stateBucket = dbutils.PlainStateBucket
+		}
+		for _, tx := range block.Transactions() {
+			to := tx.To()
+			if to != nil {
+				l = append(l, to[:])
+			}
+		}
+
+		sort.Sort(l)
+		if err := stateDB.(ethdb.HasKV).KV().View(context.Background(), func(tx ethdb.Tx) error {
+			c := tx.Bucket(stateBucket).Cursor()
+			for _, addr := range l {
+				seek := addr
+				if !core.UsePlainStateExecution {
+					addrHash, err1 := common.HashData(addr)
+					if err1 != nil {
+						return err1
+					}
+					seek = addrHash[:]
+				}
+
+				k, v, err := c.Seek(seek)
+				if err != nil {
+					return err
+				}
+				if !bytes.Equal(k, addr) {
+					continue
+				}
+				accountCache.Set(addr, v)
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
 
 		// where the magic happens
 		receipts, err := core.ExecuteBlockEphemerally(chainConfig, vmConfig, blockchain, engine, block, stateReader, stateWriter, dests)
@@ -405,3 +449,9 @@ func deleteChangeSets(batch ethdb.Deleter, timestamp uint64, accountBucket, stor
 	}
 	return nil
 }
+
+type RecipientsList [][]byte
+
+func (b RecipientsList) Len() int           { return len(b) }
+func (b RecipientsList) Less(i, j int) bool { return bytes.Compare(b[i], b[j]) < 0 }
+func (b RecipientsList) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
