@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
+	"github.com/ledgerwatch/turbo-geth/common/pool"
 	"github.com/ledgerwatch/turbo-geth/core/types/accounts"
 	"github.com/ledgerwatch/turbo-geth/ethdb"
 )
@@ -51,7 +52,11 @@ func (r *PlainStateReader) ReadAccountData(address common.Address) (*accounts.Ac
 	var enc []byte
 	var ok bool
 	if r.accountCache != nil {
-		enc, ok = r.accountCache.HasGet(nil, address[:])
+		buf := pool.GetBuffer(128)
+		buf.Reset()
+		defer pool.PutBuffer(buf)
+		enc, ok = r.accountCache.HasGet(buf.B, address[:])
+		//enc, ok = r.accountCache.HasGet(nil, address[:])
 	}
 	if !ok {
 		var err error
@@ -113,7 +118,10 @@ func (r *PlainStateReader) ReadAccountCodeSize(address common.Address, codeHash 
 		return 0, nil
 	}
 	if r.codeSizeCache != nil {
-		if b, ok := r.codeSizeCache.HasGet(nil, address[:]); ok {
+		buf := pool.GetBuffer(8)
+		buf.Reset()
+		defer pool.PutBuffer(buf)
+		if b, ok := r.codeSizeCache.HasGet(buf.B, address[:]); ok {
 			return int(binary.BigEndian.Uint32(b)), nil
 		}
 	}

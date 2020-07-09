@@ -140,6 +140,7 @@ func resetTxLookup(db *ethdb.ObjectDatabase) error {
 
 	return nil
 }
+
 func printStages(db *ethdb.ObjectDatabase) error {
 	var err error
 	var progress uint64

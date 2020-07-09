@@ -107,7 +107,7 @@ func syncBySmallSteps(ctx context.Context, chaindata string) error {
 			stage := progress(db, stages.Execution)
 			execToBlock := stage.BlockNumber + unwindEvery
 
-			if err := stagedsync.SpawnExecuteBlocksStage(stage, db, blockchain, execToBlock, ch, nil, false, changeSetHook); err != nil {
+			if err := stagedsync.SpawnExecuteBlocksStage(stage, db, blockchain, execToBlock, ch, blockchain.DestsCache, false, changeSetHook); err != nil {
 				return fmt.Errorf("spawnExecuteBlocksStage: %w", err)
 			}
 		}

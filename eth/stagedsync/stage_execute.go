@@ -2,7 +2,6 @@ package stagedsync
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -121,7 +120,7 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, blockchain B
 	engine := blockchain.Engine()
 	vmConfig := blockchain.GetVMConfig()
 	log.Info("Blocks execution", "from", atomic.LoadUint64(&nextBlockNumber)+1, "to", limit-1)
-	l := make(RecipientsList, 100)
+	l := make(RecipientsList, 1024)
 
 	for {
 		if err := common.Stopped(quit); err != nil {
@@ -174,7 +173,7 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, blockchain B
 		stateWriter.SetCodeCache(codeCache)
 		stateWriter.SetCodeSizeCache(codeSizeCache)
 
-		if err := warmUpStateCache(stateDB, l, block, accountCache, storageCache); err != nil {
+		if err := warmUpStateCache(stateDB, l, block, stateReader, accountCache, storageCache); err != nil {
 			return err
 		}
 
@@ -416,53 +415,106 @@ func deleteChangeSets(batch ethdb.Deleter, timestamp uint64, accountBucket, stor
 	return nil
 }
 
-func warmUpStateCache(db ethdb.Database, l RecipientsList, block *types.Block, accountCache *fastcache.Cache, storageCache *fastcache.Cache) error {
+func warmUpStateCache(db ethdb.Database, l RecipientsList, block *types.Block, stateReader state.StateReader, accountCache *fastcache.Cache, storageCache *fastcache.Cache) error {
 	l = l[:0]
-	stateBucket := dbutils.CurrentStateBucket
-	if core.UsePlainStateExecution {
-		stateBucket = dbutils.PlainStateBucket
-	}
+	//stateBucket := dbutils.CurrentStateBucket
+	//if core.UsePlainStateExecution {
+	//	stateBucket = dbutils.PlainStateBucket
+	//}
 	for _, tx := range block.Transactions() {
 		to := tx.To()
 		if to != nil {
-			l = append(l, to[:])
+			l = append(l, *to)
 		}
 	}
 
 	sort.Sort(l)
-	if err := db.(ethdb.HasKV).KV().View(context.Background(), func(tx ethdb.Tx) error {
-		c := tx.Bucket(stateBucket).Cursor()
-		for _, addr := range l {
-			seek := addr
-			if !core.UsePlainStateExecution {
-				addrHash, err1 := common.HashData(addr)
-				if err1 != nil {
-					return err1
-				}
-				seek = addrHash[:]
-			}
-
-			k, v, err := c.Seek(seek)
-			if err != nil {
-				return err
-			}
-			if !bytes.Equal(k, addr) {
-				continue
-			}
-			if !accountCache.Has(addr) {
-				accountCache.Set(addr, common.CopyBytes(v))
-			}
+	for _, addr := range l {
+		if _, err := stateReader.ReadAccountData(addr); err != nil {
+			return err
 		}
-		return nil
-	}); err != nil {
-		return err
+		//if accountCache.Has(addr) {
+		//	if bytes.Equal(addr, common.FromHex("082af42638c5a41b6993d4b9c9615dc6d0d224b1")) {
+		//		fmt.Printf("Skip!\n")
+		//	}
+		//	continue
+		//} else {
+		//	if bytes.Equal(addr, common.FromHex("082af42638c5a41b6993d4b9c9615dc6d0d224b1")) {
+		//		fmt.Printf("Need fill %x!\n", addr)
+		//	}
+		//}
+		//
+		//seek := addr
+		//if !core.UsePlainStateExecution {
+		//	addrHash, err1 := common.HashData(addr)
+		//	if err1 != nil {
+		//		return err1
+		//	}
+		//	seek = addrHash[:]
+		//}
+		//
+		//enc, err := db.Get(stateBucket, seek)
+		//if err != nil && !errors.Is(err, ethdb.ErrKeyNotFound) {
+		//	return err
+		//}
+		//
+		//if bytes.Equal(seek, common.FromHex("082af42638c5a41b6993d4b9c9615dc6d0d224b1")) {
+		//	acc := accounts.NewAccount()
+		//	acc.DecodeForStorage(enc)
+		//	fmt.Printf("nonceDB: %d, isNill:%t, v=%x\n", acc.Nonce, enc==nil)
+		//}
+		//
+		//accountCache.Set(addr, common.CopyBytes(enc))
 	}
+	//if err := db.(ethdb.HasKV).KV().View(context.Background(), func(tx ethdb.Tx) error {
+	//	c := tx.Bucket(stateBucket).Cursor()
+	//	for _, addr := range l {
+	//		if accountCache.Has(addr) {
+	//			if bytes.Equal(addr, common.FromHex("082af42638c5a41b6993d4b9c9615dc6d0d224b1")) {
+	//				fmt.Printf("Skip!\n")
+	//			}
+	//			continue
+	//		} else {
+	//			if bytes.Equal(addr, common.FromHex("082af42638c5a41b6993d4b9c9615dc6d0d224b1")) {
+	//				fmt.Printf("Need fill %x!\n", addr)
+	//			}
+	//		}
+	//
+	//		seek := addr
+	//		if !core.UsePlainStateExecution {
+	//			addrHash, err1 := common.HashData(addr)
+	//			if err1 != nil {
+	//				return err1
+	//			}
+	//			seek = addrHash[:]
+	//		}
+	//
+	//		k, v, err := c.Seek(seek)
+	//		if err != nil {
+	//			return err
+	//		}
+	//		if bytes.Equal(seek, common.FromHex("082af42638c5a41b6993d4b9c9615dc6d0d224b1")) {
+	//			acc := accounts.NewAccount()
+	//			acc.DecodeForStorage(v)
+	//			fmt.Printf("found: %t, nonceDB: %d, v=%x\n", bytes.Equal(k, seek), acc.Nonce, v)
+	//		}
+	//
+	//		if !bytes.Equal(k, seek) {
+	//			accountCache.Set(addr, nil)
+	//			continue
+	//		}
+	//		accountCache.Set(addr, common.CopyBytes(v))
+	//	}
+	//	return nil
+	//}); err != nil {
+	//	return err
+	//}
 
 	return nil
 }
 
-type RecipientsList [][]byte
+type RecipientsList []common.Address
 
 func (b RecipientsList) Len() int           { return len(b) }
-func (b RecipientsList) Less(i, j int) bool { return bytes.Compare(b[i], b[j]) < 0 }
+func (b RecipientsList) Less(i, j int) bool { return bytes.Compare(b[i][:], b[j][:]) < 0 }
 func (b RecipientsList) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
