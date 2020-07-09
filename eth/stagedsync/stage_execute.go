@@ -120,7 +120,7 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, blockchain B
 	engine := blockchain.Engine()
 	vmConfig := blockchain.GetVMConfig()
 	log.Info("Blocks execution", "from", atomic.LoadUint64(&nextBlockNumber)+1, "to", limit-1)
-	//l := make(RecipientsList, 1024)
+	l := make(RecipientsList, 1024)
 
 	for {
 		if err := common.Stopped(quit); err != nil {
@@ -173,9 +173,9 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, blockchain B
 		stateWriter.SetCodeCache(codeCache)
 		stateWriter.SetCodeSizeCache(codeSizeCache)
 
-		//if err := warmUpStateCache(stateDB, l, block, stateReader, accountCache, storageCache); err != nil {
-		//	return err
-		//}
+		if err := warmUpStateCache(stateDB, l, block, stateReader, accountCache, storageCache); err != nil {
+			return err
+		}
 
 		// where the magic happens
 		receipts, err := core.ExecuteBlockEphemerally(chainConfig, vmConfig, blockchain, engine, block, stateReader, stateWriter, dests)

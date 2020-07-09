@@ -252,7 +252,7 @@ func (a *Account) EncodeForHashing(buffer []byte) {
 func (a *Account) Copy(image *Account) {
 	a.Initialised = image.Initialised
 	a.Nonce = image.Nonce
-	a.Balance.SetBytes(image.Balance.Bytes())
+	a.Balance.Set(&image.Balance)
 	copy(a.Root[:], image.Root[:])
 	copy(a.CodeHash[:], image.CodeHash[:])
 	a.Incarnation = image.Incarnation
