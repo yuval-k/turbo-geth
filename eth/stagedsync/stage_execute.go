@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/fastcache"
+	"github.com/ledgerwatch/turbo-geth/core/types"
 
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
@@ -173,42 +174,7 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, blockchain B
 		stateWriter.SetCodeCache(codeCache)
 		stateWriter.SetCodeSizeCache(codeSizeCache)
 
-		l = l[:0]
-		stateBucket := dbutils.CurrentStateBucket
-		if core.UsePlainStateExecution {
-			stateBucket = dbutils.PlainStateBucket
-		}
-		for _, tx := range block.Transactions() {
-			to := tx.To()
-			if to != nil {
-				l = append(l, to[:])
-			}
-		}
-
-		sort.Sort(l)
-		if err := stateDB.(ethdb.HasKV).KV().View(context.Background(), func(tx ethdb.Tx) error {
-			c := tx.Bucket(stateBucket).Cursor()
-			for _, addr := range l {
-				seek := addr
-				if !core.UsePlainStateExecution {
-					addrHash, err1 := common.HashData(addr)
-					if err1 != nil {
-						return err1
-					}
-					seek = addrHash[:]
-				}
-
-				k, v, err := c.Seek(seek)
-				if err != nil {
-					return err
-				}
-				if !bytes.Equal(k, addr) {
-					continue
-				}
-				accountCache.Set(addr, v)
-			}
-			return nil
-		}); err != nil {
+		if err := warmUpStateCache(stateDB, l, block, accountCache, storageCache); err != nil {
 			return err
 		}
 
@@ -447,6 +413,51 @@ func deleteChangeSets(batch ethdb.Deleter, timestamp uint64, accountBucket, stor
 	if err := batch.Delete(storageBucket, changeSetKey); err != nil {
 		return err
 	}
+	return nil
+}
+
+func warmUpStateCache(db ethdb.Database, l RecipientsList, block *types.Block, accountCache *fastcache.Cache, storageCache *fastcache.Cache) error {
+	l = l[:0]
+	stateBucket := dbutils.CurrentStateBucket
+	if core.UsePlainStateExecution {
+		stateBucket = dbutils.PlainStateBucket
+	}
+	for _, tx := range block.Transactions() {
+		to := tx.To()
+		if to != nil {
+			l = append(l, to[:])
+		}
+	}
+
+	sort.Sort(l)
+	if err := db.(ethdb.HasKV).KV().View(context.Background(), func(tx ethdb.Tx) error {
+		c := tx.Bucket(stateBucket).Cursor()
+		for _, addr := range l {
+			seek := addr
+			if !core.UsePlainStateExecution {
+				addrHash, err1 := common.HashData(addr)
+				if err1 != nil {
+					return err1
+				}
+				seek = addrHash[:]
+			}
+
+			k, v, err := c.Seek(seek)
+			if err != nil {
+				return err
+			}
+			if !bytes.Equal(k, addr) {
+				continue
+			}
+			if !accountCache.Has(addr) {
+				accountCache.Set(addr, common.CopyBytes(v))
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
 	return nil
 }
 
