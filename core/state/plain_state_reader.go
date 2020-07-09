@@ -52,11 +52,7 @@ func (r *PlainStateReader) ReadAccountData(address common.Address) (*accounts.Ac
 	var enc []byte
 	var ok bool
 	if r.accountCache != nil {
-		buf := pool.GetBuffer(128)
-		buf.Reset()
-		defer pool.PutBuffer(buf)
-		enc, ok = r.accountCache.HasGet(buf.B, address[:])
-		//enc, ok = r.accountCache.HasGet(nil, address[:])
+		enc, ok = r.accountCache.HasGet(nil, address[:])
 	}
 	if !ok {
 		var err error
@@ -75,6 +71,7 @@ func (r *PlainStateReader) ReadAccountData(address common.Address) (*accounts.Ac
 	if err := acc.DecodeForStorage(enc); err != nil {
 		return nil, err
 	}
+
 	return acc, nil
 }
 

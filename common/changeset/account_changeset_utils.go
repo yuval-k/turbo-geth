@@ -193,5 +193,9 @@ func encodeAccounts(s *ChangeSet) ([]byte, error) {
 		}
 	}
 
+	if buf.Len() > 1<<13 {
+		fmt.Printf("S Buf: %d\n")
+	}
+
 	return common.CopyBytes(buf.Bytes()), nil
 }

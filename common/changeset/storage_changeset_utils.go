@@ -179,6 +179,10 @@ func encodeStorage(s *ChangeSet, keyPrefixLen uint32) ([]byte, error) {
 		}
 	}
 
+	if buf.Len() > 1<<13 {
+		fmt.Printf("A Buf: %d\n")
+	}
+
 	return common.CopyBytes(buf.Bytes()), nil
 }
 
