@@ -1,5 +1,7 @@
 package dbutils
 
+import "bytes"
+
 // EncodeTimestamp has the property: if a < b, then Encoding(a) < Encoding(b) lexicographically
 func EncodeTimestamp(timestamp uint64) []byte {
 	var suffix []byte
@@ -57,21 +59,24 @@ func NextSubtree(in []byte) ([]byte, bool) {
 	return nil, false
 }
 
-func NextS(in []byte, out *[]byte) bool {
-	tmp := *out
-	if cap(tmp) < len(in) {
-		tmp = make([]byte, len(in))
+// https://lemire.me/blog/2017/04/10/removing-duplicates-from-lists-quickly/
+func Unique(keys [][]byte, values [][]byte) ([][]byte, [][]byte) {
+	if len(keys) == 0 {
+		return keys, values
 	}
-	tmp = tmp[:len(in)]
-	copy(tmp, in)
-	for i := len(tmp) - 1; i >= 0; i-- {
-		if tmp[i] != 255 {
-			tmp[i]++
-			*out = tmp
-			return true
+
+	pos := uint(1)
+	oldv := keys[0]
+	for i := 1; i < len(keys); i++ {
+		newv := keys[i]
+		keys[pos] = newv
+		values[pos] = values[i]
+		if bytes.Compare(newv, oldv) != 0 {
+			pos++
 		}
-		tmp[i] = 0
+		oldv = newv
 	}
-	*out = tmp
-	return false
+	keys = keys[:pos]
+	values = values[:pos]
+	return keys, values
 }
