@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/c2h5oh/datasize"
+	"github.com/ledgerwatch/lmdb-go/exp/lmdbpool"
 	"github.com/ledgerwatch/lmdb-go/lmdb"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/log"
@@ -88,11 +89,11 @@ func (opts lmdbOpts) Open() (KV, error) {
 	}
 
 	db := &LmdbKV{
-		opts:    opts,
-		env:     env,
-		log:     logger,
-		wg:      &sync.WaitGroup{},
-		buckets: map[string]lmdb.DBI{},
+		opts:       opts,
+		env:        env,
+		log:        logger,
+		lmdbTxPool: lmdbpool.NewTxnPool(env),
+		wg:         &sync.WaitGroup{},buckets: map[string]lmdb.DBI{},
 	}
 
 	// Open or create buckets
@@ -163,6 +164,7 @@ type LmdbKV struct {
 	env                 *lmdb.Env
 	log                 log.Logger
 	buckets             map[string]lmdb.DBI
+	lmdbTxPool          *lmdbpool.TxnPool // pool of lmdb.Txn objects
 	stopStaleReadsCheck context.CancelFunc
 	wg                  *sync.WaitGroup
 }
@@ -174,6 +176,10 @@ func NewLMDB() lmdbOpts {
 // Close closes db
 // All transactions must be closed before closing the database.
 func (db *LmdbKV) Close() {
+	if db.lmdbTxPool != nil {
+		db.lmdbTxPool.Close()
+	}
+
 	if db.env != nil {
 		db.wg.Wait()
 	}
@@ -262,9 +268,9 @@ func (db *LmdbKV) View(ctx context.Context, f func(tx Tx) error) (err error) {
 	db.wg.Add(1)
 	defer db.wg.Done()
 	t := &lmdbTx{db: db, ctx: ctx}
-	return db.env.View(func(tx *lmdb.Txn) error {
+	return db.lmdbTxPool.View(func(tx *lmdb.Txn) error {
 		defer t.closeCursors()
-		tx.RawRead = true
+		tx.Pooled, tx.RawRead = true, true
 		t.tx = tx
 		return f(t)
 	})
@@ -350,7 +356,18 @@ func (tx *lmdbTx) Bucket(name []byte) Bucket {
 		panic(fmt.Errorf("%w: %s", ErrUnknownBucket, string(name)))
 	}
 
-	return &lmdbBucket{tx: tx, dbi: tx.db.buckets[string(name)], isDupsort: cfg.IsDupsort, dupFrom: cfg.DupFromLen, dupTo: cfg.DupToLen, name: name}
+	b := &lmdbBucket{tx: tx, dbi: tx.db.buckets[string(name)], isDupsort: cfg.IsDupsort, dupFrom: cfg.DupFromLen, dupTo: cfg.DupToLen, name: name}
+	for _, c := range dbutils.DupSortConfig {
+		if c.ID != id {
+			continue
+		}
+		b.isDupsort = true
+		b.dupTo = c.ToLen
+		b.dupFrom = c.FromLen
+		break
+	}
+
+	return b
 }
 
 func (tx *lmdbTx) Commit(ctx context.Context) error {
@@ -404,6 +421,10 @@ func (c *LmdbCursor) NoValues() NoValuesCursor {
 }
 
 func (b lmdbBucket) Get(key []byte) ([]byte, error) {
+	if b.isDupsort {
+		return b.getDupSort(key)
+	}
+
 	if b.isDupsort {
 		return b.getDupSort(key)
 	}
@@ -663,6 +684,30 @@ func (c *LmdbCursor) Delete(key []byte) error {
 			return nil
 		}
 		return err
+	}
+
+	return c.cursor.Del(0)
+}
+
+func (c *LmdbCursor) deleteDupSort(key []byte) error {
+	b := c.bucket
+	if len(key) != b.dupFrom && len(key) >= b.dupTo {
+		return fmt.Errorf("dupsort bucket: %s, can have keys of len==%d and len<%d. key: %x", dbutils.Buckets[b.id], b.dupFrom, b.dupTo, key)
+	}
+
+	if len(key) == b.dupFrom {
+		b := c.bucket
+		_, v, err := c.cursor.Get(key[:b.dupTo], key[b.dupTo:], lmdb.GetBothRange)
+		if err != nil { // if key not found, or found another one - then nothing to delete
+			if lmdb.IsNotFound(err) {
+				return nil
+			}
+			return err
+		}
+		if !bytes.Equal(v[:b.dupFrom-b.dupTo], key[b.dupTo:]) {
+			return nil
+		}
+		return c.cursor.Del(0)
 	}
 
 	return c.cursor.Del(0)
