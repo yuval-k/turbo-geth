@@ -189,7 +189,7 @@ func initPm(manager *ProtocolManager, engine consensus.Engine, chainConfig *para
 	inserter := func(blocks types.Blocks) (int, error) {
 		// FIXME: Workaround for staged sync, just do no-op
 		if manager.blockchain == nil || manager.blockchain.CurrentBlock() == nil {
-			log.Info("Workaround for staged sync: IIIAAAIII")
+			log.Info("Workaround for staged sync, ignoring inserter.")
 			return 0, err
 		}
 
