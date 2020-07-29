@@ -21,7 +21,7 @@ endif
 geth:
 	$(GORUN) build/ci.go install ./cmd/geth
 	@echo "Done building."
-	@echo "Run \"$(GOBIN)/geth\" to launch geth."
+	@echo "Run \"$(GOBIN)/tg\" to launch turbo-geth."
 
 hack:
 	$(GORUN) build/ci.go install ./cmd/hack
@@ -83,7 +83,7 @@ integration:
 	@echo "Run \"$(GOBIN)/integration\" to launch integration tests."
 
 all:
-	$(GORUN) build/ci.go install -procs=1
+	$(GORUN) build/ci.go install
 
 android:
 	$(GORUN) build/ci.go aar --local
@@ -109,7 +109,7 @@ test-bolt: semantics/z3/build/libz3.a all
 
 lint: lintci
 
-lintci: semantics/z3/build/libz3.a all
+lintci: semantics/z3/build/libz3.a
 	@echo "--> Running linter for code diff versus commit $(LATEST_COMMIT)"
 	@./build/bin/golangci-lint run \
 	    --new-from-rev=$(LATEST_COMMIT) \
