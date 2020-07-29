@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"fmt"
 	"github.com/holiman/uint256"
 
 	"github.com/ledgerwatch/turbo-geth/common"
@@ -58,6 +59,7 @@ type Contract struct {
 
 	Gas   uint64
 	value *uint256.Int
+	txHash common.Hash
 }
 
 // NewContract returns a new contract environment for the execution of EVM.
@@ -73,6 +75,10 @@ func NewContract(caller ContractRef, object ContractRef, value *uint256.Int, gas
 	c.dests = dests
 
 	return c
+}
+
+func (c *Contract) SetTxHash(txHash common.Hash) {
+	c.txHash = txHash
 }
 
 func (c *Contract) validJumpdest(dest *uint256.Int) bool {
@@ -126,7 +132,11 @@ func (c *Contract) isCode(udest uint64) bool {
 	if c.analysis == nil {
 		c.analysis = codeBitmap(c.Code)
 	}
-	return c.analysis[udest/64]&(uint64(1)<<(udest&63)) == 0
+	result := c.analysis[udest/64]&(uint64(1)<<(udest&63)) == 0
+	if !result {
+		fmt.Printf("Jumpdest map was useful in %x\n", c.txHash)
+	}
+	return result
 }
 
 // AsDelegate sets the contract to be a delegate call and returns the current
