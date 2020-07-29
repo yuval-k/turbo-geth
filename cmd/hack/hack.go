@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math/big"
+	"math/rand"
 	"os"
 	"os/signal"
 	"runtime"
