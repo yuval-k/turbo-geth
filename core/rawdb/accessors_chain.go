@@ -674,29 +674,30 @@ func ReadBlockWithSenders(db DatabaseReader, number uint64) (*types.Block, commo
 	kv := db.(ethdb.HasKV).KV()
 	var block *types.Block
 	var hash common.Hash
+	var senders []common.Address
 	if err := kv.View(context.Background(), func(tx ethdb.Tx) error {
 		var err error
 		hash, err = readCanonicalHash(tx, number)
 		if err != nil {
 			return err
 		}
-		block, err := readBlock(tx, hash, number)
+		block, err = readBlock(tx, hash, number)
 		if err != nil {
 			return err
 		}
-		if block == nil {
-			return nil
-		}
-		senders, err := readSenders(tx, hash, number)
+		senders, err = readSenders(tx, hash, number)
 		if err != nil {
 			return err
 		}
-		block.Body().SendersToTxs(senders)
-
 		return nil
 	}); err != nil {
 		return nil, common.Hash{}, err
 	}
+
+	if block == nil {
+		return nil, common.Hash{}, nil
+	}
+	block.Body().SendersToTxs(senders)
 
 	return block, hash, nil
 }
