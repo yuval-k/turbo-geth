@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"reflect"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -200,14 +199,6 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	err = ethdb.SetStorageModeIfNotExist(chainDb, config.StorageMode)
 	if err != nil {
 		return nil, err
-	}
-
-	sm, err := ethdb.GetStorageModeFromDB(chainDb)
-	if err != nil {
-		return nil, err
-	}
-	if !reflect.DeepEqual(sm, config.StorageMode) {
-		return nil, errors.New("mode is " + config.StorageMode.ToString() + " original mode is " + sm.ToString())
 	}
 
 	vmConfig, cacheConfig := BlockchainRuntimeConfig(config)
