@@ -383,6 +383,10 @@ func (db *ObjectDatabase) DropBuckets(buckets ...[]byte) error {
 	return nil
 }
 
+func (db *ObjectDatabase) DropBuckets(buckets ...[]byte) error {
+	return db.kv.DropBuckets(buckets...)
+}
+
 func (db *ObjectDatabase) Close() {
 	db.kv.Close()
 }
