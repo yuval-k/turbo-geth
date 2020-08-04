@@ -118,7 +118,7 @@ func (opts lmdbOpts) Open() (KV, error) {
 			db.buckets[dbutils.BucketsCfg[string(name)].ID] = dbi
 		}
 		return nil
-	}); err != nil {
+	}); err != nil { // don't create deprecated buckets
 		return nil, err
 	}
 
