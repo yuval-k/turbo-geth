@@ -154,6 +154,10 @@ func NewLMDB() lmdbOpts {
 	return lmdbOpts{}
 }
 
+func (db *LmdbKV) BucketExists(name []byte) (bool, error) {
+	return db.buckets[dbutils.BucketsCfg[string(name)].ID] != 999_999_999, nil
+}
+
 func (db *LmdbKV) CreateBuckets(buckets ...[]byte) error {
 	for _, name := range buckets {
 		name := name
@@ -467,6 +471,9 @@ func (c *LmdbCursor) initCursor() error {
 	tx := c.bucket.tx
 
 	var err error
+	if c.bucket.id == 34 {
+		panic(1)
+	}
 	c.cursor, err = tx.tx.OpenCursor(c.bucket.dbi)
 	if err != nil {
 		return err
