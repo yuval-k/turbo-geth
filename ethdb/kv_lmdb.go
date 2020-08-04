@@ -89,11 +89,11 @@ func (opts lmdbOpts) Open() (KV, error) {
 	}
 
 	db := &LmdbKV{
-		opts:       opts,
-		env:        env,
-		log:        logger,
-		lmdbTxPool: lmdbpool.NewTxnPool(env),
-		wg:         &sync.WaitGroup{},buckets: map[string]lmdb.DBI{},
+		opts:    opts,
+		env:     env,
+		log:     logger,
+		lmdbTxPool: lmdbpool.NewTxnPool(env),wg:      &sync.WaitGroup{},
+		buckets: map[string]lmdb.DBI{},
 	}
 
 	// Open or create buckets
@@ -175,7 +175,7 @@ func NewLMDB() lmdbOpts {
 }
 
 func (db *LmdbKV) BucketExists(name []byte) (bool, error) {
-	return db.buckets[dbutils.BucketsCfg[string(name)].ID] != 999_999_999, nil
+	return db.buckets[string(name)] != NoExistingDBI, nil
 }
 
 func (db *LmdbKV) CreateBuckets(buckets ...[]byte) error {
@@ -195,7 +195,8 @@ func (db *LmdbKV) CreateBuckets(buckets ...[]byte) error {
 			if err != nil {
 				return err
 			}
-			db.buckets[cfg.ID] = dbi
+			db.buckets[string(name)] = dbi
+			fmt.Printf("1: %s, %d, %d\n", name, dbi, cfg.ID)
 
 			return nil
 		}); err != nil {
@@ -222,7 +223,7 @@ func (db *LmdbKV) DropBuckets(buckets ...[]byte) error {
 		}
 
 		if err := db.env.Update(func(txn *lmdb.Txn) error {
-			dbi := db.buckets[cfg.ID]
+			dbi := db.buckets[string(name)]
 			if dbi == 0 { // if bucket was not open on db start, then try to open it now, and if fail then nothing to drop
 				var openErr error
 				dbi, openErr = txn.OpenDBI(string(name), 0)
@@ -545,9 +546,6 @@ func (c *LmdbCursor) initCursor() error {
 	tx := c.bucket.tx
 
 	var err error
-	if c.bucket.id == 34 {
-		panic(1)
-	}
 	c.cursor, err = tx.tx.OpenCursor(c.bucket.dbi)
 	if err != nil {
 		return err
