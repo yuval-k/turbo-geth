@@ -191,7 +191,9 @@ func (db *LmdbKV) CreateBuckets(buckets ...[]byte) error {
 			if err != nil {
 				return err
 			}
+			fmt.Printf("1: %s %d\n", name, cfg.ID)
 			db.buckets[cfg.ID] = dbi
+
 			return nil
 		}); err != nil {
 			return err
