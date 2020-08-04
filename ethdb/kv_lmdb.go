@@ -111,7 +111,7 @@ func (opts lmdbOpts) Open() (KV, error) {
 	if err := env.View(func(tx *lmdb.Txn) error {
 		for _, name := range dbutils.DeprecatedBuckets {
 			dbi, createErr := tx.OpenDBI(string(name), 0)
-			if createErr == nil {
+			if createErr != nil {
 				continue // if deprecated bucket couldn't be open - then it's deleted and it's fine
 			}
 			db.buckets[dbutils.BucketsCfg[string(name)].ID] = dbi
@@ -170,7 +170,9 @@ func (db *LmdbKV) CreateBuckets(buckets ...[]byte) error {
 			if err != nil {
 				return err
 			}
+			fmt.Printf("1: %s %d\n", name, cfg.ID)
 			db.buckets[cfg.ID] = dbi
+
 			return nil
 		}); err != nil {
 			return err
