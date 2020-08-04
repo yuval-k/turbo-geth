@@ -186,7 +186,11 @@ func (db *LmdbKV) CreateBuckets(buckets ...[]byte) error {
 			continue
 		}
 
-		var flags uint = lmdb.Create
+		var flags uint = 0
+
+		if !db.opts.readOnly {
+			flags |= lmdb.Create
+		}
 		if cfg.IsDupsort {
 			flags |= lmdb.DupSort
 		}
