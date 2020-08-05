@@ -81,18 +81,18 @@ func (opts lmdbOpts) Open() (KV, error) {
 		flags |= lmdb.Readonly
 	}
 	if opts.inMem {
-		flags |= lmdb.NoSync | lmdb.NoMetaSync
 	}
+	flags |= lmdb.NoSync | lmdb.NoMetaSync
 	err = env.Open(opts.path, flags, 0664)
 	if err != nil {
 		return nil, fmt.Errorf("%w, path: %s", err, opts.path)
 	}
 
 	db := &LmdbKV{
-		opts:    opts,
-		env:     env,
-		log:     logger,
-		lmdbTxPool: lmdbpool.NewTxnPool(env),wg:      &sync.WaitGroup{},
+		opts:       opts,
+		env:        env,
+		log:        logger,
+		lmdbTxPool: lmdbpool.NewTxnPool(env), wg: &sync.WaitGroup{},
 		buckets: map[string]lmdb.DBI{},
 	}
 
@@ -115,11 +115,10 @@ func (opts lmdbOpts) Open() (KV, error) {
 					return err
 				}
 			}
-			db.buckets[dbutils.BucketsCfg[string(name)].ID] = dbi
+			return nil
+		}); err != nil {
+			return nil, err
 		}
-		return nil
-	}); err != nil { // don't create deprecated buckets
-		return nil, err
 	}
 
 	// Open deprecated buckets if they exist, don't create
@@ -172,76 +171,6 @@ type LmdbKV struct {
 
 func NewLMDB() lmdbOpts {
 	return lmdbOpts{}
-}
-
-func (db *LmdbKV) BucketExists(name []byte) (bool, error) {
-	return db.buckets[string(name)] != NoExistingDBI, nil
-}
-
-func (db *LmdbKV) CreateBuckets(buckets ...[]byte) error {
-	for _, name := range buckets {
-		name := name
-		cfg, ok := dbutils.BucketsCfg[string(name)]
-		if !ok {
-			continue
-		}
-
-		var flags uint = 0
-
-		if !db.opts.readOnly {
-			flags |= lmdb.Create
-		}
-		if cfg.IsDupsort {
-			flags |= lmdb.DupSort
-		}
-		if err := db.Update(context.Background(), func(tx Tx) error {
-			dbi, err := tx.(*lmdbTx).tx.OpenDBI(string(name), flags)
-			if err != nil {
-				return err
-			}
-			db.buckets[string(name)] = dbi
-			fmt.Printf("1: %s, %d, %d\n", name, dbi, cfg.ID)
-
-			return nil
-		}); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (db *LmdbKV) DropBuckets(buckets ...[]byte) error {
-	if db.env == nil {
-		return fmt.Errorf("db closed")
-	}
-
-	for _, name := range buckets {
-		name := name
-		cfg, ok := dbutils.BucketsCfg[string(name)]
-		if !ok {
-			panic(fmt.Errorf("unknown bucket: %s. add it to dbutils.Buckets", string(name)))
-		}
-
-		if cfg.ID < len(dbutils.Buckets) {
-			return fmt.Errorf("only buckets from dbutils.DeprecatedBuckets can be deleted, bucket: %s", name)
-		}
-
-		if err := db.env.Update(func(txn *lmdb.Txn) error {
-			dbi := db.buckets[string(name)]
-			if dbi == 0 { // if bucket was not open on db start, then try to open it now, and if fail then nothing to drop
-				var openErr error
-				dbi, openErr = txn.OpenDBI(string(name), 0)
-				if openErr != nil {
-					return nil // DBI doesn't exists means no drop needed
-				}
-			}
-			return txn.Drop(dbi, true)
-		}); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // Close closes db

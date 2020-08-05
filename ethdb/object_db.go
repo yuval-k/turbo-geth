@@ -83,7 +83,7 @@ func Open(path string) (*ObjectDatabase, error) {
 
 // Put inserts or updates a single entry.
 func (db *ObjectDatabase) Put(bucket, key []byte, value []byte) error {
-	if metrics.Enabled {
+	if metrics.EnabledExpensive {
 		defer dbPutTimer.UpdateSince(time.Now())
 	}
 
@@ -174,9 +174,8 @@ func (db *ObjectDatabase) Get(bucket, key []byte) (dat []byte, err error) {
 	err = db.kv.View(context.Background(), func(tx Tx) error {
 		v, _ := tx.Bucket(bucket).Get(key)
 		if v != nil {
-			dat = v
-			//dat = make([]byte, len(v))
-			//copy(dat, v)
+			dat = make([]byte, len(v))
+			copy(dat, v)
 		}
 		return nil
 	})
@@ -381,10 +380,6 @@ func (db *ObjectDatabase) DropBuckets(buckets ...[]byte) error {
 		}
 	}
 	return nil
-}
-
-func (db *ObjectDatabase) DropBuckets(buckets ...[]byte) error {
-	return db.kv.DropBuckets(buckets...)
 }
 
 func (db *ObjectDatabase) Close() {
