@@ -13,13 +13,9 @@ import (
 	"github.com/ledgerwatch/lmdb-go/lmdb"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/log"
-
-	"github.com/c2h5oh/datasize"
 )
 
-var (
-	LMDBMapSize = 4 * datasize.TB
-)
+const LMDBMapSize = 2 * 1024 * 1024 * 1024 * 1024 // 2TB
 
 type lmdbOpts struct {
 	path     string
@@ -62,7 +58,7 @@ func (opts lmdbOpts) Open() (KV, error) {
 		}
 		opts.path, _ = ioutil.TempDir(os.TempDir(), "lmdb")
 	} else {
-		err = env.SetMapSize(int64(LMDBMapSize.Bytes()))
+		err = env.SetMapSize(LMDBMapSize)
 		logger = log.New("lmdb", path.Base(opts.path))
 		if err != nil {
 			return nil, err
