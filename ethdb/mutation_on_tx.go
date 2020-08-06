@@ -26,7 +26,9 @@ func (m *mutationOnTx) begin() {
 	m.tx = tx
 	for i := range dbutils.Buckets {
 		m.cursors[string(dbutils.Buckets[i])] = tx.Bucket(dbutils.Buckets[i]).Cursor().(*LmdbCursor)
-		m.cursors[string(dbutils.Buckets[i])].initCursor()
+		if err := m.cursors[string(dbutils.Buckets[i])].initCursor(); err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -84,7 +86,6 @@ func (m *mutationOnTx) DiskSize(ctx context.Context) (common.StorageSize, error)
 
 func (m *mutationOnTx) Put(bucket, key []byte, value []byte) error {
 	m.len += uint64(len(key) + len(value))
-	//fmt.Printf("Put %s\n", common.StorageSize(m.len))
 	if value == nil {
 		return m.cursors[string(bucket)].Delete(key)
 	}
@@ -135,7 +136,6 @@ func (m *mutationOnTx) Commit() (uint64, error) {
 }
 
 func (m *mutationOnTx) Rollback() {
-	fmt.Printf("Rollback\n")
 	m.tx.Rollback()
 	m.len = 0
 }
@@ -145,12 +145,10 @@ func (m *mutationOnTx) Keys() ([][]byte, error) {
 }
 
 func (m *mutationOnTx) Close() {
-	fmt.Printf("Close\n")
 	m.Rollback()
 }
 
 func (m *mutationOnTx) NewBatch() DbWithPendingMutations {
-	fmt.Printf("NewBatch\n")
 	tx, err := m.KV().Begin(context.Background(), true)
 	if err != nil {
 		panic(err)
