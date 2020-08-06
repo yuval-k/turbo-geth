@@ -1,7 +1,6 @@
 package ethdb
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"github.com/ledgerwatch/turbo-geth/common"
@@ -16,7 +15,7 @@ import (
 type mutationOnTx struct {
 	db      Database
 	tx      Tx
-	cursors map[string]Cursor
+	cursors map[string]*LmdbCursor
 	len     uint64
 }
 
@@ -27,12 +26,13 @@ func (m *mutationOnTx) begin() {
 	}
 	m.tx = tx
 	for i := range dbutils.Buckets {
-		m.cursors[string(dbutils.Buckets[i])] = tx.Bucket(dbutils.Buckets[i]).Cursor()
+		m.cursors[string(dbutils.Buckets[i])] = tx.Bucket(dbutils.Buckets[i]).Cursor().(*LmdbCursor)
+		m.cursors[string(dbutils.Buckets[i])].initCursor()
 	}
 }
 
 func NewMutationOnTx(db Database) DbWithPendingMutations {
-	m := &mutationOnTx{db: db, cursors: map[string]Cursor{}}
+	m := &mutationOnTx{db: db, cursors: map[string]*LmdbCursor{}}
 	m.begin()
 	return m
 }
@@ -46,14 +46,14 @@ func (m *mutationOnTx) KV() KV {
 
 // Can only be called from the worker thread
 func (m *mutationOnTx) Get(bucket, key []byte) ([]byte, error) {
-	k, v, err := m.cursors[string(bucket)].Seek(key)
+	v, err := m.cursors[string(bucket)].SeekExact(key)
 	if err != nil {
 		return nil, err
 	}
-	if bytes.Equal(key, k) {
-		return v, nil
+	if v == nil {
+		return nil, ErrKeyNotFound
 	}
-	return nil, ErrKeyNotFound
+	return v, nil
 }
 
 func (m *mutationOnTx) GetIndexChunk(bucket, key []byte, timestamp uint64) ([]byte, error) {
