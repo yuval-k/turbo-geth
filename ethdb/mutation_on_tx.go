@@ -11,6 +11,8 @@ import (
 
 // Mutation alternative - which doesn't store anything in mem, but instead open KV transaction and call Get/Put/Commit/Rollback directly on it
 // It's not thread-safe!
+// please use defer batch.Close() when use this class
+// it's not production ready, just experimental
 type mutationOnTx struct {
 	db      Database
 	tx      Tx
