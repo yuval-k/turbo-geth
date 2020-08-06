@@ -10,7 +10,6 @@ import (
 
 // Mutation alternative - which doesn't store anything in mem, but instead open KV transaction and call Get/Put/Commit/Rollback directly on it
 // It's not thread-safe!
-// please use defer batch.Close() when use this class
 // it's not production ready, just experimental
 type mutationOnTx struct {
 	db      Database
@@ -139,7 +138,6 @@ func (m *mutationOnTx) Rollback() {
 	fmt.Printf("Rollback\n")
 	m.tx.Rollback()
 	m.len = 0
-	m.begin()
 }
 
 func (m *mutationOnTx) Keys() ([][]byte, error) {
@@ -149,7 +147,6 @@ func (m *mutationOnTx) Keys() ([][]byte, error) {
 func (m *mutationOnTx) Close() {
 	fmt.Printf("Close\n")
 	m.Rollback()
-	m.tx.Rollback()
 }
 
 func (m *mutationOnTx) NewBatch() DbWithPendingMutations {
