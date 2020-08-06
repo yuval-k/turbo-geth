@@ -229,7 +229,6 @@ func (db *LmdbKV) Begin(ctx context.Context, parent Tx, writable bool) (Tx, erro
 		runtime.UnlockOSThread() // unlock only in case of error. normal flow is "defer .Rollback()"
 		return nil, err
 	}
-
 	tx.RawRead = true
 	return &lmdbTx{
 		db:  db,
