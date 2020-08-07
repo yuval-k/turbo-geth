@@ -29,6 +29,19 @@ func (m *TxDb) Begin() (DbWithPendingMutations, error) {
 	return batch, nil
 }
 
+func (m *TxDb) Put(bucket, key []byte, value []byte) error {
+	m.len += uint64(len(key) + len(value))
+	if value == nil {
+		return m.cursors[string(bucket)].Delete(key)
+	}
+	return m.cursors[string(bucket)].Put(key, value)
+}
+
+func (m *TxDb) Delete(bucket, key []byte) error {
+	m.len += uint64(len(key))
+	return m.cursors[string(bucket)].Delete(key)
+}
+
 func (m *TxDb) NewBatch() DbWithPendingMutations {
 	panic("don't call me")
 }
@@ -80,7 +93,6 @@ func (m *TxDb) Has(bucket, key []byte) (bool, error) {
 		return false, err
 	}
 	return v != nil, nil
-
 }
 
 func (m *TxDb) DiskSize(ctx context.Context) (common.StorageSize, error) {
@@ -94,14 +106,6 @@ func (m *TxDb) DiskSize(ctx context.Context) (common.StorageSize, error) {
 	return common.StorageSize(sz), nil
 }
 
-func (m *TxDb) Put(bucket, key []byte, value []byte) error {
-	m.len += uint64(len(key) + len(value))
-	if value == nil {
-		return m.cursors[string(bucket)].Delete(key)
-	}
-	return m.cursors[string(bucket)].Put(key, value)
-}
-
 func (m *TxDb) MultiPut(tuples ...[]byte) (uint64, error) {
 	panic("don't use me")
 }
@@ -112,8 +116,7 @@ func (m *TxDb) BatchSize() int {
 
 // IdealBatchSize defines the size of the data batches should ideally add in one write.
 func (m *TxDb) IdealBatchSize() int {
-	return 1_000_000_000
-	//return m.db.IdealBatchSize()
+	return m.db.IdealBatchSize() * 100
 }
 
 // WARNING: Merged mem/DB walk is not implemented
@@ -126,11 +129,6 @@ func (m *TxDb) Walk(bucket, startkey []byte, fixedbits int, walker func([]byte, 
 func (m *TxDb) MultiWalk(bucket []byte, startkeys [][]byte, fixedbits []int, walker func(int, []byte, []byte) error) error {
 	m.panicOnEmptyDB()
 	return m.db.MultiWalk(bucket, startkeys, fixedbits, walker)
-}
-
-func (m *TxDb) Delete(bucket, key []byte) error {
-	m.len += uint64(len(key))
-	return m.cursors[string(bucket)].Delete(key)
 }
 
 func (m *TxDb) Commit() (uint64, error) {
