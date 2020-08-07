@@ -70,7 +70,7 @@ func (m *TxDb) KV() KV {
 
 // Can only be called from the worker thread
 func (m *TxDb) Get(bucket, key []byte) ([]byte, error) {
-	v, err := m.cursors[string(bucket)].SeekExact(key)
+	v, err := m.cursors[string(bucket)].Set(key)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (m *TxDb) BatchSize() int {
 
 // IdealBatchSize defines the size of the data batches should ideally add in one write.
 func (m *TxDb) IdealBatchSize() int {
-	return m.db.IdealBatchSize() * 100
+	return m.db.IdealBatchSize() / 100
 }
 
 // WARNING: Merged mem/DB walk is not implemented

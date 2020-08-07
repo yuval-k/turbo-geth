@@ -832,7 +832,7 @@ func (c *LmdbCursor) putDupSort(key []byte, value []byte) error {
 	return c.put(key, newValue)
 }
 
-func (c *LmdbCursor) SeekExact(key []byte) ([]byte, error) {
+func (c *LmdbCursor) Set(key []byte) ([]byte, error) {
 	_, v, err := c.set(key)
 	if err != nil {
 		if lmdb.IsNotFound(err) {
