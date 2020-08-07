@@ -58,7 +58,10 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 		}
 	}
 
-	batch := ethdb.NewMutationOnTx(stateDB)
+	batch, err := stateDB.Begin()
+	if err != nil {
+		return err
+	}
 	defer batch.Rollback()
 
 	engine := chainContext.Engine()
@@ -97,12 +100,14 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 			rawdb.WriteReceipts(batch, block.Hash(), block.NumberU64(), receipts)
 		}
 
+		//fmt.Printf("%d, %d\n", batch.BatchSize() , batch.IdealBatchSize() )
 		if batch.BatchSize() >= batch.IdealBatchSize() {
 			if err = s.Update(batch, blockNum); err != nil {
 				return err
 			}
 			start := time.Now()
 			sz := batch.BatchSize()
+
 			if _, err = batch.Commit(); err != nil {
 				return err
 			}

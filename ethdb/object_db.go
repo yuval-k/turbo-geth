@@ -470,6 +470,14 @@ func (db *ObjectDatabase) NewBatch() DbWithPendingMutations {
 	return m
 }
 
+func (db *ObjectDatabase) Begin() (DbWithPendingMutations, error) {
+	batch := &TxDb{db: db, cursors: map[string]*LmdbCursor{}}
+	if err := batch.begin(); err != nil {
+		panic(err)
+	}
+	return batch, nil
+}
+
 // IdealBatchSize defines the size of the data batches should ideally add in one write.
 func (db *ObjectDatabase) IdealBatchSize() int {
 	return db.kv.IdealBatchSize()
@@ -484,8 +492,4 @@ func (db *ObjectDatabase) Ancients() (uint64, error) {
 // TruncateAncients returns an error as we don't have a backing chain freezer.
 func (db *ObjectDatabase) TruncateAncients(items uint64) error {
 	return errNotSupported
-}
-
-func (db *ObjectDatabase) ID() uint64 {
-	return db.id
 }
