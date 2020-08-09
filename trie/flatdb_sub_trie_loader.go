@@ -363,23 +363,23 @@ func (fstl *FlatDbSubTrieLoader) iteration(c ethdb.Cursor, ih *IHCursor, first b
 	}
 	if isIHSequence {
 		fstl.k = common.CopyBytes(fstl.ihK)
-	} else {
-		if fstl.k, fstl.v, err = c.SeekTo(next); err != nil {
-			return err
-		}
-		if len(next) <= common.HashLength && len(fstl.k) > common.HashLength {
-			// Advance past the storage to the first account
-			if nextAccount(fstl.k, fstl.nextAccountKey[:]) {
-				if fstl.k, fstl.v, err = c.SeekTo(fstl.nextAccountKey[:]); err != nil {
-					return err
-				}
-			} else {
-				fstl.k = nil
+		return nil
+	}
+	if fstl.k, fstl.v, err = c.SeekTo(next); err != nil {
+		return err
+	}
+	if len(next) <= common.HashLength && len(fstl.k) > common.HashLength {
+		// Advance past the storage to the first account
+		if nextAccount(fstl.k, fstl.nextAccountKey[:]) {
+			if fstl.k, fstl.v, err = c.SeekTo(fstl.nextAccountKey[:]); err != nil {
+				return err
 			}
+		} else {
+			fstl.k = nil
 		}
-		if fstl.trace {
-			fmt.Printf("k after next: %x\n", fstl.k)
-		}
+	}
+	if fstl.trace {
+		fmt.Printf("k after next: %x\n", fstl.k)
 	}
 	return nil
 }
