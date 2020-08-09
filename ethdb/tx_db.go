@@ -116,7 +116,7 @@ func (m *TxDb) BatchSize() int {
 
 // IdealBatchSize defines the size of the data batches should ideally add in one write.
 func (m *TxDb) IdealBatchSize() int {
-	return m.db.IdealBatchSize() / 100
+	return m.db.IdealBatchSize() * 10_000
 }
 
 // WARNING: Merged mem/DB walk is not implemented

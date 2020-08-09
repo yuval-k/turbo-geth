@@ -93,7 +93,11 @@ func loadFilesIntoBucket(db ethdb.Database, bucket string, providers []dataProvi
 			panic(eee)
 		}
 	}
-	batch := db.NewBatch()
+	batch, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer batch.Rollback()
 	state := &bucketState{batch, bucket, args.Quit}
 
 	loadNextFunc := func(originalK, k, v []byte) error {
