@@ -132,7 +132,7 @@ func (m *TxDb) MultiWalk(bucket []byte, startkeys [][]byte, fixedbits []int, wal
 }
 
 func (m *TxDb) Commit() (uint64, error) {
-	defer func(t time.Time) { fmt.Printf("%s\n", time.Since(t)) }(time.Now())
+	defer func(t time.Time) { fmt.Printf("commit: %s\n", time.Since(t)) }(time.Now())
 	if m.db == nil {
 		return 0, nil
 	}

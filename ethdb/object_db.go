@@ -95,6 +95,7 @@ func (db *ObjectDatabase) Put(bucket string, key []byte, value []byte) error {
 
 // MultiPut - requirements: input must be sorted and without duplicates
 func (db *ObjectDatabase) MultiPut(tuples ...[]byte) (uint64, error) {
+	t := time.Now()
 	err := db.kv.Update(context.Background(), func(tx Tx) error {
 		for bucketStart := 0; bucketStart < len(tuples); {
 			bucketEnd := bucketStart
@@ -139,11 +140,15 @@ func (db *ObjectDatabase) MultiPut(tuples ...[]byte) (uint64, error) {
 
 			bucketStart = bucketEnd
 		}
+
+		fmt.Printf("commit, puts took: %s\n", time.Since(t))
+		t = time.Now()
 		return nil
 	})
 	if err != nil {
 		return 0, err
 	}
+	fmt.Printf("commit, commit took: %s\n", time.Since(t))
 	return 0, nil
 }
 
