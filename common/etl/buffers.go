@@ -149,7 +149,13 @@ func (b *appendSortableBuffer) Less(i, j int) bool {
 }
 
 func (b *appendSortableBuffer) Swap(i, j int) {
-	b.sortedBuf[i], b.sortedBuf[j] = b.sortedBuf[j], b.sortedBuf[i]
+	tmp := b.sortedBuf[i].key
+	b.sortedBuf[i].key = b.sortedBuf[j].key
+	b.sortedBuf[j].key = tmp
+
+	tmp = b.sortedBuf[i].value
+	b.sortedBuf[i].value = b.sortedBuf[j].value
+	b.sortedBuf[j].value = tmp
 }
 
 func (b *appendSortableBuffer) Get(i int) sortableBufferEntry {
@@ -219,7 +225,13 @@ func (b *oldestEntrySortableBuffer) Less(i, j int) bool {
 }
 
 func (b *oldestEntrySortableBuffer) Swap(i, j int) {
-	b.sortedBuf[i], b.sortedBuf[j] = b.sortedBuf[j], b.sortedBuf[i]
+	tmp := b.sortedBuf[i].key
+	b.sortedBuf[i].key = b.sortedBuf[j].key
+	b.sortedBuf[j].key = tmp
+
+	tmp = b.sortedBuf[i].value
+	b.sortedBuf[i].value = b.sortedBuf[j].value
+	b.sortedBuf[j].value = tmp
 }
 
 func (b *oldestEntrySortableBuffer) Get(i int) sortableBufferEntry {
