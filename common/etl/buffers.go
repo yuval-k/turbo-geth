@@ -75,7 +75,13 @@ func (b *sortableBuffer) Less(i, j int) bool {
 }
 
 func (b *sortableBuffer) Swap(i, j int) {
-	b.entries[i], b.entries[j] = b.entries[j], b.entries[i]
+	tmp := b.entries[i].key
+	b.entries[i].key = b.entries[j].key
+	b.entries[j].key = tmp
+
+	tmp = b.entries[i].value
+	b.entries[i].value = b.entries[j].value
+	b.entries[j].value = tmp
 }
 
 func (b *sortableBuffer) Get(i int) sortableBufferEntry {
