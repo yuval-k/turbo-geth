@@ -98,34 +98,47 @@ func loadFilesIntoBucket(db ethdb.Database, bucket string, providers []dataProvi
 		return err
 	}
 	defer batch.Rollback()
+	c := batch.(*ethdb.TxDb).Tx.Bucket(bucket).Cursor()
+
 	state := &bucketState{batch, bucket, args.Quit}
 
+	i := 0
+	var isEndOfBucket bool
 	loadNextFunc := func(originalK, k, v []byte) error {
-		if len(v) == 0 {
-			if err := batch.Delete(bucket, k); err != nil {
+		if i == 0 {
+			firstKey, _, err := c.Seek(k)
+			if err != nil {
 				return err
 			}
-		} else {
-			if err := batch.Put(bucket, k, v); err != nil {
-				return err
-			}
+			isEndOfBucket = firstKey == nil
 		}
-		batchSize := batch.BatchSize()
-		if batchSize > batch.IdealBatchSize() || args.loadBatchSize > 0 && batchSize > args.loadBatchSize {
-			if args.OnLoadCommit != nil {
-				if err := args.OnLoadCommit(batch, k, false); err != nil {
+		i++
+
+		if isEndOfBucket {
+			if v == nil {
+				// nothing to delete after end of bucket
+			} else {
+				if err := c.Append(k, v); err != nil {
 					return err
 				}
 			}
-			batchSize := batch.BatchSize()
-			if _, err := batch.Commit(); err != nil {
-				return err
+		} else {
+			if len(v) == 0 {
+				if err := c.Delete(k); err != nil {
+					return err
+				}
+			} else {
+				if err := c.Put(k, v); err != nil {
+					return err
+				}
 			}
+		}
+
+		if i%1_000_000 == 0 {
 			runtime.ReadMemStats(&m)
 			log.Info(
-				"Committed batch",
+				"Filling",
 				"bucket", bucket,
-				"size", common.StorageSize(batchSize),
 				"current key", makeCurrentKeyStr(originalK),
 				"alloc", common.StorageSize(m.Alloc), "sys", common.StorageSize(m.Sys), "numGC", int(m.NumGC))
 		}

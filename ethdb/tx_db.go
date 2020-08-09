@@ -12,7 +12,7 @@ import (
 // It's not thread-safe!
 type TxDb struct {
 	db      Database
-	tx      Tx
+	Tx      Tx
 	cursors map[string]*LmdbCursor
 	len     uint64
 }
@@ -51,7 +51,7 @@ func (m *TxDb) begin() error {
 	if err != nil {
 		return err
 	}
-	m.tx = tx
+	m.Tx = tx
 	for i := range dbutils.Buckets {
 		m.cursors[string(dbutils.Buckets[i])] = tx.Bucket(dbutils.Buckets[i]).Cursor().(*LmdbCursor)
 		if err := m.cursors[string(dbutils.Buckets[i])].initCursor(); err != nil {
@@ -136,7 +136,7 @@ func (m *TxDb) Commit() (uint64, error) {
 	if m.db == nil {
 		return 0, nil
 	}
-	if err := m.tx.Commit(context.Background()); err != nil {
+	if err := m.Tx.Commit(context.Background()); err != nil {
 		return 0, err
 	}
 	m.len = 0
@@ -147,7 +147,7 @@ func (m *TxDb) Commit() (uint64, error) {
 }
 
 func (m *TxDb) Rollback() {
-	m.tx.Rollback()
+	m.Tx.Rollback()
 	m.len = 0
 }
 
