@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"runtime"
+	"time"
 
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/ethdb"
@@ -102,6 +103,8 @@ func loadFilesIntoBucket(db ethdb.Database, bucket string, providers []dataProvi
 
 	state := &bucketState{batch, bucket, args.Quit}
 
+	t1 := time.Now()
+
 	i := 0
 	var isEndOfBucket bool
 	loadNextFunc := func(originalK, k, v []byte) error {
@@ -169,9 +172,12 @@ func loadFilesIntoBucket(db ethdb.Database, bucket string, providers []dataProvi
 		}
 	}
 	batchSize := batch.BatchSize()
+	fmt.Printf("Put took: %s\n", time.Since(t1))
+	t := time.Now()
 	if _, err := batch.Commit(); err != nil {
 		return err
 	}
+	fmt.Printf("commit took: %s\n", time.Since(t))
 	runtime.ReadMemStats(&m)
 	log.Debug(
 		"Committed batch",
