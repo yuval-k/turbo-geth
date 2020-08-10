@@ -206,6 +206,7 @@ var DeprecatedBuckets = []string{
 	SyncStageUnwindOld1,
 	CurrentStateBucketOld1,
 	BlockBodyPrefixOld1,
+	BlockBodyPrefixOld2,
 }
 
 var BucketsCfg = map[string]*BucketConfigItem{}

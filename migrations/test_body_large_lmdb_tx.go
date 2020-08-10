@@ -7,9 +7,9 @@ import (
 )
 
 var testBodyLargeLMDBTx = Migration{
-	Name: "test_body_large_lmdb_tx",
+	Name: "test_body_large_lmdb_tx2",
 	Up: func(db ethdb.Database, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
-		if exists, err := db.(ethdb.NonTransactional).BucketExists(dbutils.BlockBodyPrefixOld1); err != nil {
+		if exists, err := db.(ethdb.NonTransactional).BucketExists(dbutils.BlockBodyPrefixOld2); err != nil {
 			return err
 		} else if !exists {
 			return nil
@@ -25,7 +25,7 @@ var testBodyLargeLMDBTx = Migration{
 
 		if err := etl.Transform(
 			db,
-			dbutils.BlockBodyPrefixOld1,
+			dbutils.BlockBodyPrefixOld2,
 			dbutils.BlockBodyPrefix,
 			datadir,
 			extractFunc,
@@ -35,7 +35,7 @@ var testBodyLargeLMDBTx = Migration{
 			return err
 		}
 
-		if err := db.(ethdb.NonTransactional).DropBuckets(dbutils.BlockBodyPrefixOld1); err != nil {
+		if err := db.(ethdb.NonTransactional).DropBuckets(dbutils.BlockBodyPrefixOld2); err != nil {
 			return err
 		}
 		return nil
