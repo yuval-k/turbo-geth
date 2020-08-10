@@ -165,14 +165,15 @@ func loadFilesIntoBucket(db ethdb.Database, bucket string, providers []dataProvi
 			return fmt.Errorf("error while reading next element from disk: %v", err)
 		}
 	}
+	fmt.Printf("Put took: %s\n", time.Since(t1))
 	// Final commit
 	if args.OnLoadCommit != nil {
 		if err := args.OnLoadCommit(batch, []byte{}, true); err != nil {
 			return err
 		}
 	}
-	batchSize := batch.BatchSize()
-	fmt.Printf("Put took: %s\n", time.Since(t1))
+	//batchSize := batch.BatchSize()
+	fmt.Printf("Commit started")
 	t := time.Now()
 	if _, err := batch.Commit(); err != nil {
 		return err
@@ -182,7 +183,7 @@ func loadFilesIntoBucket(db ethdb.Database, bucket string, providers []dataProvi
 	log.Debug(
 		"Committed batch",
 		"bucket", bucket,
-		"size", common.StorageSize(batchSize),
+		//"size", common.StorageSize(batchSize),
 		"current key", makeCurrentKeyStr(nil),
 		"alloc", common.StorageSize(m.Alloc), "sys", common.StorageSize(m.Sys), "numGC", int(m.NumGC))
 

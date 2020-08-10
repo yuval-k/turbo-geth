@@ -20,10 +20,7 @@ var testBodyLargeLMDBTx = Migration{
 		}
 
 		extractFunc := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
-			if err := next(k, k, v); err != nil {
-				return err
-			}
-			return nil
+			return next(k, k, v)
 		}
 
 		if err := etl.Transform(
