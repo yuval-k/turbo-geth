@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/common/etl"
@@ -124,19 +123,24 @@ func (m *Migrator) Apply(db ethdb.Database, datadir string) error {
 
 		log.Info("Apply migration", "name", v.Name)
 		if err := v.Up(db, datadir, func(putter ethdb.Putter, key []byte, isDone bool) error {
+			fmt.Printf("0: here\n")
 			if !isDone {
 				return nil // don't save partial progress
 			}
 			commitFuncCalled = true
 
 			stagesProgress, err := MarshalMigrationPayload(db)
+			fmt.Printf("2: here\n")
 			if err != nil {
 				return err
 			}
+			fmt.Printf("3: here\n")
 			err = putter.Put(dbutils.Migrations, []byte(v.Name), stagesProgress)
+			fmt.Printf("4: here\n")
 			if err != nil {
 				return err
 			}
+			fmt.Printf("5: here\n")
 			return nil
 		}); err != nil {
 			return err
