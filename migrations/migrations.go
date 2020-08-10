@@ -58,6 +58,7 @@ var migrations = []Migration{
 	stagedsyncToUseStageBlockhashes,
 	unwindStagedsyncToUseStageBlockhashes,
 	dupsortHashState,
+	testBodyLargeLMDBTx,
 }
 
 type Migration struct {
