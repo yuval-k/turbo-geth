@@ -695,9 +695,13 @@ func (c *LmdbCursor) nextDupSort() (k, v []byte, err error) {
 	} else if err != nil {
 		return nil, nil, err
 	}
+	fmt.Printf("1: %d\n", len(k))
 	if len(k) == b.dupTo {
 		k = append(k, v[:b.dupFrom-b.dupTo]...)
 		v = v[b.dupFrom-b.dupTo:]
+		fmt.Printf("2: %d\n", len(k))
+	} else {
+		fmt.Printf("3: %d, %d\n", len(k), b.dupTo)
 	}
 
 	if c.prefix != nil && !bytes.HasPrefix(k, c.prefix) {
