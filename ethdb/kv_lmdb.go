@@ -737,7 +737,7 @@ func (c *LmdbCursor) Delete(key []byte) error {
 func (c *LmdbCursor) deleteDupSort(key []byte) error {
 	b := c.bucket
 	if len(key) != b.dupFrom && len(key) >= b.dupTo {
-		return fmt.Errorf("dupsort bucket: %s, can have keys of len==%d and len<%d. key: %x", b.name, b.dupFrom, b.dupTo, key)
+		return fmt.Errorf("dupsort bucket: %s, can have keys of len==%d and len<%d. key: len(%x)=%d", b.name, b.dupFrom, b.dupTo, key, len(key))
 	}
 
 	if len(key) == b.dupFrom {
@@ -792,7 +792,7 @@ func (c *LmdbCursor) Put(key []byte, value []byte) error {
 func (c *LmdbCursor) putDupSort(key []byte, value []byte) error {
 	b := c.bucket
 	if len(key) != b.dupFrom && len(key) >= b.dupTo {
-		return fmt.Errorf("dupsort bucket: %s, can have keys of len==%d and len<%d. key: %x", b.name, b.dupFrom, b.dupTo, key)
+		return fmt.Errorf("dupsort bucket: %s, can have keys of len==%d and len<%d. len(%x)=%d", b.name, b.dupFrom, b.dupTo, key, len(key))
 	}
 
 	if len(key) != b.dupFrom {
@@ -907,7 +907,7 @@ func (c *LmdbCursor) Append(key []byte, value []byte) error {
 	b := c.bucket
 	if b.isDupsort {
 		if len(key) != b.dupFrom && len(key) >= b.dupTo {
-			return fmt.Errorf("dupsort bucket: %s, can have keys of len==%d and len<%d. key: %x", b.name, b.dupFrom, b.dupTo, key)
+			return fmt.Errorf("dupsort bucket: %s, can have keys of len==%d and len<%d. len(%x)=%d", b.name, b.dupFrom, b.dupTo, key, len(key))
 		}
 
 		if len(key) == b.dupFrom {

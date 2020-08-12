@@ -35,7 +35,6 @@ var dupsortHashState = Migration{
 			datadir,
 			extractFunc,
 			func(k []byte, value []byte, _ etl.State, next etl.LoadNextFunc) error {
-				fmt.Printf("len2: %d\n", len(k))
 				return next(k, k, value)
 			},
 			etl.TransformArgs{OnLoadCommit: OnLoadCommit},

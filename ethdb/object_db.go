@@ -256,6 +256,7 @@ func (db *ObjectDatabase) Walk(bucket string, startkey []byte, fixedbits int, wa
 		}
 		c := b.Cursor()
 		k, v, err := c.Seek(startkey)
+		fmt.Printf("1: %d\n", len(k))
 		if err != nil {
 			return err
 		}
@@ -268,6 +269,7 @@ func (db *ObjectDatabase) Walk(bucket string, startkey []byte, fixedbits int, wa
 				break
 			}
 			k, v, err = c.Next()
+			fmt.Printf("2: %d\n", len(k))
 			if err != nil {
 				return err
 			}
