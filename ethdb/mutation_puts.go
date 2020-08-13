@@ -8,7 +8,7 @@ type puts struct {
 
 func newPuts() *puts {
 	return &puts{
-		mp: make(map[string]putsBucket),
+		mp: make(map[string]putsBucket, 32),
 	}
 }
 

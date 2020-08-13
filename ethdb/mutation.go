@@ -170,7 +170,7 @@ func (m *mutation) Commit() (uint64, error) {
 	}
 
 	m.puts = newPuts()
-	m.tuples = m.tuples[:0]
+	m.tuples = nil
 	return written, nil
 }
 
@@ -178,7 +178,7 @@ func (m *mutation) Rollback() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.puts = newPuts()
-	m.tuples = m.tuples[:0]
+	m.tuples = nil
 }
 
 func (m *mutation) Keys() ([][]byte, error) {
