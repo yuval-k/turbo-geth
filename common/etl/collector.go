@@ -118,7 +118,7 @@ func loadFilesIntoBucket(db ethdb.Database, bucket string, providers []dataProvi
 		}
 		i++
 		if i%100_000 == 0 {
-			fmt.Printf("Putting: %dM %s\n", 1/1_000_000, time.Since(putTimer))
+			fmt.Printf("Putting: %dM %s\n", i/1_000_000, time.Since(putTimer))
 		}
 
 		if len(v) == 0 {
