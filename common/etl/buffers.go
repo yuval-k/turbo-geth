@@ -89,9 +89,11 @@ func (b *sortableBuffer) Get(i int) sortableBufferEntry {
 }
 
 func (b *sortableBuffer) Reset() {
-	b.entries = b.entries[:0] // keep the capacity
+	b.entries = nil
+	//	b.entries = b.entries[:0] // keep the capacity
 	b.size = 0
 }
+
 func (b *sortableBuffer) Sort() {
 	sort.Stable(b)
 }

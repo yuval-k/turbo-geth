@@ -117,7 +117,16 @@ func loadFilesIntoBucket(db ethdb.Database, bucket string, providers []dataProvi
 			canUseAppend = haveSortingGuaranties && (lastKey == nil || bytes.Compare(lastKey, k) == -1)
 		}
 		i++
-		if i%100_000 == 0 {
+		if i%100_000 == 0 && time.Since(putTimer) > 30*time.Second {
+			runtime.ReadMemStats(&m)
+			log.Info(
+				"Loading into bucket",
+				"bucket", bucket,
+				"size", common.StorageSize(batch.BatchSize()),
+				"keys", fmt.Sprintf("%.1fM", float64(i)/1_000_000),
+				"use append", canUseAppend,
+				"current key", makeCurrentKeyStr(originalK),
+				"alloc", common.StorageSize(m.Alloc), "sys", common.StorageSize(m.Sys), "numGC", int(m.NumGC))
 			fmt.Printf("Putting: %dM %s\n", i/1_000_000, time.Since(putTimer))
 		}
 
@@ -125,50 +134,17 @@ func loadFilesIntoBucket(db ethdb.Database, bucket string, providers []dataProvi
 			if err := batch.Delete(bucket, k); err != nil {
 				return err
 			}
-		} else {
-			if canUseAppend {
-				if err := batch.(*ethdb.TxDb).Append(bucket, k, v); err != nil {
-					return err
-				}
-			} else {
-				if err := batch.Put(bucket, k, v); err != nil {
-					return err
-				}
-			}
+			return nil
 		}
-		batchSize := batch.BatchSize()
-		if batchSize > batch.IdealBatchSize() || args.loadBatchSize > 0 && batchSize > args.loadBatchSize {
-			if args.OnLoadCommit != nil {
-				if err := args.OnLoadCommit(batch, k, false); err != nil {
-					return err
-				}
-			}
-			putTook := time.Since(putTimer)
-
-			commitTimer := time.Now()
-			if _, err := batch.Commit(); err != nil {
+		if canUseAppend {
+			if err := batch.(*ethdb.TxDb).Append(bucket, k, v); err != nil {
 				return err
 			}
-			commitTook := time.Since(commitTimer)
-			runtime.ReadMemStats(&m)
-			log.Info(
-				"Committed batch",
-				"bucket", bucket,
-				"put", putTook,
-				"commit", commitTook,
-				"use append", canUseAppend,
-				"size", common.StorageSize(batchSize),
-				"current key", makeCurrentKeyStr(originalK),
-				"alloc", common.StorageSize(m.Alloc), "sys", common.StorageSize(m.Sys), "numGC", int(m.NumGC))
-
-			var beginErr error
-			batch, beginErr = db.Begin()
-			if beginErr != nil {
-				return beginErr
-			}
-			putTimer = time.Now()
+			return nil
 		}
-
+		if err := batch.Put(bucket, k, v); err != nil {
+			return err
+		}
 		return nil
 	}
 	// Main loading loop
@@ -195,7 +171,6 @@ func loadFilesIntoBucket(db ethdb.Database, bucket string, providers []dataProvi
 			return err
 		}
 	}
-	fmt.Printf("Commit started\n")
 	commitTimer := time.Now()
 	if _, err := batch.Commit(); err != nil {
 		return err
