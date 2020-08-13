@@ -98,10 +98,8 @@ var (
 	HeaderHashSuffix   = []byte("n") // headerPrefix + num (uint64 big endian) + headerHashSuffix -> hash
 	HeaderNumberPrefix = "H"         // headerNumberPrefix + hash -> num (uint64 big endian)
 
-	BlockBodyPrefix     = "b"  // blockBodyPrefix + num (uint64 big endian) + hash -> block body
-	BlockBodyPrefixOld3 = "b3" // blockBodyPrefix + num (uint64 big endian) + hash -> block body
-	BlockBodyPrefixOld2 = "b2" // blockBodyPrefix + num (uint64 big endian) + hash -> block body
-	BlockBodyPrefixOld1 = "b0" // blockBodyPrefix + num (uint64 big endian) + hash -> block body
+	BlockBodyPrefix     = "b2" // blockBodyPrefix + num (uint64 big endian) + hash -> block body
+	BlockBodyPrefixOld1 = "b"  // blockBodyPrefix + num (uint64 big endian) + hash -> block body
 	BlockReceiptsPrefix = "r"  // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
 
 	TxLookupPrefix  = "l" // txLookupPrefix + hash -> transaction/receipt lookup metadata
@@ -208,7 +206,6 @@ var DeprecatedBuckets = []string{
 	SyncStageUnwindOld1,
 	CurrentStateBucketOld1,
 	BlockBodyPrefixOld1,
-	BlockBodyPrefixOld2,
 }
 
 var BucketsCfg = map[string]*BucketConfigItem{}
