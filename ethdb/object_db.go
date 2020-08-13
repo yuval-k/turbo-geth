@@ -388,6 +388,7 @@ func (db *ObjectDatabase) ClearBuckets(buckets ...string) error {
 func (db *ObjectDatabase) DropBuckets(buckets ...string) error {
 	for i := range buckets {
 		name := buckets[i]
+		log.Info("Dropping bucket", "name", name)
 		if err := db.kv.Update(context.Background(), func(tx Tx) error {
 			migrator, ok := tx.Bucket(name).(BucketMigrator)
 			if !ok {
