@@ -207,7 +207,7 @@ func (db *LmdbKV) DiskSize(_ context.Context) (uint64, error) {
 }
 
 func (db *LmdbKV) IdealBatchSize() int {
-	return 50 * 1024 * 1024 // 50 Mb
+	return int(1 * datasize.GB)
 }
 
 func (db *LmdbKV) Begin(ctx context.Context, parent Tx, writable bool) (Tx, error) {
@@ -229,7 +229,6 @@ func (db *LmdbKV) Begin(ctx context.Context, parent Tx, writable bool) (Tx, erro
 		runtime.UnlockOSThread() // unlock only in case of error. normal flow is "defer .Rollback()"
 		return nil, err
 	}
-
 	tx.RawRead = true
 	return &lmdbTx{
 		db:  db,
@@ -401,7 +400,6 @@ func (tx *lmdbTx) Rollback() {
 	}()
 	tx.closeCursors()
 	tx.tx.Abort()
-	tx.tx = nil
 }
 
 func (tx *lmdbTx) get(dbi lmdb.DBI, key []byte) ([]byte, error) {
@@ -851,6 +849,7 @@ func (c *LmdbCursor) set(key []byte) ([]byte, []byte, error) {
 func (c *LmdbCursor) setRange(key []byte) ([]byte, []byte, error) {
 	return c.cursor.Get(key, nil, lmdb.SetRange)
 }
+
 func (c *LmdbCursor) next() ([]byte, []byte, error) {
 	return c.cursor.Get(nil, nil, lmdb.Next)
 }
