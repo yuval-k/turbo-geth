@@ -114,7 +114,8 @@ func loadFilesIntoBucket(db ethdb.Database, bucket string, providers []dataProvi
 	i := 0
 	loadNextFunc := func(originalK, k, v []byte) error {
 		if i == 0 {
-			canUseAppend = haveSortingGuaranties && (lastKey == nil || bytes.Compare(lastKey, k) == -1)
+			isEndOfBucket := lastKey == nil || bytes.Compare(lastKey, k) == -1
+			canUseAppend = haveSortingGuaranties && isEndOfBucket
 		}
 		i++
 		if i%100_000 == 0 && time.Since(putTimer) > 30*time.Second {
