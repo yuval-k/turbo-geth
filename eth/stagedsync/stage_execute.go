@@ -58,10 +58,7 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 		}
 	}
 
-	batch, err := stateDB.Begin()
-	if err != nil {
-		return err
-	}
+	batch := stateDB.NewBatch()
 	defer batch.Rollback()
 
 	engine := chainContext.Engine()
@@ -152,7 +149,7 @@ func logProgress(lastLogTime time.Time, prev, now uint64, batch ethdb.DbWithPend
 	log.Info("Executed blocks:",
 		"currentBlock", now,
 		"speed (blk/second)", speed,
-		"state batch", common.StorageSize(batch.BatchSize()),
+		"batch", common.StorageSize(batch.BatchSize()),
 		"alloc", common.StorageSize(m.Alloc),
 		"sys", common.StorageSize(m.Sys),
 		"numGC", int(m.NumGC))

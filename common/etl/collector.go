@@ -128,9 +128,11 @@ func loadFilesIntoBucket(db ethdb.Database, bucket string, providers []dataProvi
 				"use append", canUseAppend,
 				"current key", makeCurrentKeyStr(originalK),
 				"alloc", common.StorageSize(m.Alloc), "sys", common.StorageSize(m.Sys), "numGC", int(m.NumGC))
-			fmt.Printf("Putting: %dM %s\n", i/1_000_000, time.Since(putTimer))
 		}
 
+		if canUseAppend && len(v) == 0 {
+			return nil // nothing to delete after end of bucket
+		}
 		if len(v) == 0 {
 			if err := batch.Delete(bucket, k); err != nil {
 				return err

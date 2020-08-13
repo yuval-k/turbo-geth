@@ -123,7 +123,7 @@ func (m *TxDb) BatchSize() int {
 
 // IdealBatchSize defines the size of the data batches should ideally add in one write.
 func (m *TxDb) IdealBatchSize() int {
-	return int(160 * datasize.GB)
+	return int(1 * datasize.GB)
 }
 
 // WARNING: Merged mem/DB walk is not implemented
@@ -172,11 +172,6 @@ func (m *TxDb) panicOnEmptyDB() {
 	if m.db == nil {
 		panic("Not implemented")
 	}
-}
-
-func (m *TxDb) MemCopy() Database {
-	m.panicOnEmptyDB()
-	return m.db
 }
 
 // [TURBO-GETH] Freezer support (not implemented yet)

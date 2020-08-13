@@ -95,9 +95,20 @@ func (db *ObjectDatabase) Put(bucket string, key []byte, value []byte) error {
 
 // MultiPut - requirements: input must be sorted and without duplicates
 func (db *ObjectDatabase) MultiPut(tuples ...[]byte) (uint64, error) {
-	t := time.Now()
+	putTimer := time.Now()
+	i := 0
 	err := db.kv.Update(context.Background(), func(tx Tx) error {
 		for bucketStart := 0; bucketStart < len(tuples); {
+			i++
+			if i%10_000 == 0 && time.Since(putTimer) < 30*time.Second {
+				fmt.Printf("tick\n")
+			}
+			if i%10_000 == 0 && time.Since(putTimer) > 30*time.Second {
+				total := float64(len(tuples)) / 3
+				progress := fmt.Sprintf("%.1fM/%.1fM", float64(i)/1_000_000, total/1_000_00)
+				log.Info("Write to db", "progress", progress)
+			}
+
 			bucketEnd := bucketStart
 			for ; bucketEnd < len(tuples) && bytes.Equal(tuples[bucketEnd], tuples[bucketStart]); bucketEnd += 3 {
 			}
@@ -141,14 +152,13 @@ func (db *ObjectDatabase) MultiPut(tuples ...[]byte) (uint64, error) {
 			bucketStart = bucketEnd
 		}
 
-		fmt.Printf("mutation, commit, puts took: %s\n", time.Since(t))
-		t = time.Now()
+		putTimer = time.Now()
 		return nil
 	})
 	if err != nil {
 		return 0, err
 	}
-	fmt.Printf("mutation, commit, commit took: %s\n", time.Since(t))
+	fmt.Printf("mutation, commit, commit took: %s\n", time.Since(putTimer))
 	return 0, nil
 }
 
@@ -283,7 +293,6 @@ func (db *ObjectDatabase) Walk(bucket string, startkey []byte, fixedbits int, wa
 }
 
 func (db *ObjectDatabase) MultiWalk(bucket string, startkeys [][]byte, fixedbits []int, walker func(int, []byte, []byte) error) error {
-
 	rangeIdx := 0 // What is the current range we are extracting
 	fixedbytes, mask := Bytesmask(fixedbits[rangeIdx])
 	startkey := startkeys[rangeIdx]
