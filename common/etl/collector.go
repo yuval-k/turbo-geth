@@ -1,6 +1,7 @@
 package etl
 
 import (
+	"bytes"
 	"container/heap"
 	"fmt"
 	"io"
@@ -99,52 +100,75 @@ func loadFilesIntoBucket(db ethdb.Database, bucket string, providers []dataProvi
 		return err
 	}
 	defer batch.Rollback()
-	c := batch.(*ethdb.TxDb).Tx.Bucket(bucket).Cursor()
 
 	state := &bucketState{batch, bucket, args.Quit}
 
-	t1 := time.Now()
+	haveSortingGuaranties := isIdentityLoadFunc(loadFunc) // user-defined loadFunc may change ordering
+	lastKey, _, err := batch.Last(bucket)
+	if err != nil {
+		return err
+	}
+	var canUseAppend bool
 
+	putTimer := time.Now()
 	i := 0
-	var isEndOfBucket bool
 	loadNextFunc := func(originalK, k, v []byte) error {
 		if i == 0 {
-			firstKey, _, err := c.Seek(k)
-			if err != nil {
-				return err
-			}
-			isEndOfBucket = firstKey == nil
+			canUseAppend = haveSortingGuaranties && (lastKey == nil || bytes.Compare(lastKey, k) == -1)
 		}
 		i++
+		if i%100_000 == 0 {
+			fmt.Printf("Putting: %dM %s\n", 1/1_000_000, time.Since(putTimer))
+		}
 
-		if isEndOfBucket {
-			if v == nil {
-				// nothing to delete after end of bucket
-			} else {
-				if err := c.Append(k, v); err != nil {
-					return err
-				}
+		if len(v) == 0 {
+			if err := batch.Delete(bucket, k); err != nil {
+				return err
 			}
 		} else {
-			if len(v) == 0 {
-				if err := c.Delete(k); err != nil {
+			if canUseAppend {
+				if err := batch.(*ethdb.TxDb).Append(bucket, k, v); err != nil {
 					return err
 				}
 			} else {
-				if err := c.Put(k, v); err != nil {
+				if err := batch.Put(bucket, k, v); err != nil {
 					return err
 				}
 			}
 		}
+		batchSize := batch.BatchSize()
+		if batchSize > batch.IdealBatchSize() || args.loadBatchSize > 0 && batchSize > args.loadBatchSize {
+			if args.OnLoadCommit != nil {
+				if err := args.OnLoadCommit(batch, k, false); err != nil {
+					return err
+				}
+			}
+			putTook := time.Since(putTimer)
 
-		if i%1_000_000 == 0 {
+			commitTimer := time.Now()
+			if _, err := batch.Commit(); err != nil {
+				return err
+			}
+			commitTook := time.Since(commitTimer)
 			runtime.ReadMemStats(&m)
 			log.Info(
-				"Filling",
+				"Committed batch",
 				"bucket", bucket,
+				"put", putTook,
+				"commit", commitTook,
+				"use append", canUseAppend,
+				"size", common.StorageSize(batchSize),
 				"current key", makeCurrentKeyStr(originalK),
 				"alloc", common.StorageSize(m.Alloc), "sys", common.StorageSize(m.Sys), "numGC", int(m.NumGC))
+
+			var beginErr error
+			batch, beginErr = db.Begin()
+			if beginErr != nil {
+				return beginErr
+			}
+			putTimer = time.Now()
 		}
+
 		return nil
 	}
 	// Main loading loop
@@ -165,25 +189,25 @@ func loadFilesIntoBucket(db ethdb.Database, bucket string, providers []dataProvi
 			return fmt.Errorf("error while reading next element from disk: %v", err)
 		}
 	}
-	fmt.Printf("Put took: %s\n", time.Since(t1))
 	// Final commit
 	if args.OnLoadCommit != nil {
 		if err := args.OnLoadCommit(batch, []byte{}, true); err != nil {
 			return err
 		}
 	}
-	//batchSize := batch.BatchSize()
-	fmt.Printf("Commit started")
-	t := time.Now()
+	fmt.Printf("Commit started\n")
+	commitTimer := time.Now()
 	if _, err := batch.Commit(); err != nil {
 		return err
 	}
-	fmt.Printf("commit took: %s\n", time.Since(t))
+	commitTook := time.Since(commitTimer)
+
 	runtime.ReadMemStats(&m)
 	log.Debug(
 		"Committed batch",
 		"bucket", bucket,
-		//"size", common.StorageSize(batchSize),
+		"commit", commitTook,
+		"size", common.StorageSize(batch.BatchSize()),
 		"current key", makeCurrentKeyStr(nil),
 		"alloc", common.StorageSize(m.Alloc), "sys", common.StorageSize(m.Sys), "numGC", int(m.NumGC))
 
@@ -196,6 +220,8 @@ func makeCurrentKeyStr(k []byte) string {
 		currentKeyStr = "final"
 	} else if len(k) < 4 {
 		currentKeyStr = fmt.Sprintf("%x", k)
+	} else if k[0] == 0 && k[1] == 0 && k[2] == 0 && k[3] == 0 && len(k) >= 8 { // if key has leading zeroes, show a bit more info
+		currentKeyStr = fmt.Sprintf("%x...", k[:8])
 	} else {
 		currentKeyStr = fmt.Sprintf("%x...", k[:4])
 	}

@@ -365,18 +365,29 @@ func bucketStats(chaindata string) {
 		check(err)
 		err = env.Open(chaindata, lmdb.Readonly, 0664)
 		check(err)
-
+		bucketList = []string{}
 		fmt.Printf(",BranchPageN,LeafPageN,OverflowN,Entries\n")
 		_ = env.View(func(tx *lmdb.Txn) error {
+			root, err := tx.OpenRoot(0)
+			if err != nil {
+				panic(err)
+			}
+			c, err := tx.OpenCursor(root)
+			if err != nil {
+				panic(err)
+			}
+			for k, _, _ := c.Get([]byte{0}, nil, lmdb.First); k != nil; k, _, _ = c.Get([]byte{0}, nil, lmdb.Next) {
+				bucketList = append(bucketList, string(k))
+			}
 			for _, bucket := range bucketList {
-				dbi, bucketErr := tx.OpenDBI(string(bucket), 0)
+				dbi, bucketErr := tx.OpenDBI(bucket, 0)
 				if bucketErr != nil {
 					fmt.Printf("opening bucket %s: %v\n", bucket, bucketErr)
 					continue
 				}
 				bs, statErr := tx.Stat(dbi)
 				check(statErr)
-				fmt.Printf("%s,%d,%d,%d,%d\n", string(bucket),
+				fmt.Printf("%s,%d,%d,%d,%d\n", bucket,
 					bs.BranchPages, bs.LeafPages, bs.OverflowPages, bs.Entries)
 			}
 			return nil

@@ -400,7 +400,6 @@ func (tx *lmdbTx) Rollback() {
 	}()
 	tx.closeCursors()
 	tx.tx.Abort()
-	tx.tx = nil
 }
 
 func (tx *lmdbTx) get(dbi lmdb.DBI, key []byte) ([]byte, error) {
@@ -832,11 +831,7 @@ func (c *LmdbCursor) putDupSort(key []byte, value []byte) error {
 	return c.put(key, newValue)
 }
 
-func (c *LmdbCursor) set(key []byte) ([]byte, []byte, error) {
-	return c.cursor.Get(key, nil, lmdb.Set)
-}
-
-func (c *LmdbCursor) Set(key []byte) ([]byte, error) {
+func (c *LmdbCursor) SeekExact(key []byte) ([]byte, error) {
 	_, v, err := c.set(key)
 	if err != nil {
 		if lmdb.IsNotFound(err) {
@@ -854,6 +849,7 @@ func (c *LmdbCursor) set(key []byte) ([]byte, []byte, error) {
 func (c *LmdbCursor) setRange(key []byte) ([]byte, []byte, error) {
 	return c.cursor.Get(key, nil, lmdb.SetRange)
 }
+
 func (c *LmdbCursor) next() ([]byte, []byte, error) {
 	return c.cursor.Get(nil, nil, lmdb.Next)
 }
@@ -879,27 +875,11 @@ func (c *LmdbCursor) delCurrent() error {
 }
 
 func (c *LmdbCursor) put(key []byte, value []byte) error {
-	if err := c.cursor.Put(key, value, 0); err != nil {
-		fmt.Printf("put: %s, %x, %x\n", c.bucket.name, key, value)
-		return fmt.Errorf("put: %w\n", err)
-	}
-	return nil
+	return c.cursor.Put(key, value, 0)
 }
 
 func (c *LmdbCursor) putCurrent(key []byte, value []byte) error {
-	if err := c.cursor.Put(key, value, lmdb.Current); err != nil {
-		fmt.Printf("putCurrent: %s, %x, %x\n", c.bucket.name, key, value)
-		return fmt.Errorf("putCurrent: %w\n", err)
-	}
-	return nil
-}
-
-func (c *LmdbCursor) append(key []byte, value []byte) error {
-	if err := c.cursor.Put(key, value, lmdb.AppendDup); err != nil {
-		fmt.Printf("append: %s, %x, %x\n", c.bucket.name, key, value)
-		return fmt.Errorf("append: %w\n", err)
-	}
-	return nil
+	return c.cursor.Put(key, value, lmdb.Current)
 }
 
 func (c *LmdbCursor) append(key []byte, value []byte) error {

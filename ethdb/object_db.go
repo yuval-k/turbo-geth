@@ -141,14 +141,14 @@ func (db *ObjectDatabase) MultiPut(tuples ...[]byte) (uint64, error) {
 			bucketStart = bucketEnd
 		}
 
-		fmt.Printf("commit, puts took: %s\n", time.Since(t))
+		fmt.Printf("mutation, commit, puts took: %s\n", time.Since(t))
 		t = time.Now()
 		return nil
 	})
 	if err != nil {
 		return 0, err
 	}
-	fmt.Printf("commit, commit took: %s\n", time.Since(t))
+	fmt.Printf("mutation, commit, commit took: %s\n", time.Since(t))
 	return 0, nil
 }
 
