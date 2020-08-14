@@ -102,13 +102,9 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 			if err = s.Update(batch, blockNum); err != nil {
 				return err
 			}
-			start := time.Now()
-			sz := batch.BatchSize()
-
 			if _, err = batch.Commit(); err != nil {
 				return err
 			}
-			log.Info("Batch committed", "in", time.Since(start), "size", common.StorageSize(sz))
 		}
 
 		if prof {
@@ -165,6 +161,7 @@ func UnwindExecutionStage(u *UnwindState, s *StageState, stateDB ethdb.Database,
 
 	log.Info("Unwind Execution stage", "from", s.BlockNumber, "to", u.UnwindPoint)
 	batch := stateDB.NewBatch()
+	defer batch.Rollback()
 
 	rewindFunc := ethdb.RewindDataPlain
 	stateBucket := dbutils.PlainStateBucket

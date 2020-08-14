@@ -75,7 +75,7 @@ type Database interface {
 	// bucket0, key0, val0, bucket1, key1, val1, ...
 	MultiPut(tuples ...[]byte) (uint64, error)
 	Close()
-	NewBatch() DbWithPendingMutations // starts in-mem batch
+	NewBatch() DbWithPendingMutations       // starts in-mem batch
 	Begin() (DbWithPendingMutations, error) // starts db transaction
 	Last(bucket string) ([]byte, []byte, error)
 

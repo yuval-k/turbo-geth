@@ -11,6 +11,8 @@ import (
 // TxDb - provides Database interface around ethdb.Tx
 // It's not thread-safe!
 // It's not usable after .Commit()/.Rollback() call
+// you can put unlimited amount of data into this class, call IdealBatchSize is unnecessary
+// Walk and MultiWalk methods - work outside of Tx object yet, will implement it later
 type TxDb struct {
 	db      Database
 	Tx      Tx

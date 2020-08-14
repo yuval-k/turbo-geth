@@ -102,7 +102,6 @@ func loadFilesIntoBucket(db ethdb.Database, bucket string, providers []dataProvi
 	defer batch.Rollback()
 
 	state := &bucketState{batch, bucket, args.Quit}
-
 	haveSortingGuaranties := isIdentityLoadFunc(loadFunc) // user-defined loadFunc may change ordering
 	lastKey, _, err := batch.Last(bucket)
 	if err != nil {
