@@ -79,7 +79,7 @@ func (b *sortableBuffer) Get(i int) ([]byte, []byte) {
 }
 
 func (b *sortableBuffer) Reset() {
-	b.sortedBuf = nil
+	b.sortedBuf = make([][]byte, 0, 1024)
 	b.entries = make(map[string][]byte, 1024)
 	b.size = 0
 }
@@ -152,7 +152,7 @@ func (b *appendSortableBuffer) Get(i int) ([]byte, []byte) {
 	return b.sortedBuf[i*2], b.sortedBuf[i*2+1]
 }
 func (b *appendSortableBuffer) Reset() {
-	b.sortedBuf = nil
+	b.sortedBuf = make([][]byte, 0, 1024)
 	b.entries = make(map[string][]byte, 1024)
 	b.size = 0
 }
@@ -167,7 +167,7 @@ func (b *appendSortableBuffer) CheckFlushSize() bool {
 
 func NewOldestEntryBuffer(bufferOptimalSize int) *oldestEntrySortableBuffer {
 	return &oldestEntrySortableBuffer{
-		entries:     make(map[string][]byte),
+		entries:     make(map[string][]byte, 1024),
 		size:        0,
 		optimalSize: bufferOptimalSize,
 	}
@@ -225,8 +225,8 @@ func (b *oldestEntrySortableBuffer) Get(i int) ([]byte, []byte) {
 }
 
 func (b *oldestEntrySortableBuffer) Reset() {
-	b.sortedBuf = nil
-	b.entries = make(map[string][]byte)
+	b.sortedBuf = make([][]byte, 0, 1024)
+	b.entries = make(map[string][]byte, 1024)
 	b.size = 0
 }
 
