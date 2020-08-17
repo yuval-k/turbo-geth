@@ -63,7 +63,9 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 	if err != nil {
 		return err
 	}
-	defer batch.Rollback()
+	defer func() {
+		batch.Rollback()
+	}()
 
 	engine := chainContext.Engine()
 
@@ -106,6 +108,10 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 				return err
 			}
 			if _, err = batch.Commit(); err != nil {
+				return err
+			}
+			batch, err = stateDB.Begin()
+			if err != nil {
 				return err
 			}
 		}
