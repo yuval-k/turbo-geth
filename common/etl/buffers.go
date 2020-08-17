@@ -22,21 +22,12 @@ const (
 
 type Buffer interface {
 	Put(k, v []byte)
-	Get(i int) sortableBufferEntry
+	Get(i int) ([]byte, []byte)
 	Len() int
 	Reset()
-	GetEntries() []sortableBufferEntry
+	GetEntries() [][]byte
 	Sort()
 	CheckFlushSize() bool
-}
-
-type Buffer2 interface {
-	GetEntries2() [][]byte
-}
-
-type sortableBufferEntry struct {
-	key   []byte
-	value []byte
 }
 
 var (
@@ -47,22 +38,22 @@ var (
 
 func NewSortableBuffer(bufferOptimalSize int) *sortableBuffer {
 	return &sortableBuffer{
-		m:           make(map[string][]byte, 1024),
+		entries:     make(map[string][]byte, 1024),
 		size:        0,
 		optimalSize: bufferOptimalSize,
 	}
 }
 
 type sortableBuffer struct {
-	entries     [][]byte
-	m           map[string][]byte
+	sortedBuf   [][]byte
+	entries     map[string][]byte
 	size        int
 	optimalSize int
 }
 
 func (b *sortableBuffer) Put(k, v []byte) {
 	b.size += len(k) + len(v)
-	b.m[string(k)] = v
+	b.entries[string(k)] = v
 }
 
 func (b *sortableBuffer) Size() int {
@@ -70,41 +61,37 @@ func (b *sortableBuffer) Size() int {
 }
 
 func (b *sortableBuffer) Len() int {
-	return len(b.m) / 2
+	return len(b.entries) / 2
 }
 
 func (b *sortableBuffer) Less(i, j int) bool {
-	return bytes.Compare(b.entries[i*2], b.entries[j*2]) < 0
+	return bytes.Compare(b.sortedBuf[i*2], b.sortedBuf[j*2]) < 0
 }
 
 func (b *sortableBuffer) Swap(i, j int) {
 	ki, kj := i*2, j*2
-	b.entries[ki], b.entries[kj] = b.entries[kj], b.entries[ki]
-	b.entries[ki+1], b.entries[kj+1] = b.entries[kj+1], b.entries[ki+1]
+	b.sortedBuf[ki], b.sortedBuf[kj] = b.sortedBuf[kj], b.sortedBuf[ki]
+	b.sortedBuf[ki+1], b.sortedBuf[kj+1] = b.sortedBuf[kj+1], b.sortedBuf[ki+1]
 }
 
-func (b *sortableBuffer) Get(i int) sortableBufferEntry {
-	return sortableBufferEntry{b.entries[i*2], b.entries[i*2+1]}
+func (b *sortableBuffer) Get(i int) ([]byte, []byte) {
+	return b.sortedBuf[i*2], b.sortedBuf[i*2+1]
 }
 
 func (b *sortableBuffer) Reset() {
-	b.entries = nil
-	b.m = make(map[string][]byte, 1024)
+	b.sortedBuf = nil
+	b.entries = make(map[string][]byte, 1024)
 	b.size = 0
 }
 func (b *sortableBuffer) Sort() {
-	for k, v := range b.m {
-		b.entries = append(b.entries, []byte(k), v)
+	for k, v := range b.entries {
+		b.sortedBuf = append(b.sortedBuf, []byte(k), v)
 	}
 	sort.Sort(b)
 }
 
-func (b *sortableBuffer) GetEntries() []sortableBufferEntry {
-	panic(1)
-}
-
-func (b *sortableBuffer) GetEntries2() [][]byte {
-	return b.entries
+func (b *sortableBuffer) GetEntries() [][]byte {
+	return b.sortedBuf
 }
 
 func (b *sortableBuffer) CheckFlushSize() bool {
@@ -113,7 +100,7 @@ func (b *sortableBuffer) CheckFlushSize() bool {
 
 func NewAppendBuffer(bufferOptimalSize int) *appendSortableBuffer {
 	return &appendSortableBuffer{
-		entries:     make(map[string][]byte),
+		entries:     make(map[string][]byte, 1024),
 		size:        0,
 		optimalSize: bufferOptimalSize,
 	}
@@ -123,7 +110,7 @@ type appendSortableBuffer struct {
 	entries     map[string][]byte
 	size        int
 	optimalSize int
-	sortedBuf   []sortableBufferEntry
+	sortedBuf   [][]byte
 }
 
 func (b *appendSortableBuffer) Put(k, v []byte) {
@@ -145,30 +132,32 @@ func (b *appendSortableBuffer) Len() int {
 	return len(b.entries)
 }
 func (b *appendSortableBuffer) Sort() {
-	for i := range b.entries {
-		b.sortedBuf = append(b.sortedBuf, sortableBufferEntry{key: []byte(i), value: b.entries[i]})
+	for i, v := range b.entries {
+		b.sortedBuf = append(b.sortedBuf, []byte(i), v)
 	}
-	sort.Stable(b)
+	sort.Sort(b)
 }
 
 func (b *appendSortableBuffer) Less(i, j int) bool {
-	return bytes.Compare(b.sortedBuf[i].key, b.sortedBuf[j].key) < 0
+	return bytes.Compare(b.sortedBuf[i*2], b.sortedBuf[j*2]) < 0
 }
 
 func (b *appendSortableBuffer) Swap(i, j int) {
-	b.sortedBuf[i], b.sortedBuf[j] = b.sortedBuf[j], b.sortedBuf[i]
+	ki, kj := i*2, j*2
+	b.sortedBuf[ki], b.sortedBuf[kj] = b.sortedBuf[kj], b.sortedBuf[ki]
+	b.sortedBuf[ki+1], b.sortedBuf[kj+1] = b.sortedBuf[kj+1], b.sortedBuf[ki+1]
 }
 
-func (b *appendSortableBuffer) Get(i int) sortableBufferEntry {
-	return b.sortedBuf[i]
+func (b *appendSortableBuffer) Get(i int) ([]byte, []byte) {
+	return b.sortedBuf[i*2], b.sortedBuf[i*2+1]
 }
 func (b *appendSortableBuffer) Reset() {
 	b.sortedBuf = nil
-	b.entries = make(map[string][]byte)
+	b.entries = make(map[string][]byte, 1024)
 	b.size = 0
 }
 
-func (b *appendSortableBuffer) GetEntries() []sortableBufferEntry {
+func (b *appendSortableBuffer) GetEntries() [][]byte {
 	return b.sortedBuf
 }
 
@@ -188,7 +177,7 @@ type oldestEntrySortableBuffer struct {
 	entries     map[string][]byte
 	size        int
 	optimalSize int
-	sortedBuf   []sortableBufferEntry
+	sortedBuf   [][]byte
 }
 
 func (b *oldestEntrySortableBuffer) Put(k, v []byte) {
@@ -216,29 +205,32 @@ func (b *oldestEntrySortableBuffer) Len() int {
 }
 func (b *oldestEntrySortableBuffer) Sort() {
 	for k, v := range b.entries {
-		b.sortedBuf = append(b.sortedBuf, sortableBufferEntry{key: []byte(k), value: v})
+		b.sortedBuf = append(b.sortedBuf, []byte(k), v)
 	}
-	sort.Stable(b)
+	sort.Sort(b)
 }
 
 func (b *oldestEntrySortableBuffer) Less(i, j int) bool {
-	return bytes.Compare(b.sortedBuf[i].key, b.sortedBuf[j].key) < 0
+	return bytes.Compare(b.sortedBuf[i*2], b.sortedBuf[j*2]) < 0
 }
 
 func (b *oldestEntrySortableBuffer) Swap(i, j int) {
-	b.sortedBuf[i], b.sortedBuf[j] = b.sortedBuf[j], b.sortedBuf[i]
+	ki, kj := i*2, j*2
+	b.sortedBuf[ki], b.sortedBuf[kj] = b.sortedBuf[kj], b.sortedBuf[ki]
+	b.sortedBuf[ki+1], b.sortedBuf[kj+1] = b.sortedBuf[kj+1], b.sortedBuf[ki+1]
 }
 
-func (b *oldestEntrySortableBuffer) Get(i int) sortableBufferEntry {
-	return b.sortedBuf[i]
+func (b *oldestEntrySortableBuffer) Get(i int) ([]byte, []byte) {
+	return b.sortedBuf[i*2], b.sortedBuf[i*2+1]
 }
+
 func (b *oldestEntrySortableBuffer) Reset() {
 	b.sortedBuf = nil
 	b.entries = make(map[string][]byte)
 	b.size = 0
 }
 
-func (b *oldestEntrySortableBuffer) GetEntries() []sortableBufferEntry {
+func (b *oldestEntrySortableBuffer) GetEntries() [][]byte {
 	return b.sortedBuf
 }
 

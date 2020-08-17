@@ -62,24 +62,14 @@ func FlushToDisk(encoder Encoder, currentKey []byte, b Buffer, datadir string) (
 	}()
 
 	encoder.Reset(w)
-	if casted, ok := b.(Buffer2); ok {
-		e := casted.GetEntries2()
-		//total := b.Len()
-		//fmt.Printf("buf: %T,  total: %d\n", b, total)
-		for i := 0; i < b.Len(); i += 2 {
-			err = encoder.Encode(e[i : i+2])
-			if err != nil {
-				return nil, fmt.Errorf("error writing entries to disk: %v", err)
-			}
-		}
-	} else {
-		for _, entry := range b.GetEntries() {
-			err = writeToDisk(encoder, entry.key, entry.value)
-			if err != nil {
-				return nil, fmt.Errorf("error writing entries to disk: %v", err)
-			}
+	entries := b.GetEntries()
+	for i := 0; i < b.Len(); i += 2 {
+		err = encoder.Encode(entries[i : i+2])
+		if err != nil {
+			return nil, fmt.Errorf("error writing entries to disk: %v", err)
 		}
 	}
+
 	return &fileDataProvider{bufferFile, nil}, nil
 }
 
@@ -139,9 +129,9 @@ func (p *memoryDataProvider) Next(decoder Decoder) ([]byte, []byte, error) {
 	if p.currentIndex >= p.buffer.Len() {
 		return nil, nil, io.EOF
 	}
-	entry := p.buffer.Get(p.currentIndex)
+	k, v := p.buffer.Get(p.currentIndex)
 	p.currentIndex++
-	return entry.key, entry.value, nil
+	return k, v, nil
 }
 
 func (p *memoryDataProvider) Dispose() (uint64, error) {
