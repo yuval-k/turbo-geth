@@ -58,7 +58,6 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 		}
 	}
 
-	//batch := stateDB.NewBatch()
 	tx, err := stateDB.Begin()
 	if err != nil {
 		return err
