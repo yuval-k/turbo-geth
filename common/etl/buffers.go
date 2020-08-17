@@ -2,10 +2,9 @@ package etl
 
 import (
 	"bytes"
+	"github.com/ledgerwatch/turbo-geth/common"
 	"sort"
 	"strconv"
-
-	"github.com/ledgerwatch/turbo-geth/common"
 )
 
 const (
@@ -31,6 +30,10 @@ type Buffer interface {
 	CheckFlushSize() bool
 }
 
+type Buffer2 interface {
+	GetEntries2() [][]byte
+}
+
 type sortableBufferEntry struct {
 	key   []byte
 	value []byte
@@ -44,22 +47,22 @@ var (
 
 func NewSortableBuffer(bufferOptimalSize int) *sortableBuffer {
 	return &sortableBuffer{
-		entries:     make([]sortableBufferEntry, 0),
+		m:           make(map[string][]byte, 1024),
 		size:        0,
 		optimalSize: bufferOptimalSize,
 	}
 }
 
 type sortableBuffer struct {
-	entries     []sortableBufferEntry
+	entries     [][]byte
+	m           map[string][]byte
 	size        int
 	optimalSize int
 }
 
 func (b *sortableBuffer) Put(k, v []byte) {
-	b.size += len(k)
-	b.size += len(v)
-	b.entries = append(b.entries, sortableBufferEntry{k, v})
+	b.size += len(k) + len(v)
+	b.m[string(k)] = v
 }
 
 func (b *sortableBuffer) Size() int {
@@ -67,30 +70,40 @@ func (b *sortableBuffer) Size() int {
 }
 
 func (b *sortableBuffer) Len() int {
-	return len(b.entries)
+	return len(b.m) / 2
 }
 
 func (b *sortableBuffer) Less(i, j int) bool {
-	return bytes.Compare(b.entries[i].key, b.entries[j].key) < 0
+	return bytes.Compare(b.entries[i*2], b.entries[j*2]) < 0
 }
 
 func (b *sortableBuffer) Swap(i, j int) {
-	b.entries[i], b.entries[j] = b.entries[j], b.entries[i]
+	ki, kj := i*2, j*2
+	b.entries[ki], b.entries[kj] = b.entries[kj], b.entries[ki]
+	b.entries[ki+1], b.entries[kj+1] = b.entries[kj+1], b.entries[ki+1]
 }
 
 func (b *sortableBuffer) Get(i int) sortableBufferEntry {
-	return b.entries[i]
+	return sortableBufferEntry{b.entries[i*2], b.entries[i*2+1]}
 }
 
 func (b *sortableBuffer) Reset() {
 	b.entries = nil
+	b.m = make(map[string][]byte, 1024)
 	b.size = 0
 }
 func (b *sortableBuffer) Sort() {
-	sort.Stable(b)
+	for k, v := range b.m {
+		b.entries = append(b.entries, []byte(k), v)
+	}
+	sort.Sort(b)
 }
 
 func (b *sortableBuffer) GetEntries() []sortableBufferEntry {
+	panic(1)
+}
+
+func (b *sortableBuffer) GetEntries2() [][]byte {
 	return b.entries
 }
 
