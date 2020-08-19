@@ -48,6 +48,18 @@ func (t MultiPutTuples) Swap(i, j int) {
 	t[i*3+2], t[j*3+2] = t[j*3+2], t[i*3+2]
 }
 
+// Type which expecting sequence of triplets: dbi, key, value, ....
+// It sorts entries by dbi name, then inside dbi clusters sort by keys
+type MultiPutTuples2 [][]byte
+
+func (t MultiPutTuples2) Len() int           { return len(t) / 2 }
+func (t MultiPutTuples2) Less(i, j int) bool { return bytes.Compare(t[i*2], t[j*2]) < 0 }
+func (t MultiPutTuples2) Swap(i, j int) {
+	i2, j2 := i*2, j*2
+	t[i2], t[j2] = t[j2], t[i2]
+	t[i2+1], t[j2+1] = t[j2+1], t[i2+1]
+}
+
 func Get(db KV, bucket string, key []byte) ([]byte, error) {
 	// Retrieve the key and increment the miss counter if not found
 	var dat []byte
