@@ -1,6 +1,7 @@
 package ethdb
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"sort"
@@ -160,23 +161,23 @@ func (m *mutation) Commit() (uint64, error) {
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	//if casted, ok := m.db.(SupportMultiPut2); ok {
-	//	for bucketStr, bt := range m.puts.mp {
-	//		tuples := make(MultiPutTuples2, 0, len(bt)*2)
-	//		for key, value := range bt {
-	//			tuples = append(tuples, []byte(key), value)
-	//		}
-	//		delete(m.puts.mp, bucketStr)
-	//		sort.Sort(tuples)
-	//		if err := casted.MultiPut2(bucketStr, tuples...); err != nil {
-	//			return 0, fmt.Errorf("db.MultiPut2 failed: %w", err)
-	//		}
-	//	}
-	//
-	//	m.puts = newPuts()
-	//	m.tuples = nil
-	//	return 0, nil
-	//}
+	if casted, ok := m.db.(SupportMultiPut2); ok {
+		for bucketStr, bt := range m.puts.mp {
+			tuples := make([][]byte, 0, len(bt)*2)
+			for key, value := range bt {
+				tuples = append(tuples, []byte(key), value)
+			}
+			delete(m.puts.mp, bucketStr)
+			sort.Slice(tuples, func(i, j int) bool { return bytes.Compare(tuples[i], tuples[j]) < 0 })
+			if err := casted.MultiPut2(bucketStr, tuples...); err != nil {
+				return 0, fmt.Errorf("db.MultiPut2 failed: %w", err)
+			}
+		}
+
+		m.puts = newPuts()
+		m.tuples = nil
+		return 0, nil
+	}
 
 	if m.tuples == nil {
 		m.tuples = make(MultiPutTuples, 0, m.puts.Len()*3)
