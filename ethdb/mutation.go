@@ -163,12 +163,20 @@ func (m *mutation) Commit() (uint64, error) {
 	defer m.mu.Unlock()
 	if casted, ok := m.db.(SupportMultiPut2); ok {
 		for bucketStr, bt := range m.puts.mp {
+<<<<<<< HEAD
 			tuples := make([][]byte, 0, len(bt)*2)
+=======
+			tuples := make(MultiPutTuples2, 0, len(bt)*2)
+>>>>>>> enable multi_put2
 			for key, value := range bt {
 				tuples = append(tuples, []byte(key), value)
 			}
 			delete(m.puts.mp, bucketStr)
+<<<<<<< HEAD
 			sort.Slice(tuples, func(i, j int) bool { return bytes.Compare(tuples[i], tuples[j]) < 0 })
+=======
+			sort.Sort(tuples)
+>>>>>>> enable multi_put2
 			if err := casted.MultiPut2(bucketStr, tuples...); err != nil {
 				return 0, fmt.Errorf("db.MultiPut2 failed: %w", err)
 			}
