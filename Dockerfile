@@ -9,11 +9,12 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 ADD . .
-RUN make tg
+RUN make all
 
-FROM alpine:3
+FROM debian:stable
 
-RUN apk add --no-cache ca-certificates
+RUN apt-get update && apt-get install -y musl 
+
 COPY --from=builder /app/build/bin/* /usr/local/bin/
 
 EXPOSE 8545 8546 8547 30303 30303/udp 8080 9090

@@ -1,5 +1,6 @@
 **/*_test.go
 
+Dockerfile
 build/bin
 build/_workspace
 build/_bin
