@@ -464,7 +464,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, blockNumb
 			d.mux.Post(DoneEvent{latest})
 		}
 	}()
-	if p.version < 63 {
+	if p.version < 64 {
 		return errTooOld
 	}
 	mode := d.getMode()
@@ -479,6 +479,8 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, blockNumb
 	if err != nil {
 		return err
 	}
+
+	fmt.Printf("Height: %d\n", height)
 
 	origin, err := d.findAncestor(p, height)
 	if err != nil {
@@ -557,14 +559,23 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, blockNumb
 		func() error { return d.processHeaders(origin+1, pivot, blockNumber) },
 	}
 
+	fmt.Printf("Cycle!\n")
 	// Turbo-Geth's staged sync goes here
 	if mode == StagedSync {
+		fmt.Printf("Begin tx!\n")
+
+		tx, err := d.stateDB.Begin()
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+
 		d.stagedSync, err = stagedsync.PrepareStagedSync(
 			d,
 			d.chainConfig,
 			d.blockchain,
 			d.blockchain.GetVMConfig(),
-			d.stateDB,
+			tx,
 			p.id,
 			d.storageMode,
 			d.datadir,
@@ -577,7 +588,17 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, blockNumb
 		if err != nil {
 			return err
 		}
-		return d.stagedSync.Run(d.stateDB)
+
+		err = d.stagedSync.Run(tx)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Commit()
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Commit tx!\n")
+		return nil
 	}
 
 	fetchers = append(fetchers, func() error { return d.fetchBodies(origin + 1) })   // Bodies are retrieved during normal and fast sync

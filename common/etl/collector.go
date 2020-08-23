@@ -96,18 +96,25 @@ func loadFilesIntoBucket(db ethdb.Database, bucket string, providers []dataProvi
 		}
 	}
 
-	batch, err := db.Begin()
-	if err != nil {
-		return err
+	var tx ethdb.DbWithPendingMutations
+	if hasTx, ok := db.(ethdb.HasTx); ok && hasTx.Tx() != nil {
+		fmt.Printf("Collector: use existing tx\n")
+		tx = db.(ethdb.DbWithPendingMutations)
+	} else {
+		fmt.Printf("Collector: start new tx\n")
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
 	}
-	defer batch.Rollback()
 
-	state := &bucketState{batch, bucket, args.Quit}
+	state := &bucketState{tx, bucket, args.Quit}
 	haveSortingGuaranties := isIdentityLoadFunc(loadFunc) // user-defined loadFunc may change ordering
 	var lastKey []byte
 	if bucket != "" { // passing empty bucket name is valid case for etl when DB modification is not expected
 		var errLast error
-		lastKey, _, errLast = batch.Last(bucket)
+		lastKey, _, errLast = tx.Last(bucket)
 		if errLast != nil {
 			return errLast
 		}
@@ -144,18 +151,18 @@ func loadFilesIntoBucket(db ethdb.Database, bucket string, providers []dataProvi
 			return nil // nothing to delete after end of bucket
 		}
 		if len(v) == 0 {
-			if err := batch.Delete(bucket, k); err != nil {
+			if err := tx.Delete(bucket, k); err != nil {
 				return err
 			}
 			return nil
 		}
 		if canUseAppend {
-			if err := batch.(*ethdb.TxDb).Append(bucket, k, v); err != nil {
+			if err := tx.(*ethdb.TxDb).Append(bucket, k, v); err != nil {
 				return err
 			}
 			return nil
 		}
-		if err := batch.Put(bucket, k, v); err != nil {
+		if err := tx.Put(bucket, k, v); err != nil {
 			return err
 		}
 		return nil
@@ -180,12 +187,12 @@ func loadFilesIntoBucket(db ethdb.Database, bucket string, providers []dataProvi
 	}
 	// Final commit
 	if args.OnLoadCommit != nil {
-		if err := args.OnLoadCommit(batch, []byte{}, true); err != nil {
+		if err := args.OnLoadCommit(tx, []byte{}, true); err != nil {
 			return err
 		}
 	}
 	commitTimer := time.Now()
-	if _, err := batch.Commit(); err != nil {
+	if _, err := tx.Commit(); err != nil {
 		return err
 	}
 	commitTook := time.Since(commitTimer)

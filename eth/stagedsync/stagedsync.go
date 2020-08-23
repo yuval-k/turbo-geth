@@ -19,7 +19,7 @@ func PrepareStagedSync(
 	chainConfig *params.ChainConfig,
 	chainContext core.ChainContext,
 	vmConfig *vm.Config,
-	stateDB *ethdb.ObjectDatabase,
+	stateDB ethdb.Database,
 	pid string,
 	storageMode ethdb.StorageMode,
 	datadir string,
