@@ -20,6 +20,7 @@ func PrepareStagedSync(
 	chainContext core.ChainContext,
 	vmConfig *vm.Config,
 	stateDB ethdb.Database,
+	tx ethdb.Database,
 	pid string,
 	storageMode ethdb.StorageMode,
 	datadir string,
@@ -30,6 +31,12 @@ func PrepareStagedSync(
 	changeSetHook ChangeSetHook,
 ) (*State, error) {
 	defer log.Info("Staged sync finished")
+
+	tx, err := d.stateDB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
 
 	stages := []*Stage{
 		{
@@ -80,40 +87,40 @@ func PrepareStagedSync(
 					ReadChLen:       4,
 					Now:             time.Now(),
 				}
-				return SpawnRecoverSendersStage(cfg, s, stateDB, chainConfig, 0, datadir, quitCh)
+				return SpawnRecoverSendersStage(cfg, s, tx, chainConfig, 0, datadir, quitCh)
 			},
 			UnwindFunc: func(u *UnwindState, s *StageState) error {
-				return UnwindSendersStage(u, stateDB)
+				return UnwindSendersStage(u, tx)
 			},
 		},
 		{
 			ID:          stages.Execution,
 			Description: "Execute blocks w/o hash checks",
 			ExecFunc: func(s *StageState, u Unwinder) error {
-				return SpawnExecuteBlocksStage(s, stateDB, chainConfig, chainContext, vmConfig, 0 /* limit (meaning no limit) */, quitCh, storageMode.Receipts, changeSetHook)
+				return SpawnExecuteBlocksStage(s, tx, chainConfig, chainContext, vmConfig, 0 /* limit (meaning no limit) */, quitCh, storageMode.Receipts, changeSetHook)
 			},
 			UnwindFunc: func(u *UnwindState, s *StageState) error {
-				return UnwindExecutionStage(u, s, stateDB, storageMode.Receipts)
+				return UnwindExecutionStage(u, s, tx, storageMode.Receipts)
 			},
 		},
 		{
 			ID:          stages.HashState,
 			Description: "Hash the key in the state",
 			ExecFunc: func(s *StageState, u Unwinder) error {
-				return SpawnHashStateStage(s, stateDB, datadir, quitCh)
+				return SpawnHashStateStage(s, tx, datadir, quitCh)
 			},
 			UnwindFunc: func(u *UnwindState, s *StageState) error {
-				return UnwindHashStateStage(u, s, stateDB, datadir, quitCh)
+				return UnwindHashStateStage(u, s, tx, datadir, quitCh)
 			},
 		},
 		{
 			ID:          stages.IntermediateHashes,
 			Description: "Generate intermediate hashes and computing state root",
 			ExecFunc: func(s *StageState, u Unwinder) error {
-				return SpawnIntermediateHashesStage(s, stateDB, datadir, quitCh)
+				return SpawnIntermediateHashesStage(s, tx, datadir, quitCh)
 			},
 			UnwindFunc: func(u *UnwindState, s *StageState) error {
-				return UnwindIntermediateHashesStage(u, s, stateDB, datadir, quitCh)
+				return UnwindIntermediateHashesStage(u, s, tx, datadir, quitCh)
 			},
 		},
 		{
@@ -122,10 +129,10 @@ func PrepareStagedSync(
 			Disabled:            !storageMode.History,
 			DisabledDescription: "Enable by adding `h` to --storage-mode",
 			ExecFunc: func(s *StageState, u Unwinder) error {
-				return SpawnAccountHistoryIndex(s, stateDB, datadir, quitCh)
+				return SpawnAccountHistoryIndex(s, tx, datadir, quitCh)
 			},
 			UnwindFunc: func(u *UnwindState, s *StageState) error {
-				return UnwindAccountHistoryIndex(u, stateDB, quitCh)
+				return UnwindAccountHistoryIndex(u, tx, quitCh)
 			},
 		},
 		{
@@ -134,10 +141,10 @@ func PrepareStagedSync(
 			Disabled:            !storageMode.History,
 			DisabledDescription: "Enable by adding `h` to --storage-mode",
 			ExecFunc: func(s *StageState, u Unwinder) error {
-				return SpawnStorageHistoryIndex(s, stateDB, datadir, quitCh)
+				return SpawnStorageHistoryIndex(s, tx, datadir, quitCh)
 			},
 			UnwindFunc: func(u *UnwindState, s *StageState) error {
-				return UnwindStorageHistoryIndex(u, stateDB, quitCh)
+				return UnwindStorageHistoryIndex(u, tx, quitCh)
 			},
 		},
 		{
@@ -146,20 +153,20 @@ func PrepareStagedSync(
 			Disabled:            !storageMode.TxIndex,
 			DisabledDescription: "Enable by adding `t` to --storage-mode",
 			ExecFunc: func(s *StageState, u Unwinder) error {
-				return SpawnTxLookup(s, stateDB, datadir, quitCh)
+				return SpawnTxLookup(s, tx, datadir, quitCh)
 			},
 			UnwindFunc: func(u *UnwindState, s *StageState) error {
-				return UnwindTxLookup(u, s, stateDB, datadir, quitCh)
+				return UnwindTxLookup(u, s, tx, datadir, quitCh)
 			},
 		},
 		{
 			ID:          stages.TxPool,
 			Description: "Update transaction pool",
 			ExecFunc: func(s *StageState, _ Unwinder) error {
-				return spawnTxPool(s, stateDB, txPool, poolStart, quitCh)
+				return spawnTxPool(s, tx, txPool, poolStart, quitCh)
 			},
 			UnwindFunc: func(u *UnwindState, s *StageState) error {
-				return unwindTxPool(u, s, stateDB, txPool, quitCh)
+				return unwindTxPool(u, s, tx, txPool, quitCh)
 			},
 		},
 	}
