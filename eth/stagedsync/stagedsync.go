@@ -32,12 +32,6 @@ func PrepareStagedSync(
 ) (*State, error) {
 	defer log.Info("Staged sync finished")
 
-	tx, err := d.stateDB.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
 	stages := []*Stage{
 		{
 			ID:          stages.Headers,
