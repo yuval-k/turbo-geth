@@ -69,7 +69,7 @@ var (
 	//key - address hash
 	//value - list of block where it's changed
 	AccountsHistoryBucket  = "hAT"
-	AccountsHistoryBucket4 = "hAT4"
+	AccountsHistoryBucket5 = "hAT5"
 
 	//current
 	//key - address hash + incarnation + storage key hash
@@ -78,7 +78,7 @@ var (
 	//key - address hash
 	//value - list of block where it's changed
 	StorageHistoryBucket  = "hST"
-	StorageHistoryBucket3 = "hST3"
+	StorageHistoryBucket5 = "hST5"
 
 	//key - contract code hash
 	//value - contract code
@@ -186,8 +186,8 @@ var Buckets = []string{
 	CurrentStateBucket,
 	AccountsHistoryBucket,
 	StorageHistoryBucket,
-	AccountsHistoryBucket4,
-	StorageHistoryBucket3,
+	AccountsHistoryBucket5,
+	StorageHistoryBucket5,
 	CodeBucket,
 	ContractCodeBucket,
 	AccountChangeSetBucket,
@@ -264,7 +264,7 @@ var dupSortConfig = []dupSortConfigEntry{
 		FromLen:   60,
 	},
 	{
-		Bucket:       AccountsHistoryBucket4,
+		Bucket:       AccountsHistoryBucket5,
 		IsDupSort:    true,
 		IsDupFixed:   true,
 		DupFixedSize: 9,
@@ -272,9 +272,9 @@ var dupSortConfig = []dupSortConfigEntry{
 		FromLen:      28,
 	},
 	{
-		Bucket:       StorageHistoryBucket3,
+		Bucket:       StorageHistoryBucket5,
 		IsDupSort:    true,
-		IsDupFixed:   false,
+		IsDupFixed:   true,
 		DupFixedSize: 9,
 		ToLen:        40,
 		FromLen:      48,

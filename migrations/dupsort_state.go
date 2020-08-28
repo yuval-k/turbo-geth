@@ -79,9 +79,9 @@ var dupSortPlainState = Migration{
 }
 
 var dupSortHistoryAcc = Migration{
-	Name: "dupsort_history_acc_test4",
+	Name: "dupsort_history_acc_test5",
 	Up: func(db ethdb.Database, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
-		if err := db.(ethdb.NonTransactional).ClearBuckets(dbutils.AccountsHistoryBucket4); err != nil {
+		if err := db.(ethdb.NonTransactional).ClearBuckets(dbutils.AccountsHistoryBucket5); err != nil {
 			return err
 		}
 		extractFunc := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
@@ -90,11 +90,11 @@ var dupSortHistoryAcc = Migration{
 				newKey := make([]byte, 28)
 				copy(newKey[:common.AddressLength], k[:common.AddressLength])
 				binary.BigEndian.PutUint64(newKey[common.AddressLength:], blockN)
-				newVal := make([]byte, 1)
+				var newVal []byte
 				if exists[index] {
-					newVal[0] = 1
+					newVal = []byte{1}
 				} else {
-					newVal[0] = 0
+					newVal = []byte{0}
 				}
 				if err := next(k, newKey, newVal); err != nil {
 					return err
@@ -106,7 +106,47 @@ var dupSortHistoryAcc = Migration{
 		if err := etl.Transform(
 			db,
 			dbutils.AccountsHistoryBucket,
-			dbutils.AccountsHistoryBucket4,
+			dbutils.AccountsHistoryBucket5,
+			datadir,
+			extractFunc,
+			etl.IdentityLoadFunc,
+			etl.TransformArgs{OnLoadCommit: OnLoadCommit},
+		); err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
+var dupSortHistorySt = Migration{
+	Name: "dupsort_history_st_test5",
+	Up: func(db ethdb.Database, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
+		if err := db.(ethdb.NonTransactional).ClearBuckets(dbutils.StorageHistoryBucket5); err != nil {
+			return err
+		}
+		extractFunc := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
+			blockNums, exists, _ := dbutils.WrapHistoryIndex(v).Decode()
+			for index, blockN := range blockNums {
+				newKey := make([]byte, 48)
+				copy(newKey[:common.AddressLength], k[:common.AddressLength])
+				binary.BigEndian.PutUint64(newKey[common.AddressLength:], blockN)
+				var newVal []byte
+				if exists[index] {
+					newVal = []byte{1}
+				} else {
+					newVal = []byte{0}
+				}
+				if err := next(k, newKey, newVal); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+
+		if err := etl.Transform(
+			db,
+			dbutils.StorageHistoryBucket,
+			dbutils.StorageHistoryBucket5,
 			datadir,
 			extractFunc,
 			etl.IdentityLoadFunc,
