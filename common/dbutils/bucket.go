@@ -276,8 +276,8 @@ var dupSortConfig = []dupSortConfigEntry{
 		IsDupSort:    true,
 		IsDupFixed:   true,
 		DupFixedSize: 9,
-		ToLen:        40,
-		FromLen:      48,
+		ToLen:        60,
+		FromLen:      68,
 	},
 }
 
