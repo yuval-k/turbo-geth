@@ -2,7 +2,6 @@ package migrations
 
 import (
 	"encoding/binary"
-	"fmt"
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/common/etl"
@@ -82,27 +81,30 @@ var dupSortPlainState = Migration{
 var dupSortHistoryAcc = Migration{
 	Name: "dupsort_history_acc_test2",
 	Up: func(db ethdb.Database, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
-		if err := db.(ethdb.NonTransactional).ClearBuckets(dbutils.AccountsHistoryBucket2); err != nil {
+		if err := db.(ethdb.NonTransactional).ClearBuckets(dbutils.AccountsHistoryBucket3); err != nil {
 			return err
 		}
-		i := 0
 		extractFunc := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
-			i++
-			fmt.Printf("1: %x, %x\n", k, v)
-			fmt.Printf("2: %x, %d\n", k[:common.AddressLength], binary.BigEndian.Uint64(k[common.AddressLength:]))
-
-			a, b, _ := dbutils.WrapHistoryIndex(v).Decode()
-			fmt.Printf("3: %d, %t\n", a, b)
-			if i > 100 {
-				panic(1)
+			blockNums, exists, _ := dbutils.WrapHistoryIndex(v).Decode()
+			for index, blockN := range blockNums {
+				newVal := make([]byte, 8+1)
+				binary.BigEndian.PutUint64(newVal[:8], blockN)
+				if exists[index] {
+					newVal[8] = 1
+				} else {
+					newVal[8] = 0
+				}
+				if err := next(k, k[:common.AddressLength], newVal); err != nil {
+					return err
+				}
 			}
-			return next(k, k, v)
+			return nil
 		}
 
 		if err := etl.Transform(
 			db,
 			dbutils.AccountsHistoryBucket,
-			dbutils.AccountsHistoryBucket2,
+			dbutils.AccountsHistoryBucket3,
 			datadir,
 			extractFunc,
 			etl.IdentityLoadFunc,

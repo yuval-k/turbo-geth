@@ -69,7 +69,7 @@ var (
 	//key - address hash
 	//value - list of block where it's changed
 	AccountsHistoryBucket  = "hAT"
-	AccountsHistoryBucket2 = "hAT2"
+	AccountsHistoryBucket3 = "hAT3"
 
 	//current
 	//key - address hash + incarnation + storage key hash
@@ -78,7 +78,7 @@ var (
 	//key - address hash
 	//value - list of block where it's changed
 	StorageHistoryBucket  = "hST"
-	StorageHistoryBucket2 = "hST2"
+	StorageHistoryBucket3 = "hST3"
 
 	//key - contract code hash
 	//value - contract code
@@ -186,8 +186,8 @@ var Buckets = []string{
 	CurrentStateBucket,
 	AccountsHistoryBucket,
 	StorageHistoryBucket,
-	AccountsHistoryBucket2,
-	StorageHistoryBucket2,
+	AccountsHistoryBucket3,
+	StorageHistoryBucket3,
 	CodeBucket,
 	ContractCodeBucket,
 	AccountChangeSetBucket,
@@ -232,18 +232,22 @@ var DeprecatedBuckets = []string{
 var BucketsCfg = map[string]*BucketConfigItem{}
 
 type BucketConfigItem struct {
-	ID         int
-	IsDupSort  bool
-	DupToLen   int
-	DupFromLen int
+	ID           int
+	IsDupSort    bool
+	IsDupFixed   bool
+	DupFixedSize int
+	DupToLen     int
+	DupFromLen   int
 }
 
 type dupSortConfigEntry struct {
-	Bucket    string
-	IsDupSort bool
-	ID        int
-	FromLen   int
-	ToLen     int
+	Bucket       string
+	IsDupSort    bool
+	IsDupFixed   bool
+	DupFixedSize int
+	ID           int
+	FromLen      int
+	ToLen        int
 }
 
 var dupSortConfig = []dupSortConfigEntry{
@@ -258,6 +262,22 @@ var dupSortConfig = []dupSortConfigEntry{
 		IsDupSort: true,
 		ToLen:     28,
 		FromLen:   60,
+	},
+	{
+		Bucket:       AccountsHistoryBucket3,
+		IsDupSort:    true,
+		IsDupFixed:   false,
+		DupFixedSize: 9,
+		ToLen:        20,
+		FromLen:      29,
+	},
+	{
+		Bucket:       StorageHistoryBucket3,
+		IsDupSort:    true,
+		IsDupFixed:   false,
+		DupFixedSize: 9,
+		ToLen:        40,
+		FromLen:      49,
 	},
 }
 
@@ -286,6 +306,8 @@ func createBucketConfig(id int, name string) *BucketConfigItem {
 		cfg.DupFromLen = dupCfg.FromLen
 		cfg.DupToLen = dupCfg.ToLen
 		cfg.IsDupSort = dupCfg.IsDupSort
+		cfg.IsDupFixed = dupCfg.IsDupFixed
+		cfg.DupFixedSize = dupCfg.DupFixedSize
 	}
 
 	return cfg

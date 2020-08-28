@@ -334,6 +334,9 @@ func (tx *lmdbTx) CreateBucket(name string) error {
 	if dbutils.BucketsCfg[name].IsDupSort {
 		flags |= lmdb.DupSort
 	}
+	if dbutils.BucketsCfg[name].IsDupFixed {
+		flags |= lmdb.DupFixed
+	}
 	dbi, err := tx.tx.OpenDBI(name, flags)
 	if err != nil {
 		return err
