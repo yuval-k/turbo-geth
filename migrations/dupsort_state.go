@@ -87,14 +87,16 @@ var dupSortHistoryAcc = Migration{
 		extractFunc := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
 			blockNums, exists, _ := dbutils.WrapHistoryIndex(v).Decode()
 			for index, blockN := range blockNums {
-				newVal := make([]byte, 8+1)
-				binary.BigEndian.PutUint64(newVal[:8], blockN)
+				newKey := make([]byte, 28)
+				copy(newKey[:common.AddressLength], k[:common.AddressLength])
+				binary.BigEndian.PutUint64(newKey[common.AddressLength:], blockN)
+				newVal := make([]byte, 1)
 				if exists[index] {
-					newVal[8] = 1
+					newVal[0] = 1
 				} else {
-					newVal[8] = 0
+					newVal[0] = 0
 				}
-				if err := next(k, k[:common.AddressLength], newVal); err != nil {
+				if err := next(k, newKey, newVal); err != nil {
 					return err
 				}
 			}

@@ -269,7 +269,7 @@ var dupSortConfig = []dupSortConfigEntry{
 		IsDupFixed:   false,
 		DupFixedSize: 9,
 		ToLen:        20,
-		FromLen:      29,
+		FromLen:      28,
 	},
 	{
 		Bucket:       StorageHistoryBucket3,
@@ -277,7 +277,7 @@ var dupSortConfig = []dupSortConfigEntry{
 		IsDupFixed:   false,
 		DupFixedSize: 9,
 		ToLen:        40,
-		FromLen:      49,
+		FromLen:      48,
 	},
 }
 
