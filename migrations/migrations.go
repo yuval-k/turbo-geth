@@ -59,6 +59,7 @@ var migrations = []Migration{
 	unwindStagedsyncToUseStageBlockhashes,
 	dupSortHashState,
 	dupSortPlainState,
+	dupSortHistoryAcc,
 }
 
 type Migration struct {

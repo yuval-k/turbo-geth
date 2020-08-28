@@ -68,7 +68,8 @@ var (
 	//layout experiment
 	//key - address hash
 	//value - list of block where it's changed
-	AccountsHistoryBucket = "hAT"
+	AccountsHistoryBucket  = "hAT"
+	AccountsHistoryBucket2 = "hAT2"
 
 	//current
 	//key - address hash + incarnation + storage key hash
@@ -76,7 +77,8 @@ var (
 	//layout experiment
 	//key - address hash
 	//value - list of block where it's changed
-	StorageHistoryBucket = "hST"
+	StorageHistoryBucket  = "hST"
+	StorageHistoryBucket2 = "hST2"
 
 	//key - contract code hash
 	//value - contract code
@@ -184,6 +186,8 @@ var Buckets = []string{
 	CurrentStateBucket,
 	AccountsHistoryBucket,
 	StorageHistoryBucket,
+	AccountsHistoryBucket2,
+	StorageHistoryBucket2,
 	CodeBucket,
 	ContractCodeBucket,
 	AccountChangeSetBucket,

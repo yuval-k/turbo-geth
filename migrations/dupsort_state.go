@@ -1,6 +1,9 @@
 package migrations
 
 import (
+	"encoding/binary"
+	"fmt"
+	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/common/etl"
 	"github.com/ledgerwatch/turbo-geth/ethdb"
@@ -70,6 +73,41 @@ var dupSortPlainState = Migration{
 		}
 
 		if err := db.(ethdb.NonTransactional).DropBuckets(dbutils.PlainStateBucketOld1); err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
+var dupSortHistoryAcc = Migration{
+	Name: "dupsort_history_acc_test2",
+	Up: func(db ethdb.Database, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
+		if err := db.(ethdb.NonTransactional).ClearBuckets(dbutils.AccountsHistoryBucket2); err != nil {
+			return err
+		}
+		i := 0
+		extractFunc := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
+			i++
+			fmt.Printf("1: %x, %x\n", k, v)
+			fmt.Printf("2: %x, %d\n", k[:common.AddressLength], binary.BigEndian.Uint64(k[common.AddressLength:]))
+
+			a, b, _ := dbutils.WrapHistoryIndex(v).Decode()
+			fmt.Printf("3: %d, %t\n", a, b)
+			if i > 100 {
+				panic(1)
+			}
+			return next(k, k, v)
+		}
+
+		if err := etl.Transform(
+			db,
+			dbutils.AccountsHistoryBucket,
+			dbutils.AccountsHistoryBucket2,
+			datadir,
+			extractFunc,
+			etl.IdentityLoadFunc,
+			etl.TransformArgs{OnLoadCommit: OnLoadCommit},
+		); err != nil {
 			return err
 		}
 		return nil
