@@ -79,7 +79,7 @@ var dupSortPlainState = Migration{
 }
 
 var dupSortHistoryAcc = Migration{
-	Name: "dupsort_history_acc_test2",
+	Name: "dupsort_history_acc_test4",
 	Up: func(db ethdb.Database, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
 		if err := db.(ethdb.NonTransactional).ClearBuckets(dbutils.AccountsHistoryBucket3); err != nil {
 			return err

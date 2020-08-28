@@ -69,7 +69,7 @@ var (
 	//key - address hash
 	//value - list of block where it's changed
 	AccountsHistoryBucket  = "hAT"
-	AccountsHistoryBucket3 = "hAT3"
+	AccountsHistoryBucket4 = "hAT4"
 
 	//current
 	//key - address hash + incarnation + storage key hash
@@ -186,7 +186,7 @@ var Buckets = []string{
 	CurrentStateBucket,
 	AccountsHistoryBucket,
 	StorageHistoryBucket,
-	AccountsHistoryBucket3,
+	AccountsHistoryBucket4,
 	StorageHistoryBucket3,
 	CodeBucket,
 	ContractCodeBucket,
@@ -264,9 +264,9 @@ var dupSortConfig = []dupSortConfigEntry{
 		FromLen:   60,
 	},
 	{
-		Bucket:       AccountsHistoryBucket3,
+		Bucket:       AccountsHistoryBucket4,
 		IsDupSort:    true,
-		IsDupFixed:   false,
+		IsDupFixed:   true,
 		DupFixedSize: 9,
 		ToLen:        20,
 		FromLen:      28,
