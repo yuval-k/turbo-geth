@@ -81,7 +81,7 @@ var dupSortPlainState = Migration{
 var dupSortHistoryAcc = Migration{
 	Name: "dupsort_history_acc_test4",
 	Up: func(db ethdb.Database, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
-		if err := db.(ethdb.NonTransactional).ClearBuckets(dbutils.AccountsHistoryBucket3); err != nil {
+		if err := db.(ethdb.NonTransactional).ClearBuckets(dbutils.AccountsHistoryBucket4); err != nil {
 			return err
 		}
 		extractFunc := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
@@ -106,7 +106,7 @@ var dupSortHistoryAcc = Migration{
 		if err := etl.Transform(
 			db,
 			dbutils.AccountsHistoryBucket,
-			dbutils.AccountsHistoryBucket3,
+			dbutils.AccountsHistoryBucket4,
 			datadir,
 			extractFunc,
 			etl.IdentityLoadFunc,
