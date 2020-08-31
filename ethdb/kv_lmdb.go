@@ -166,19 +166,16 @@ func (opts lmdbOpts) Open() (KV, error) {
 			db.buckets[name] = cnfCopy
 		}
 
-		for name, cfg := range db.buckets {
+		for _, cfg := range db.buckets {
 			if cfg.DBI == NonExistingDBI {
 				continue
 			}
 
 			switch cfg.CustomDupComparator {
 			case dbutils.DupCmpSuffix32:
-				fmt.Printf("Set comparator!%s,%s\n", name, cfg.DBI)
 				if err := tx.SetDupCmpExcludeSuffix32(cfg.DBI); err != nil {
 					return err
 				}
-			default:
-				fmt.Printf("Nope? %s\n", name)
 			}
 		}
 		return nil
