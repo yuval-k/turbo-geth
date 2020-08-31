@@ -90,14 +90,21 @@ var dupSortIH = Migration{
 		c2 := tx.CursorDupSort(dbutils.IntermediateTrieHashBucket2)
 		if err := ethdb.Walk(c1, nil, 0, func(k, v []byte) (bool, error) {
 			if len(k) < 40 {
-				return true, c2.AppendDup(k, v)
+				if err := c2.AppendDup(k, v); err != nil {
+					panic(err)
+				}
+				return true, nil
 			}
-			return true, c2.AppendDup(k[:40], append(k[40:], v...))
+
+			if err := c2.AppendDup(k[:40], append(k[40:], v...)); err != nil {
+				panic(err)
+			}
+			return true, nil
 		}); err != nil {
 			return err
 		}
 		if err := tx.Commit(context.Background()); err != nil {
-			return err
+			panic(err)
 		}
 
 		return nil

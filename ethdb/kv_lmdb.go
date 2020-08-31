@@ -164,12 +164,6 @@ func (opts lmdbOpts) Open() (KV, error) {
 			cnfCopy := db.buckets[name]
 			cnfCopy.DBI = dbi
 			db.buckets[name] = cnfCopy
-		}
-
-		for _, cfg := range db.buckets {
-			if cfg.DBI == NonExistingDBI {
-				continue
-			}
 
 			switch cfg.CustomDupComparator {
 			case dbutils.DupCmpSuffix32:
@@ -388,6 +382,13 @@ func (tx *lmdbTx) CreateBucket(name string) error {
 	cnfCopy := tx.db.buckets[name]
 	cnfCopy.DBI = dbi
 	tx.db.buckets[name] = cnfCopy
+
+	switch tx.db.buckets[name].CustomDupComparator {
+	case dbutils.DupCmpSuffix32:
+		if err := tx.tx.SetDupCmpExcludeSuffix32(tx.db.buckets[name].DBI); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
