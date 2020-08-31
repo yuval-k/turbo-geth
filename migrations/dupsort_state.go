@@ -80,14 +80,14 @@ var dupSortPlainState = Migration{
 var dupSortIH = Migration{
 	Name: "dupsort_ih_test1",
 	Up: func(db ethdb.Database, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
-		if err := db.(ethdb.NonTransactional).ClearBuckets(dbutils.IntermediateTrieHashBucket2); err != nil {
+		if err := db.(ethdb.NonTransactional).ClearBuckets(dbutils.IntermediateTrieHashBucket); err != nil {
 			return err
 		}
 
 		kv := db.(ethdb.HasKV).KV()
 		tx, _ := kv.Begin(context.Background(), nil, true)
 		c1 := tx.Cursor(dbutils.IntermediateTrieHashBucket)
-		c2 := tx.CursorDupSort(dbutils.IntermediateTrieHashBucket2)
+		c2 := tx.CursorDupSort(dbutils.IntermediateTrieHashBucket)
 		if err := ethdb.Walk(c1, nil, 0, func(k, v []byte) (bool, error) {
 			if len(k) < 40 {
 				if err := c2.AppendDup(k, v); err != nil {

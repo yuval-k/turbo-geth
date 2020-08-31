@@ -57,6 +57,10 @@ func regenerateIntermediateHashes(db ethdb.Database, datadir string, expectedRoo
 		}
 		k := make([]byte, len(keyHex)/2)
 		trie.CompressNibbles(keyHex, &k)
+		if len(k) > 40 {
+			hash = append(k[:40], hash...)
+			k = k[40:]
+		}
 		return collector.Collect(k, common.CopyBytes(hash))
 	}
 	loader := trie.NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
@@ -213,6 +217,10 @@ func incrementIntermediateHashes(s *StageState, db ethdb.Database, to uint64, da
 		}
 		k := make([]byte, len(keyHex)/2)
 		trie.CompressNibbles(keyHex, &k)
+		if len(k) > 40 {
+			hash = append(k[:40], hash...)
+			k = k[40:]
+		}
 		return collector.Collect(k, common.CopyBytes(hash))
 	}
 	loader := trie.NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
