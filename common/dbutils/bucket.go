@@ -95,8 +95,8 @@ var (
 	StorageChangeSetBucket = "SCS"
 
 	// some_prefix_of(hash_of_address_of_account) => hash_of_subtrie
-	IntermediateTrieHashBucket = "iTh"
-	//IntermediateTrieHashBucket2 = "iTh2"
+	IntermediateTrieHashBucket  = "iTh"
+	IntermediateTrieHashBucket2 = "iTh2"
 
 	// DatabaseInfoBucket is used to store information about data layout.
 	DatabaseInfoBucket = "DBINFO"
@@ -262,9 +262,8 @@ var BucketsConfigs = BucketsCfg{
 		DupToLen:                  28,
 	},
 	//IntermediateTrieHashBucket2: {
-	//	Flags:               		lmdb.DupSort,
-	//	CustomDupComparator:	 	DupCmpSuffix32,
-	//	AutoDupSortKeysConversion:  false,
+	//	Flags:                     lmdb.DupSort,
+	//	CustomDupComparator:       DupCmpSuffix32,
 	//},
 }
 

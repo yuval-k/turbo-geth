@@ -143,9 +143,10 @@ func (opts lmdbOpts) Open() (KV, error) {
 		}
 	}
 
-	// Open deprecated buckets if they exist, don't create
+	// Configure buckets and open deprecated buckets
 	if err := env.View(func(tx *lmdb.Txn) error {
 		for name, cfg := range db.buckets {
+			// Open deprecated buckets if they exist, don't create
 			if !cfg.IsDeprecated {
 				continue
 			}
@@ -163,6 +164,19 @@ func (opts lmdbOpts) Open() (KV, error) {
 			cnfCopy := db.buckets[name]
 			cnfCopy.DBI = dbi
 			db.buckets[name] = cnfCopy
+		}
+
+		for _, cfg := range db.buckets {
+			if cfg.DBI == NonExistingDBI {
+				continue
+			}
+
+			switch cfg.CustomDupComparator {
+			case dbutils.DupCmpSuffix32:
+				if err := tx.SetDupCmpExcludeSuffix32(cfg.DBI); err != nil {
+					return err
+				}
+			}
 		}
 		return nil
 	}); err != nil {
