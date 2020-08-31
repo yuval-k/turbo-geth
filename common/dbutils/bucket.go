@@ -191,6 +191,7 @@ var Buckets = []string{
 	AccountChangeSetBucket,
 	StorageChangeSetBucket,
 	IntermediateTrieHashBucket,
+	IntermediateTrieHashBucket2,
 	DatabaseVerisionKey,
 	HeaderPrefix,
 	HeaderNumberPrefix,
@@ -269,10 +270,10 @@ var BucketsConfigs = BucketsCfg{
 		DupFromLen:                60,
 		DupToLen:                  28,
 	},
-	//IntermediateTrieHashBucket2: {
-	//	Flags:                     lmdb.DupSort,
-	//	CustomDupComparator:       DupCmpSuffix32,
-	//},
+	IntermediateTrieHashBucket2: {
+		Flags:               lmdb.DupSort,
+		CustomDupComparator: DupCmpSuffix32,
+	},
 }
 
 func init() {
