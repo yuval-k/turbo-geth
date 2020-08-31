@@ -753,7 +753,7 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 		return nil
 	}
 	if len(c.v) > 40 {
-		keyPart := len(c.v) - 32
+		keyPart := len(c.v) - common.HashLength
 		c.k = append(common.CopyBytes(c.k), c.v[:keyPart]...)
 		c.v = c.v[keyPart:]
 	}
