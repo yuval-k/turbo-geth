@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"fmt"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/common/etl"
 	"github.com/ledgerwatch/turbo-geth/ethdb"
@@ -83,6 +84,7 @@ var dupSortIH = Migration{
 			return err
 		}
 		extractFunc := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
+			fmt.Printf("extract: %x %x\n", k, v)
 			if len(k) < 40 {
 				return next(k, k, v)
 			}
