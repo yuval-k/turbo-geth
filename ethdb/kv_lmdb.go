@@ -561,11 +561,11 @@ func (tx *lmdbTx) Cursor(bucket string) Cursor {
 		return tx.stdCursor(bucket)
 	}
 
-	if b.Flags & lmdb.DupFixed {
+	if b.Flags&lmdb.DupFixed != 0 {
 		return tx.CursorDupFixed(bucket)
 	}
 
-	if b.Flags & lmdb.DupSort {
+	if b.Flags&lmdb.DupFixed != 0 {
 		return tx.CursorDupSort(bucket)
 	}
 
