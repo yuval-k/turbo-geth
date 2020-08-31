@@ -1070,8 +1070,10 @@ func (c *LmdbCursor) Append(key []byte, value []byte) error {
 	}
 
 	if b.Flags&lmdb.DupSort != 0 {
+		fmt.Printf("appendDup: %x %x\n", key, value)
 		return c.appendDup(key, value)
 	}
+	fmt.Printf("append: %x %x\n", key, value)
 	return c.append(key, value)
 }
 
