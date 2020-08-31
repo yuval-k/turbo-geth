@@ -556,11 +556,28 @@ func (tx *lmdbTx) BucketSize(name string) (uint64, error) {
 }
 
 func (tx *lmdbTx) Cursor(bucket string) Cursor {
+	b := tx.db.buckets[bucket]
+	if b.AutoDupSortKeysConversion {
+		return tx.stdCursor(bucket)
+	}
+
+	if b.Flags & lmdb.DupFixed {
+		return tx.CursorDupFixed(bucket)
+	}
+
+	if b.Flags & lmdb.DupSort {
+		return tx.CursorDupSort(bucket)
+	}
+
+	return tx.stdCursor(bucket)
+}
+
+func (tx *lmdbTx) stdCursor(bucket string) Cursor {
 	return &LmdbCursor{bucketName: bucket, ctx: tx.ctx, tx: tx, bucketCfg: tx.db.buckets[bucket], dbi: tx.db.buckets[bucket].DBI}
 }
 
 func (tx *lmdbTx) CursorDupSort(bucket string) CursorDupSort {
-	basicCursor := tx.Cursor(bucket).(*LmdbCursor)
+	basicCursor := tx.stdCursor(bucket).(*LmdbCursor)
 	return &LmdbDupSortCursor{LmdbCursor: basicCursor}
 }
 

@@ -369,7 +369,7 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(db ethdb.Database, quit <-chan struct{})
 
 		return true, nil
 	}
-	ih := IH(Filter(filter, tx.Cursor(l.intermediateHashesBucket)))
+	ih := IH(Filter(filter, tx.CursorDupSort(l.intermediateHashesBucket)))
 	if err := l.iteration(c, ih, true /* first */); err != nil {
 		return EmptyRoot, err
 	}
@@ -707,23 +707,55 @@ func (r *RootHashAggregator) saveValueAccount(isIH bool, v *accounts.Account, h 
 
 // FilterCursor - call .filter() and if it returns false - skip element
 type FilterCursor struct {
-	c ethdb.Cursor
+	c ethdb.CursorDupSort
 
 	k, kHex, v []byte
 	filter     func(k []byte) (bool, error)
 }
 
-func Filter(filter func(k []byte) (bool, error), c ethdb.Cursor) *FilterCursor {
+func Filter(filter func(k []byte) (bool, error), c ethdb.CursorDupSort) *FilterCursor {
 	return &FilterCursor{c: c, filter: filter}
 }
 
 func (c *FilterCursor) _seek(seek []byte) (err error) {
-	c.k, c.v, err = c.c.Seek(seek)
-	if err != nil {
-		return err
+	if len(seek) == 0 {
+		c.k, c.v, err = c.c.First()
+		if err != nil {
+			return err
+		}
+	} else {
+		var seek1, seek2 []byte
+		if len(seek) > 40 {
+			seek1, seek2 = seek[:40], seek[40:]
+		} else {
+			seek1 = seek
+		}
+		c.k, c.v, err = c.c.Seek(seek1)
+		if err != nil {
+			return err
+		}
+		if c.k == nil {
+			return nil
+		}
+
+		if seek2 != nil && bytes.Equal(seek1, c.k) {
+			c.k, c.v, err = c.c.SeekBothRange(seek1, seek2)
+			if err != nil {
+				return err
+			}
+			c.k, c.v, err = c.c.Next()
+			if err != nil {
+				return err
+			}
+		}
 	}
 	if c.k == nil {
 		return nil
+	}
+	if len(c.v) > 32 {
+		keyPart := len(c.v) - 32
+		c.k = append(common.CopyBytes(c.k), c.v[:keyPart]...)
+		c.v = c.v[keyPart:]
 	}
 
 	DecompressNibbles(c.k, &c.kHex)
