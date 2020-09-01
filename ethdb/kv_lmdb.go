@@ -565,7 +565,7 @@ func (tx *lmdbTx) Cursor(bucket string) Cursor {
 		return tx.CursorDupFixed(bucket)
 	}
 
-	if b.Flags&lmdb.DupFixed != 0 {
+	if b.Flags&lmdb.DupSort != 0 {
 		return tx.CursorDupSort(bucket)
 	}
 
@@ -573,7 +573,8 @@ func (tx *lmdbTx) Cursor(bucket string) Cursor {
 }
 
 func (tx *lmdbTx) stdCursor(bucket string) Cursor {
-	return &LmdbCursor{bucketName: bucket, ctx: tx.ctx, tx: tx, bucketCfg: tx.db.buckets[bucket], dbi: tx.db.buckets[bucket].DBI}
+	b := tx.db.buckets[bucket]
+	return &LmdbCursor{bucketName: bucket, ctx: tx.ctx, tx: tx, bucketCfg: b, dbi: tx.db.buckets[bucket].DBI}
 }
 
 func (tx *lmdbTx) CursorDupSort(bucket string) CursorDupSort {
@@ -626,9 +627,6 @@ func (c *LmdbCursor) lastDup() ([]byte, error) {
 func (c *LmdbCursor) initCursor() error {
 	if c.c != nil {
 		return nil
-	}
-	if !c.bucketCfg.AutoDupSortKeysConversion && c.bucketCfg.Flags&lmdb.DupSort != 0 {
-		return fmt.Errorf("class LmdbCursor can work with DupSort buckets only if they have enabled AutoDupSortKeysConversion property")
 	}
 	tx := c.tx
 

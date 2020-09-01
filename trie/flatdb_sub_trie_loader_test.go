@@ -215,20 +215,21 @@ func TestTwoAccounts(t *testing.T) {
 
 	expect := common.HexToHash("925002c3260b44e44c3edebad1cc442142b03020209df1ab8bb86752edbd2cd7")
 
-	resolver := NewSubTrieLoader(0)
+	resolver := NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
 	rs := NewRetainList(0)
 	rs.AddKey(key1)
-	subTries, err1 := resolver.LoadSubTries(db, 0, rs, nil /* HashCollector */, [][]byte{nil}, []int{0}, false)
+	resolver.Reset(rs, nil, false)
+	root, err1 := resolver.CalcTrieRoot(db, nil)
 	require.NoError(err1, "resolve error")
-	assert.Equal(expect.String(), subTries.Hashes[0].String())
+	assert.Equal(expect, root)
 
-	tr := New(common.Hash{})
-	err = tr.HookSubTries(subTries, [][]byte{nil}) // hook up to the root
-	assert.NoError(err)
-
-	x, ok := tr.GetAccount(key1)
-	assert.True(ok)
-	assert.NotNil(x)
+	//tr := New(common.Hash{})
+	//err = tr.HookSubTries(subTries, [][]byte{nil}) // hook up to the root
+	//assert.NoError(err)
+	//
+	//x, ok := tr.GetAccount(key1)
+	//assert.True(ok)
+	//assert.NotNil(x)
 }
 
 func TestReturnErrOnWrongRootHash(t *testing.T) {
@@ -304,45 +305,46 @@ func TestApiDetails(t *testing.T) {
 	// this IntermediateHash key must not be used, because such key is in ResolveRequest
 	// putIH("01", "0000000000000000000000000000000000000000000000000000000000000000")
 
-	tr := New(common.Hash{})
+	//tr := New(common.Hash{})
 
+	expectRootHash := common.HexToHash("8c34d9b522547741fefe2363762026cf821e6b6a9358a56c9af26182403d20d9")
 	{
-		expectRootHash := common.HexToHash("8c34d9b522547741fefe2363762026cf821e6b6a9358a56c9af26182403d20d9")
 
-		loader := NewSubTrieLoader(0)
+		loader := NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
 		rs := NewRetainList(0)
 		rs.AddHex(hexf("000101%0122x", 0))
 		rs.AddHex(common.Hex2Bytes("000202"))
 		rs.AddHex(common.Hex2Bytes("0f"))
-		subTries, err := loader.LoadSubTries(db, 0, rs, nil /* HashCollector */, [][]byte{nil}, []int{0}, false)
+		loader.Reset(rs, nil, false)
+		root, err := loader.CalcTrieRoot(db, nil)
 		assert.NoError(err)
 
-		err = tr.HookSubTries(subTries, [][]byte{nil}) // hook up to the root
-		assert.NoError(err)
+		//err = tr.HookSubTries(subTries, [][]byte{nil}) // hook up to the root
+		//assert.NoError(err)
 
-		assert.Equal(expectRootHash.String(), tr.Hash().String())
+		assert.Equal(expectRootHash, root)
 
 		//fmt.Printf("%x\n", tr.root.(*fullNode).Children[0].(*fullNode).Children[0].reference())
 		//fmt.Printf("%x\n", tr.root.(*fullNode).Children[15].(*fullNode).Children[15].reference())
 		//fmt.Printf("%d\n", tr.root.(*fullNode).Children[0].(*fullNode).Children[0].witnessSize())
 		//fmt.Printf("%d\n", tr.root.(*fullNode).Children[15].(*fullNode).Children[15].witnessSize())
 
-		_, found := tr.GetAccount(hexf("000%061x", 0))
-		assert.False(found) // exists in DB but resolved, there is hashNode
-
-		acc, found := tr.GetAccount(hexf("011%061x", 0))
-		assert.True(found)
-		require.NotNil(acc)              // cache bucket has empty value, but self-destructed Account still available
-		assert.Equal(int(acc.Nonce), 11) // i * 10 + j
-
-		acc, found = tr.GetAccount(hexf("021%061x", 0))
-		assert.True(found)
-		require.NotNil(acc)              // exists in db and resolved
-		assert.Equal(int(acc.Nonce), 21) // i * 10 + j
-
-		acc, found = tr.GetAccount(hexf("051%061x", 0))
-		assert.True(found)
-		assert.Nil(acc) // not exists in DB
+		//_, found := tr.GetAccount(hexf("000%061x", 0))
+		//assert.False(found) // exists in DB but resolved, there is hashNode
+		//
+		//acc, found := tr.GetAccount(hexf("011%061x", 0))
+		//assert.True(found)
+		//require.NotNil(acc)              // cache bucket has empty value, but self-destructed Account still available
+		//assert.Equal(int(acc.Nonce), 11) // i * 10 + j
+		//
+		//acc, found = tr.GetAccount(hexf("021%061x", 0))
+		//assert.True(found)
+		//require.NotNil(acc)              // exists in db and resolved
+		//assert.Equal(int(acc.Nonce), 21) // i * 10 + j
+		//
+		//acc, found = tr.GetAccount(hexf("051%061x", 0))
+		//assert.True(found)
+		//assert.Nil(acc) // not exists in DB
 
 		//assert.Panics(func() {
 		//	tr.UpdateAccount(hexf("001%061x", 0), &accounts.Account{})
@@ -355,7 +357,7 @@ func TestApiDetails(t *testing.T) {
 	}
 
 	{ // storage loader
-		loader := NewSubTrieLoader(0)
+		loader := NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
 		rl := NewRetainList(0)
 		binary.BigEndian.PutUint64(bytes8[:], uint64(2))
 		for i, b := range bytes8[:] {
@@ -366,32 +368,33 @@ func TestApiDetails(t *testing.T) {
 		rl.AddHex(append(append(hexf("000201%0122x", 0), bytes16[:]...), hexf("%0128x", 0)...))
 		rl.AddHex(append(append(hexf("000202%0122x", 0), bytes16[:]...), hexf("%0128x", 0)...))
 		rl.AddHex(append(append(hexf("0f0f0f%0122x", 0), bytes16[:]...), hexf("%0128x", 0)...))
-		dbPrefixes, fixedbits, hooks := tr.FindSubTriesToLoad(rl)
 		rl.Rewind()
-		subTries, err := loader.LoadSubTries(db, 0, rl, nil /* HashCollector */, dbPrefixes, fixedbits, false)
+		loader.Reset(rl, nil, false)
+		root, err := loader.CalcTrieRoot(db, nil)
 		require.NoError(err)
+		assert.Equal(expectRootHash, root)
 
-		err = tr.HookSubTries(subTries, hooks) // hook up to the root
-		assert.NoError(err)
+		//err = tr.HookSubTries(subTries, hooks) // hook up to the root
+		//assert.NoError(err)
 
-		_, found := tr.Get(hexf("000%061x", 0))
-		assert.False(found) // exists in DB but not resolved, there is hashNode
-
-		storage, found := tr.Get(hexf("011%061x", 0))
-		assert.True(found)
-		require.Nil(storage) // deleted by empty value in cache bucket
-
-		storage, found = tr.Get(hexf("021%0125x", 0))
-		assert.True(found)
-		require.Nil(storage) // this storage has inc=1
-
-		storage, found = tr.Get(hexf("022%0125x", 0))
-		assert.True(found)
-		require.Equal(storage, []byte{2})
-
-		storage, found = tr.Get(hexf("051%0125x", 0))
-		assert.True(found)
-		assert.Nil(storage) // not exists in DB
+		//_, found := tr.Get(hexf("000%061x", 0))
+		//assert.False(found) // exists in DB but not resolved, there is hashNode
+		//
+		//storage, found := tr.Get(hexf("011%061x", 0))
+		//assert.True(found)
+		//require.Nil(storage) // deleted by empty value in cache bucket
+		//
+		//storage, found = tr.Get(hexf("021%0125x", 0))
+		//assert.True(found)
+		//require.Nil(storage) // this storage has inc=1
+		//
+		//storage, found = tr.Get(hexf("022%0125x", 0))
+		//assert.True(found)
+		//require.Equal(storage, []byte{2})
+		//
+		//storage, found = tr.Get(hexf("051%0125x", 0))
+		//assert.True(found)
+		//assert.Nil(storage) // not exists in DB
 
 		//assert.Panics(func() {
 		//	tr.Update(hexf("001%0125x", 0), nil)
