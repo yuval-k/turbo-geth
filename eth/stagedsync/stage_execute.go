@@ -8,6 +8,7 @@ import (
 	"runtime/pprof"
 	"time"
 
+	"github.com/VictoriaMetrics/fastcache"
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/core"
@@ -84,6 +85,20 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 	defer logEvery.Stop()
 	logBlock := stageProgress
 
+	var caching bool = to-s.BlockNumber > 100000
+	var accountCache *fastcache.Cache
+	var storageCache *fastcache.Cache
+	var codeCache *fastcache.Cache
+	var codeSizeCache *fastcache.Cache
+
+	if caching {
+		// Caching is not worth it for small runs of blocks
+		accountCache = fastcache.New(128 * 1024 * 1024) // 128 Mb
+		storageCache = fastcache.New(128 * 1024 * 1024) // 128 Mb
+		codeCache = fastcache.New(32 * 1024 * 1024)     // 32 Mb (the minimum)
+		codeSizeCache = fastcache.New(32 * 1024 * 1024) // 32 Mb (the minimum)
+	}
+
 	for blockNum := stageProgress + 1; blockNum <= to; blockNum++ {
 		if err := common.Stopped(quit); err != nil {
 			return err
@@ -99,11 +114,18 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 		senders := rawdb.ReadSenders(tx, blockHash, blockNum)
 		block.Body().SendersToTxs(senders)
 
-		var stateReader state.StateReader
-		var stateWriter state.WriterWithChangeSets
-
-		stateReader = state.NewPlainStateReader(batch)
-		stateWriter = state.NewPlainStateWriter(batch, tx, blockNum)
+		stateReader := state.NewPlainStateReader(batch)
+		stateWriter := state.NewPlainStateWriter(batch, tx, blockNum)
+		if caching {
+			stateReader.SetAccountCache(accountCache)
+			stateReader.SetStorageCache(storageCache)
+			stateReader.SetCodeCache(codeCache)
+			stateReader.SetCodeSizeCache(codeSizeCache)
+			stateWriter.SetAccountCache(accountCache)
+			stateWriter.SetStorageCache(storageCache)
+			stateWriter.SetCodeCache(codeCache)
+			stateWriter.SetCodeSizeCache(codeSizeCache)
+		}
 
 		// where the magic happens
 		receipts, err := core.ExecuteBlockEphemerally(chainConfig, vmConfig, chainContext, engine, block, stateReader, stateWriter)
@@ -149,9 +171,7 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 		}
 
 		if changeSetHook != nil {
-			if hasChangeSet, ok := stateWriter.(HasChangeSetWriter); ok {
-				changeSetHook(blockNum, hasChangeSet.ChangeSetWriter())
-			}
+			changeSetHook(blockNum, stateWriter.ChangeSetWriter())
 		}
 
 		select {
