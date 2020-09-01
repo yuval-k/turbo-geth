@@ -727,7 +727,7 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 		if err != nil {
 			return err
 		}
-		if len(seek) >= 40 && len(c.v) > 32 {
+		if len(c.v) > 32 {
 			fmt.Printf("First %x \n", c.k)
 		}
 	} else {
@@ -760,7 +760,7 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 				}
 			}
 		}
-		if len(seek) >= 40 && len(c.v) > 32 {
+		if len(c.v) > 32 {
 			fmt.Printf("Seek %x %x\n", seek, c.k)
 		}
 	}
@@ -774,7 +774,7 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 		c.k = append(common.CopyBytes(c.k), c.v[:keyPart]...)
 		c.v = c.v[keyPart:]
 	}
-	if len(seek) >= 40 && len(c.k) > 40 {
+	if len(c.k) > 40 {
 		fmt.Printf("After seek: %x %x\n", seek, c.k)
 	}
 	DecompressNibbles(c.k, &c.kHex)
