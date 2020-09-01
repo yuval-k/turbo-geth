@@ -54,7 +54,14 @@ func (m *TxDb) Put(bucket string, key []byte, value []byte) error {
 
 func (m *TxDb) Append(bucket string, key []byte, value []byte) error {
 	m.len += uint64(len(key) + len(value))
-	return m.cursors[bucket].Append(key, value)
+	switch c := m.cursors[bucket].(type) {
+	case CursorDupSort:
+		return c.AppendDup(key, value)
+	case CursorDupFixed:
+		return c.AppendDup(key, value)
+	default:
+		return c.Append(key, value)
+	}
 }
 
 func (m *TxDb) Delete(bucket string, key []byte) error {

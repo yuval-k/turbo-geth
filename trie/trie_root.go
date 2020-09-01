@@ -369,13 +369,16 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(db ethdb.Database, quit <-chan struct{})
 
 		return true, nil
 	}
-
-	//k1 := common.FromHex("00417a3d9324fb7f1c0b31048df8ba927b237cadfa7109b6eaac4155a6b091840000000000000001")
-	//k2 := common.FromHex("40")
+	//k1 := common.FromHex("706682ae9e85dea8631316257faa9b00d7644e6bb62c41319210145239b51c250000000000000001")
+	//k2 := common.FromHex("fe")
+	//k3 := common.FromHex("ff")
 	//ih2 := tx.CursorDupSort(l.intermediateHashesBucket)
-	//k, v, _ := ih2.SeekBothRange(k1, []byte{0})
+	//
+	//k, v, _ := ih2.SeekBothRange(k1, k2)
 	//fmt.Printf("1: %x %x\n", k, v)
-	//k, v, _ = ih2.SeekBothRange(k1, k2)
+	//k, v, _ = ih2.SeekBothRange(k1, k3)
+	//fmt.Printf("2: %x %x\n", k, v)
+	//k, v, _ = ih2.Next()
 	//fmt.Printf("2: %x %x\n", k, v)
 	//panic(1)
 	ih := IH(Filter(filter, tx.CursorDupSort(l.intermediateHashesBucket)))
@@ -754,11 +757,11 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 				return err
 			}
 			if c.k == nil {
-				c.k, c.v, err = c.c.Next()
+				c.k, c.v, err = c.c.NextNoDup()
 				if err != nil {
 					return err
 				}
-				//fmt.Printf("Next %x %x %x\n", seek, c.k, c.v)
+				//fmt.Printf("Next %x %x\n", c.k, c.v)
 			}
 		}
 	}
@@ -767,16 +770,16 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 	}
 
 	if len(c.v) > common.HashLength {
-		//fmt.Printf("Before %x -> %x %x\n", seek, c.k, c.v)
 		keyPart := len(c.v) - common.HashLength
 		c.k = append(common.CopyBytes(c.k), c.v[:keyPart]...)
-		c.v = c.v[keyPart:]
+		c.v = common.CopyBytes(c.v[keyPart:])
 	}
+	//fmt.Printf("_seek %x -> %x %x\n", seek, c.k, c.v)
 	DecompressNibbles(c.k, &c.kHex)
 	if ok, err := c.filter(c.kHex); err != nil {
 		return err
 	} else if ok {
-		fmt.Printf("After %x -> %x %x\n", seek, c.k, c.v)
+		//fmt.Printf("After %x -> %x %x\n", seek, c.k, c.v)
 		return nil
 	}
 
@@ -796,7 +799,7 @@ func (c *FilterCursor) _next() (err error) {
 		if len(c.v) > common.HashLength {
 			keyPart := len(c.v) - common.HashLength
 			c.k = append(common.CopyBytes(c.k), c.v[:keyPart]...)
-			c.v = c.v[keyPart:]
+			c.v = common.CopyBytes(c.v[keyPart:])
 		}
 
 		//fmt.Printf("2 %x %x\n", c.k, c.v)

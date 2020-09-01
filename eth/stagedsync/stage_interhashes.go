@@ -50,17 +50,36 @@ func SpawnIntermediateHashesStage(s *StageState, db ethdb.Database, datadir stri
 
 func regenerateIntermediateHashes(db ethdb.Database, datadir string, expectedRootHash common.Hash, quit <-chan struct{}) error {
 	log.Info("Regeneration intermediate hashes started")
-	collector := etl.NewCollector(datadir, etl.NewSortableBuffer(etl.BufferOptimalSize))
+	var tx ethdb.DbWithPendingMutations
+	var useExternalTx bool
+	if hasTx, ok := db.(ethdb.HasTx); ok && hasTx.Tx() != nil {
+		tx = db.(ethdb.DbWithPendingMutations)
+		useExternalTx = true
+	} else {
+		var err error
+		tx, err = db.Begin()
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+	}
+	buf := etl.NewSortableBuffer(etl.BufferOptimalSize)
+	buf.SetComparator(tx.(ethdb.HasTx).Tx().Comparator(dbutils.IntermediateTrieHashBucket))
+	collector := etl.NewCollector(datadir, buf)
 	hashCollector := func(keyHex []byte, hash []byte) error {
 		if len(keyHex)%2 != 0 || len(keyHex) == 0 {
 			return nil
 		}
 		k := make([]byte, len(keyHex)/2)
 		trie.CompressNibbles(keyHex, &k)
-		if len(k) > 40 {
-			hash = append(k[:40], hash...)
-			k = k[40:]
+		if hash == nil {
+			return nil
 		}
+		if len(k) > 40 {
+			hash = append(k[40:], hash...)
+			k = k[:40]
+		}
+		//return c.Put(k, common.CopyBytes(hash))
 		return collector.Collect(k, common.CopyBytes(hash))
 	}
 	loader := trie.NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
@@ -81,7 +100,12 @@ func regenerateIntermediateHashes(db ethdb.Database, datadir string, expectedRoo
 		return err
 	}
 	if err := collector.Load(db, dbutils.IntermediateTrieHashBucket, etl.IdentityLoadFunc, etl.TransformArgs{Quit: quit}); err != nil {
-		return fmt.Errorf("gen ih stage: fail load data to bucket: %d", err)
+		return fmt.Errorf("gen ih stage: fail load data to bucket: %w", err)
+	}
+	if !useExternalTx {
+		if _, err := tx.Commit(); err != nil {
+			return err
+		}
 	}
 	log.Info("Regeneration ended")
 	return nil
@@ -198,6 +222,43 @@ func incrementIntermediateHashes(s *StageState, db ethdb.Database, to uint64, da
 		exclude = append(exclude, k)
 		return nil
 	}
+	//collector := etl.NewCollector(datadir, etl.NewSortableBuffer(etl.BufferOptimalSize))
+	var tx ethdb.DbWithPendingMutations
+	var useExternalTx bool
+	if hasTx, ok := db.(ethdb.HasTx); ok && hasTx.Tx() != nil {
+		tx = db.(ethdb.DbWithPendingMutations)
+		useExternalTx = true
+	} else {
+		var err error
+		tx, err = db.Begin()
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+	}
+	c := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.IntermediateTrieHashBucket)
+	del := func(k1, k2 []byte) error {
+		if k2 == nil {
+			v, err := c.SeekExact(k1)
+			if err != nil { // if key not found, or found another one - then nothing to delete
+				return err
+			}
+			if v == nil {
+				return nil
+			}
+			return c.DeleteCurrent()
+		}
+
+		k, _, err := c.SeekBothExact(k1, k2)
+		if err != nil { // if key not found, or found another one - then nothing to delete
+			return err
+		}
+		if k == nil {
+			return nil
+		}
+		return c.DeleteCurrent()
+	}
+
 	if err := p.Promote(s, s.BlockNumber, to, false /* storage */, collect); err != nil {
 		return err
 	}
@@ -210,17 +271,27 @@ func incrementIntermediateHashes(s *StageState, db ethdb.Database, to uint64, da
 	for i := range exclude {
 		unfurl.AddKey(exclude[i])
 	}
-	collector := etl.NewCollector(datadir, etl.NewSortableBuffer(etl.BufferOptimalSize))
+	buf := etl.NewSortableBuffer(etl.BufferOptimalSize)
+	buf.SetComparator(tx.(ethdb.HasTx).Tx().Comparator(dbutils.IntermediateTrieHashBucket))
+	collector := etl.NewCollector(datadir, buf)
 	hashCollector := func(keyHex []byte, hash []byte) error {
 		if len(keyHex)%2 != 0 || len(keyHex) == 0 {
 			return nil
 		}
 		k := make([]byte, len(keyHex)/2)
 		trie.CompressNibbles(keyHex, &k)
-		if len(k) > 40 {
-			hash = append(k[:40], hash...)
-			k = k[40:]
+		if hash == nil {
+			if len(k) > 40 {
+				return del(k[:40], k[40:])
+			} else {
+				return del(k, nil)
+			}
 		}
+		if len(k) > 40 {
+			hash = append(k[40:], hash...)
+			k = k[:40]
+		}
+		//return c.Put(k, common.CopyBytes(hash))
 		return collector.Collect(k, common.CopyBytes(hash))
 	}
 	loader := trie.NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
@@ -241,7 +312,6 @@ func incrementIntermediateHashes(s *StageState, db ethdb.Database, to uint64, da
 		"root hash", hash.Hex(),
 		"gen IH", generationIHTook,
 	)
-
 	if err := collector.Load(db,
 		dbutils.IntermediateTrieHashBucket,
 		etl.IdentityLoadFunc,
@@ -256,6 +326,11 @@ func incrementIntermediateHashes(s *StageState, db ethdb.Database, to uint64, da
 		},
 	); err != nil {
 		return err
+	}
+	if !useExternalTx {
+		if _, err := tx.Commit(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -294,13 +369,62 @@ func unwindIntermediateHashesStageImpl(u *UnwindState, s *StageState, db ethdb.D
 	for i := range exclude {
 		unfurl.AddKey(exclude[i])
 	}
-	collector := etl.NewCollector(datadir, etl.NewSortableBuffer(etl.BufferOptimalSize))
+	var tx ethdb.DbWithPendingMutations
+	var useExternalTx bool
+	if hasTx, ok := db.(ethdb.HasTx); ok && hasTx.Tx() != nil {
+		tx = db.(ethdb.DbWithPendingMutations)
+		useExternalTx = true
+	} else {
+		var err error
+		tx, err = db.Begin()
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+	}
+	c := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.IntermediateTrieHashBucket)
+	buf := etl.NewSortableBuffer(etl.BufferOptimalSize)
+	buf.SetComparator(tx.(ethdb.HasTx).Tx().Comparator(dbutils.IntermediateTrieHashBucket))
+	collector := etl.NewCollector(datadir, buf)
+	del := func(k1, k2 []byte) error {
+		if k2 == nil {
+			v, err := c.SeekExact(k1)
+			if err != nil { // if key not found, or found another one - then nothing to delete
+				return err
+			}
+			if v == nil {
+				return nil
+			}
+			return c.DeleteCurrent()
+		}
+
+		k, _, err := c.SeekBothExact(k1, k2)
+		if err != nil { // if key not found, or found another one - then nothing to delete
+			return err
+		}
+		if k == nil {
+			return nil
+		}
+		return c.DeleteCurrent()
+	}
 	hashCollector := func(keyHex []byte, hash []byte) error {
 		if len(keyHex)%2 != 0 || len(keyHex) == 0 {
 			return nil
 		}
 		k := make([]byte, len(keyHex)/2)
 		trie.CompressNibbles(keyHex, &k)
+		if hash == nil {
+			if len(k) > 40 {
+				return del(k[:40], k[40:])
+			} else {
+				return del(k, nil)
+			}
+		}
+		if len(k) > 40 {
+			hash = append(k[40:], hash...)
+			k = k[:40]
+		}
+		//return c.Put(k, common.CopyBytes(hash))
 		return collector.Collect(k, common.CopyBytes(hash))
 	}
 	loader := trie.NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
@@ -335,6 +459,11 @@ func unwindIntermediateHashesStageImpl(u *UnwindState, s *StageState, db ethdb.D
 		},
 	); err != nil {
 		return err
+	}
+	if !useExternalTx {
+		if _, err := tx.Commit(); err != nil {
+			return err
+		}
 	}
 	return nil
 }

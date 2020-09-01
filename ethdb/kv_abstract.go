@@ -31,6 +31,10 @@ type Tx interface {
 	Commit(ctx context.Context) error
 	Rollback()
 	BucketSize(name string) (uint64, error)
+
+	Comparator(bucket string) dbutils.CmpFunc
+	Cmp(bucket string, a, b []byte) int
+	DCmp(bucket string, a, b []byte) int
 }
 
 // Interface used for buckets migration, don't use it in usual app code
