@@ -372,13 +372,6 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(db ethdb.Database, quit <-chan struct{})
 
 		return true, nil
 	}
-	ethdb.ForEach(tx.CursorDupSort(l.intermediateHashesBucket), func(k, v []byte) (bool, error) {
-		if len(v) > 32 {
-			fmt.Printf("ForEach: %x %x\n", k, v)
-		}
-		return true, nil
-	})
-	panic(1)
 
 	ih := IH(Filter(filter, tx.CursorDupSort(l.intermediateHashesBucket)))
 	if err := l.iteration(c, ih, true /* first */); err != nil {
@@ -804,11 +797,11 @@ func (c *FilterCursor) _next() (err error) {
 			return nil
 		}
 
-		//fmt.Printf("1 %x %x\n", c.k, c.v)
 		if len(c.v) > 40 {
 			keyPart := len(c.v) - common.HashLength
 			c.k = append(common.CopyBytes(c.k), c.v[:keyPart]...)
 			c.v = c.v[keyPart:]
+			fmt.Printf("_next %x %x\n", c.k, c.v)
 		}
 
 		//fmt.Printf("2 %x %x\n", c.k, c.v)
