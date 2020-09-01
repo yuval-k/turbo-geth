@@ -358,6 +358,9 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(db ethdb.Database, quit <-chan struct{})
 
 	c := tx.Cursor(l.stateBucket)
 	var filter = func(k []byte) (bool, error) {
+		if len(k) > 80 {
+			fmt.Printf("Filter: %t %x\n", l.rd.Retain(k), k)
+		}
 		if l.rd.Retain(k) {
 			if l.hc != nil {
 				if err := l.hc(k, nil); err != nil {
