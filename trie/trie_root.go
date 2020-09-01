@@ -755,7 +755,7 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 				if err != nil {
 					return err
 				}
-				if len(seek) >= 40 && len(c.v) > 32 {
+				if len(c.v) > 32 {
 					fmt.Printf("Next %x %x\n", seek, c.k)
 				}
 			}
