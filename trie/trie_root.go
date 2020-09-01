@@ -162,7 +162,7 @@ func (l *FlatDBTrieLoader) iteration(c ethdb.Cursor, ih *IHCursor, first bool) e
 			return err
 		}
 		if isIHSequence {
-			l.k = l.ihK
+			l.k = common.CopyBytes(l.ihK)
 			return nil
 		}
 		if l.k, l.v, err = c.Seek([]byte{}); err != nil {
@@ -307,7 +307,7 @@ func (l *FlatDBTrieLoader) iteration(c ethdb.Cursor, ih *IHCursor, first bool) e
 		return err
 	}
 	if isIHSequence {
-		l.k = l.ihK
+		l.k = common.CopyBytes(l.ihK)
 		return nil
 	}
 	if l.k, l.v, err = c.Seek(next); err != nil {
@@ -771,12 +771,12 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 		keyPart := len(c.v) - common.HashLength
 		c.k = append(common.CopyBytes(c.k), c.v[:keyPart]...)
 		c.v = c.v[keyPart:]
-		fmt.Printf("After %x -> %x %x\n", seek, c.k, c.v)
 	}
 	DecompressNibbles(c.k, &c.kHex)
 	if ok, err := c.filter(c.kHex); err != nil {
 		return err
 	} else if ok {
+		fmt.Printf("After %x -> %x %x\n", seek, c.k, c.v)
 		return nil
 	}
 
