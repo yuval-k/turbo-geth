@@ -358,9 +358,6 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(db ethdb.Database, quit <-chan struct{})
 
 	c := tx.Cursor(l.stateBucket)
 	var filter = func(k []byte) (bool, error) {
-		if len(k) > 80 {
-			fmt.Printf("Filter: %t %x\n", l.rd.Retain(k), k)
-		}
 		if l.rd.Retain(k) {
 			if l.hc != nil {
 				if err := l.hc(k, nil); err != nil {
@@ -373,6 +370,14 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(db ethdb.Database, quit <-chan struct{})
 		return true, nil
 	}
 
+	//k1 := common.FromHex("00417a3d9324fb7f1c0b31048df8ba927b237cadfa7109b6eaac4155a6b091840000000000000001")
+	//k2 := common.FromHex("40")
+	//ih2 := tx.CursorDupSort(l.intermediateHashesBucket)
+	//k, v, _ := ih2.SeekBothRange(k1, []byte{0})
+	//fmt.Printf("1: %x %x\n", k, v)
+	//k, v, _ = ih2.SeekBothRange(k1, k2)
+	//fmt.Printf("2: %x %x\n", k, v)
+	//panic(1)
 	ih := IH(Filter(filter, tx.CursorDupSort(l.intermediateHashesBucket)))
 	if err := l.iteration(c, ih, true /* first */); err != nil {
 		return EmptyRoot, err
@@ -727,9 +732,6 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 		if err != nil {
 			return err
 		}
-		if len(c.v) > 32 {
-			fmt.Printf("First %x \n", c.k)
-		}
 	} else {
 		var seek1, seek2 []byte
 		if len(seek) > 40 {
@@ -747,7 +749,7 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 
 		if seek2 != nil && bytes.Equal(seek1, c.k) {
 			c.k, c.v, err = c.c.SeekBothRange(seek1, seek2)
-			fmt.Printf("SeekBothRange %x %x -> %x %x\n", seek1, seek2, c.k)
+			//fmt.Printf("SeekBothRange %x %x -> %x %x\n", seek1, seek2, c.k, c.v)
 			if err != nil {
 				return err
 			}
@@ -756,7 +758,7 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 				if err != nil {
 					return err
 				}
-				fmt.Printf("Next %x %x %x\n", seek, c.k, c.v)
+				//fmt.Printf("Next %x %x %x\n", seek, c.k, c.v)
 			}
 		}
 	}
@@ -764,12 +766,12 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 		return nil
 	}
 
-	if len(c.v) > 40 {
-		fmt.Printf("After seek1: %x %x %x\n", seek, c.k, c.v)
+	if len(c.v) > common.HashLength {
+		//fmt.Printf("Before %x -> %x %x\n", seek, c.k, c.v)
 		keyPart := len(c.v) - common.HashLength
 		c.k = append(common.CopyBytes(c.k), c.v[:keyPart]...)
 		c.v = c.v[keyPart:]
-		fmt.Printf("After seek2: %x %x\n", c.k, c.v)
+		//fmt.Printf("After %x -> %x %x\n", seek, c.k, c.v)
 	}
 	DecompressNibbles(c.k, &c.kHex)
 	if ok, err := c.filter(c.kHex); err != nil {
@@ -791,12 +793,10 @@ func (c *FilterCursor) _next() (err error) {
 			return nil
 		}
 
-		if len(c.v) > 40 {
-			fmt.Printf("_nex1: %x %x\n", c.k, c.v)
+		if len(c.v) > common.HashLength {
 			keyPart := len(c.v) - common.HashLength
 			c.k = append(common.CopyBytes(c.k), c.v[:keyPart]...)
 			c.v = c.v[keyPart:]
-			fmt.Printf("_next2: %x %x\n", c.k, c.v)
 		}
 
 		//fmt.Printf("2 %x %x\n", c.k, c.v)
@@ -841,6 +841,9 @@ func (c *IHCursor) Seek(seek []byte) ([]byte, []byte, bool, error) {
 
 	if k == nil {
 		return k, v, false, nil
+	}
+	if len(k) > 40 {
+		//fmt.Printf("IH: %x -> %x\n", seek, k)
 	}
 
 	return k, v, isSequence(seek, k), nil
