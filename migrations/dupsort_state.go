@@ -1,7 +1,6 @@
 package migrations
 
 import (
-	"context"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/common/etl"
 	"github.com/ledgerwatch/turbo-geth/ethdb"
@@ -78,33 +77,29 @@ var dupSortPlainState = Migration{
 }
 
 var dupSortIH = Migration{
-	Name: "dupsort_ih_test1",
+	Name: "dupsort_ih_test2",
 	Up: func(db ethdb.Database, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
 		if err := db.(ethdb.NonTransactional).ClearBuckets(dbutils.IntermediateTrieHashBucket); err != nil {
 			return err
 		}
-
-		kv := db.(ethdb.HasKV).KV()
-		tx, _ := kv.Begin(context.Background(), nil, true)
-		c1 := tx.Cursor(dbutils.IntermediateTrieHashBucket)
-		c2 := tx.CursorDupSort(dbutils.IntermediateTrieHashBucket)
-		if err := ethdb.Walk(c1, nil, 0, func(k, v []byte) (bool, error) {
+		extractFunc := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
 			if len(k) < 40 {
-				if err := c2.AppendDup(k, v); err != nil {
-					panic(err)
-				}
-				return true, nil
+				return next(k, k, v)
 			}
 
-			if err := c2.AppendDup(k[:40], append(k[40:], v...)); err != nil {
-				panic(err)
-			}
-			return true, nil
-		}); err != nil {
-			return err
+			return next(k, k[:40], append(k[40:], v...))
 		}
-		if err := tx.Commit(context.Background()); err != nil {
-			panic(err)
+
+		if err := etl.Transform(
+			db,
+			dbutils.IntermediateTrieHashBucketOld1,
+			dbutils.IntermediateTrieHashBucket,
+			datadir,
+			extractFunc,
+			etl.IdentityLoadFunc,
+			etl.TransformArgs{OnLoadCommit: OnLoadCommit},
+		); err != nil {
+			return err
 		}
 
 		return nil

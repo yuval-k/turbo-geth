@@ -723,6 +723,9 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 		if err != nil {
 			return err
 		}
+		if len(seek) >= 40 && len(c.v) > 32 {
+			fmt.Printf("First %x \n", c.k)
+		}
 	} else {
 		var seek1, seek2 []byte
 		if len(seek) > 40 {
@@ -743,21 +746,33 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 			if err != nil {
 				return err
 			}
-			c.k, c.v, err = c.c.Next()
-			if err != nil {
-				return err
+			if c.k == nil {
+				c.k, c.v, err = c.c.Next()
+				if err != nil {
+					return err
+				}
+				if len(seek) >= 40 && len(c.v) > 32 {
+					fmt.Printf("Next %x %x\n", seek, c.k)
+				}
 			}
+		}
+		if len(seek) >= 40 && len(c.v) > 32 {
+			fmt.Printf("Seek %x %x\n", seek, c.k)
 		}
 	}
 	if c.k == nil {
 		return nil
 	}
+	//fmt.Printf("seek1 %x %x %x\n", seek, c.k, c.v)
+
 	if len(c.v) > 40 {
 		keyPart := len(c.v) - common.HashLength
 		c.k = append(common.CopyBytes(c.k), c.v[:keyPart]...)
 		c.v = c.v[keyPart:]
 	}
-
+	if len(seek) >= 40 && len(c.k) > 40 {
+		fmt.Printf("After seek: %x %x\n", seek, c.k)
+	}
 	DecompressNibbles(c.k, &c.kHex)
 	if ok, err := c.filter(c.kHex); err != nil {
 		return err
@@ -778,6 +793,14 @@ func (c *FilterCursor) _next() (err error) {
 			return nil
 		}
 
+		//fmt.Printf("1 %x %x\n", c.k, c.v)
+		if len(c.v) > 40 {
+			keyPart := len(c.v) - common.HashLength
+			c.k = append(common.CopyBytes(c.k), c.v[:keyPart]...)
+			c.v = c.v[keyPart:]
+		}
+
+		//fmt.Printf("2 %x %x\n", c.k, c.v)
 		DecompressNibbles(c.k, &c.kHex)
 		var ok bool
 		ok, err = c.filter(c.kHex)

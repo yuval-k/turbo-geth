@@ -20,7 +20,7 @@ type TxDb struct {
 	db       Database
 	tx       Tx
 	ParentTx Tx
-	cursors  map[string]*LmdbCursor
+	cursors  map[string]Cursor
 	len      uint64
 }
 
@@ -76,12 +76,12 @@ func (m *TxDb) begin(parent Tx) error {
 	}
 	m.tx = tx
 	m.ParentTx = parent
-	m.cursors = make(map[string]*LmdbCursor, 16)
+	m.cursors = make(map[string]Cursor, 16)
 	for i := range dbutils.Buckets {
-		m.cursors[dbutils.Buckets[i]] = tx.Cursor(dbutils.Buckets[i]).(*LmdbCursor)
-		if err := m.cursors[dbutils.Buckets[i]].initCursor(); err != nil {
-			return err
-		}
+		m.cursors[dbutils.Buckets[i]] = tx.Cursor(dbutils.Buckets[i])
+		//if err := m.cursors[dbutils.Buckets[i]].initCursor(); err != nil {
+		//	return err
+		//}
 	}
 	return nil
 }
@@ -236,7 +236,7 @@ func Walk(c Cursor, startkey []byte, fixedbits int, walker func(k, v []byte) (bo
 	return nil
 }
 
-func ForEach(c Cursor, walker func([]byte, []byte) (bool, error)) error {
+func ForEach(c Cursor, walker func(k, v []byte) (bool, error)) error {
 	for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
 		if err != nil {
 			return err
