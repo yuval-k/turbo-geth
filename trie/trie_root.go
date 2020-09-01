@@ -749,7 +749,7 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 
 		if seek2 != nil && bytes.Equal(seek1, c.k) {
 			c.k, c.v, err = c.c.SeekBothRange(seek1, seek2)
-			fmt.Printf("SeekBothRange %x %x -> %x %x\n", seek1, seek2, c.k, c.v)
+			//fmt.Printf("SeekBothRange %x %x -> %x %x\n", seek1, seek2, c.k, c.v)
 			if err != nil {
 				return err
 			}
@@ -758,7 +758,7 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 				if err != nil {
 					return err
 				}
-				fmt.Printf("Next %x %x %x\n", seek, c.k, c.v)
+				//fmt.Printf("Next %x %x %x\n", seek, c.k, c.v)
 			}
 		}
 	}
@@ -771,7 +771,7 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 		keyPart := len(c.v) - common.HashLength
 		c.k = append(common.CopyBytes(c.k), c.v[:keyPart]...)
 		c.v = c.v[keyPart:]
-		//fmt.Printf("After %x -> %x %x\n", seek, c.k, c.v)
+		fmt.Printf("After %x -> %x %x\n", seek, c.k, c.v)
 	}
 	DecompressNibbles(c.k, &c.kHex)
 	if ok, err := c.filter(c.kHex); err != nil {
