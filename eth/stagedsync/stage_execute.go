@@ -93,8 +93,8 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 
 	if caching {
 		// Caching is not worth it for small runs of blocks
-		accountCache = fastcache.New(128 * 1024 * 1024) // 128 Mb
-		storageCache = fastcache.New(128 * 1024 * 1024) // 128 Mb
+		accountCache = fastcache.New(512 * 1024 * 1024) // 512 Mb
+		storageCache = fastcache.New(512 * 1024 * 1024) // 512 Mb
 		codeCache = fastcache.New(32 * 1024 * 1024)     // 32 Mb (the minimum)
 		codeSizeCache = fastcache.New(32 * 1024 * 1024) // 32 Mb (the minimum)
 	}
