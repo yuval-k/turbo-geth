@@ -123,8 +123,8 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 		var stateReader state.StateReader
 		var stateWriter state.WriterWithChangeSets
 
-		stateReader = state.NewPlainStateReader(batch)
-		stateWriter = state.NewPlainStateWriter(batch, tx, blockNum)
+		stateReader = state.NewPlainStateReader(tx)
+		stateWriter = state.NewPlainStateWriter(tx, tx, blockNum)
 
 		// where the magic happens
 		receipts, err := core.ExecuteBlockEphemerally(chainConfig, vmConfig, chainContext, engine, block, stateReader, stateWriter)
@@ -149,7 +149,7 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 		}
 
 		if batch.BatchSize() >= batch.IdealBatchSize() {
-			if err = s.Update(batch, blockNum); err != nil {
+			if err = s.Update(tx, blockNum); err != nil {
 				return err
 			}
 			if err = batch.CommitAndBegin(); err != nil {
@@ -179,11 +179,11 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 		select {
 		default:
 		case <-logEvery.C:
-			logBlock = logProgress(logBlock, blockNum, batch)
+			logBlock = logProgress(logBlock, blockNum, tx)
 		}
 	}
 
-	if err := s.Update(batch, stageProgress); err != nil {
+	if err := s.Update(tx, stageProgress); err != nil {
 		return err
 	}
 	if _, err := batch.Commit(); err != nil {
