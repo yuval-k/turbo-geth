@@ -457,3 +457,26 @@ func NewDatabaseWithFreezer(db *ObjectDatabase, dir, suffix string) (*ObjectData
 	// FIXME: implement freezer in Turbo-Geth
 	return db, nil
 }
+
+func ConvertToDupSort(k, v []byte, targetKeyLen int) ([]byte, []byte) {
+	if len(k) > targetKeyLen {
+		v = append(k[targetKeyLen:], v...)
+		k = k[:targetKeyLen]
+	}
+	return k, v
+}
+
+func ConvertFromDupSort(k, v []byte, sourceKeyLen, targetKeyLen int) ([]byte, []byte) {
+	if len(k) == targetKeyLen {
+		keyPart := sourceKeyLen - targetKeyLen
+		k = append(k, v[:keyPart]...)
+		v = v[keyPart:]
+	}
+	return k, v
+}
+
+//if len(c.v) > common.HashLength {
+//keyPart := len(c.v) - common.HashLength
+//c.k = append(common.CopyBytes(c.k), c.v[:keyPart]...)
+//c.v = c.v[keyPart:]
+//}

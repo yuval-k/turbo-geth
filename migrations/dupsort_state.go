@@ -77,7 +77,7 @@ var dupSortPlainState = Migration{
 }
 
 var dupSortIH = Migration{
-	Name: "dupsort_ih_test2",
+	Name: "dupsort_ih_test3",
 	Up: func(db ethdb.Database, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
 		if err := db.(ethdb.NonTransactional).ClearBuckets(dbutils.IntermediateTrieHashBucket); err != nil {
 			return err

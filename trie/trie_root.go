@@ -162,7 +162,7 @@ func (l *FlatDBTrieLoader) iteration(c ethdb.Cursor, ih *IHCursor, first bool) e
 			return err
 		}
 		if isIHSequence {
-			l.k = l.ihK
+			l.k = common.CopyBytes(l.ihK)
 			return nil
 		}
 		if l.k, l.v, err = c.Seek([]byte{}); err != nil {
@@ -307,7 +307,7 @@ func (l *FlatDBTrieLoader) iteration(c ethdb.Cursor, ih *IHCursor, first bool) e
 		return err
 	}
 	if isIHSequence {
-		l.k = l.ihK
+		l.k = common.CopyBytes(l.ihK)
 		return nil
 	}
 	if l.k, l.v, err = c.Seek(next); err != nil {
@@ -358,9 +358,6 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(db ethdb.Database, quit <-chan struct{})
 
 	c := tx.Cursor(l.stateBucket)
 	var filter = func(k []byte) (bool, error) {
-		if len(k) > 80 {
-			fmt.Printf("Filter: %t %x\n", l.rd.Retain(k), k)
-		}
 		if l.rd.Retain(k) {
 			if l.hc != nil {
 				if err := l.hc(k, nil); err != nil {
@@ -372,7 +369,18 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(db ethdb.Database, quit <-chan struct{})
 
 		return true, nil
 	}
-
+	//k1 := common.FromHex("706682ae9e85dea8631316257faa9b00d7644e6bb62c41319210145239b51c250000000000000001")
+	//k2 := common.FromHex("fe")
+	//k3 := common.FromHex("ff")
+	//ih2 := tx.CursorDupSort(l.intermediateHashesBucket)
+	//
+	//k, v, _ := ih2.SeekBothRange(k1, k2)
+	//fmt.Printf("1: %x %x\n", k, v)
+	//k, v, _ = ih2.SeekBothRange(k1, k3)
+	//fmt.Printf("2: %x %x\n", k, v)
+	//k, v, _ = ih2.Next()
+	//fmt.Printf("2: %x %x\n", k, v)
+	//panic(1)
 	ih := IH(Filter(filter, tx.CursorDupSort(l.intermediateHashesBucket)))
 	if err := l.iteration(c, ih, true /* first */); err != nil {
 		return EmptyRoot, err
@@ -456,6 +464,7 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 		}
 		r.saveValueStorage(false, storageValue, hash)
 	case SHashStreamItem:
+		fmt.Printf("sih: %x %x\n", storageKey, hash)
 		r.advanceKeysStorage(storageKey, false /* terminator */)
 		if r.currStorage.Len() > 0 {
 			if err := r.genStructStorage(); err != nil {
@@ -495,6 +504,7 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 			return err
 		}
 	case AHashStreamItem:
+		fmt.Printf("aih: %x %x\n", accountKey, hash)
 		r.advanceKeysAccount(accountKey, false /* terminator */)
 		if r.curr.Len() > 0 && !r.wasIH {
 			r.cutoffKeysStorage(2 * (common.HashLength + common.IncarnationLength))
@@ -727,9 +737,6 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 		if err != nil {
 			return err
 		}
-		if len(seek) >= 40 && len(c.v) > 32 {
-			fmt.Printf("First %x \n", c.k)
-		}
 	} else {
 		var seek1, seek2 []byte
 		if len(seek) > 40 {
@@ -747,40 +754,34 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 
 		if seek2 != nil && bytes.Equal(seek1, c.k) {
 			c.k, c.v, err = c.c.SeekBothRange(seek1, seek2)
+			//fmt.Printf("SeekBothRange %x %x -> %x %x\n", seek1, seek2, c.k, c.v)
 			if err != nil {
 				return err
 			}
 			if c.k == nil {
-				c.k, c.v, err = c.c.Next()
+				c.k, c.v, err = c.c.NextNoDup()
 				if err != nil {
 					return err
 				}
-				if len(seek) >= 40 && len(c.v) > 32 {
-					fmt.Printf("Next %x %x\n", seek, c.k)
-				}
+				//fmt.Printf("Next %x %x\n", c.k, c.v)
 			}
-		}
-		if len(seek) >= 40 && len(c.v) > 32 {
-			fmt.Printf("Seek %x %x\n", seek, c.k)
 		}
 	}
 	if c.k == nil {
 		return nil
 	}
-	//fmt.Printf("seek1 %x %x %x\n", seek, c.k, c.v)
 
-	if len(c.v) > 40 {
+	if len(c.v) > common.HashLength {
 		keyPart := len(c.v) - common.HashLength
 		c.k = append(common.CopyBytes(c.k), c.v[:keyPart]...)
-		c.v = c.v[keyPart:]
+		c.v = common.CopyBytes(c.v[keyPart:])
 	}
-	if len(seek) >= 40 && len(c.k) > 40 {
-		fmt.Printf("After seek: %x %x\n", seek, c.k)
-	}
+	//fmt.Printf("_seek %x -> %x %x\n", seek, c.k, c.v)
 	DecompressNibbles(c.k, &c.kHex)
 	if ok, err := c.filter(c.kHex); err != nil {
 		return err
 	} else if ok {
+		//fmt.Printf("After %x -> %x %x\n", seek, c.k, c.v)
 		return nil
 	}
 
@@ -797,11 +798,10 @@ func (c *FilterCursor) _next() (err error) {
 			return nil
 		}
 
-		if len(c.v) > 40 {
+		if len(c.v) > common.HashLength {
 			keyPart := len(c.v) - common.HashLength
 			c.k = append(common.CopyBytes(c.k), c.v[:keyPart]...)
-			c.v = c.v[keyPart:]
-			fmt.Printf("_next %x %x\n", c.k, c.v)
+			c.v = common.CopyBytes(c.v[keyPart:])
 		}
 
 		//fmt.Printf("2 %x %x\n", c.k, c.v)
@@ -848,7 +848,8 @@ func (c *IHCursor) Seek(seek []byte) ([]byte, []byte, bool, error) {
 		return k, v, false, nil
 	}
 
-	return k, v, isSequence(seek, k), nil
+	//return k, v, isSequence(seek, k), nil
+	return k, v, false, nil
 }
 
 /*

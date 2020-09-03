@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/ledgerwatch/turbo-geth/common"
 	"io/ioutil"
 	"os"
 	"path"
@@ -163,14 +164,14 @@ func (opts lmdbOpts) Open() (KV, error) {
 			}
 			cnfCopy := db.buckets[name]
 			cnfCopy.DBI = dbi
-			db.buckets[name] = cnfCopy
 
-			switch cfg.CustomDupComparator {
+			switch cnfCopy.CustomDupComparator {
 			case dbutils.DupCmpSuffix32:
-				if err := tx.SetDupCmpExcludeSuffix32(cfg.DBI); err != nil {
+				if err := tx.SetDupCmpExcludeSuffix32(dbi); err != nil {
 					return err
 				}
 			}
+			db.buckets[name] = cnfCopy
 		}
 		return nil
 	}); err != nil {
@@ -184,7 +185,6 @@ func (opts lmdbOpts) Open() (KV, error) {
 			db.log.Debug("cleared reader slots from dead processes", "amount", staleReaders)
 		}
 	}
-
 	return db, nil
 }
 
@@ -312,6 +312,21 @@ func (db *LmdbKV) AllBuckets() dbutils.BucketsCfg {
 	return db.buckets
 }
 
+func (tx *lmdbTx) Comparator(bucket string) dbutils.CmpFunc {
+	b := tx.db.buckets[bucket]
+	return chooseComparator(tx.tx, b.DBI, b)
+}
+
+// Cmp - this func follow bytes.Compare return style: The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
+func (tx *lmdbTx) Cmp(bucket string, a, b []byte) int {
+	return tx.tx.Cmp(tx.db.buckets[bucket].DBI, a, b)
+}
+
+// DCmp - this func follow bytes.Compare return style: The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
+func (tx *lmdbTx) DCmp(bucket string, a, b []byte) int {
+	return tx.tx.DCmp(tx.db.buckets[bucket].DBI, a, b)
+}
+
 // All buckets stored as keys of un-named bucket
 func (tx *lmdbTx) ExistingBuckets() ([]string, error) {
 	var res []string
@@ -381,15 +396,48 @@ func (tx *lmdbTx) CreateBucket(name string) error {
 	}
 	cnfCopy := tx.db.buckets[name]
 	cnfCopy.DBI = dbi
-	tx.db.buckets[name] = cnfCopy
 
-	switch tx.db.buckets[name].CustomDupComparator {
+	switch cnfCopy.CustomDupComparator {
 	case dbutils.DupCmpSuffix32:
-		if err := tx.tx.SetDupCmpExcludeSuffix32(tx.db.buckets[name].DBI); err != nil {
+		if err := tx.tx.SetDupCmpExcludeSuffix32(dbi); err != nil {
 			return err
 		}
 	}
+
+	tx.db.buckets[name] = cnfCopy
+
 	return nil
+}
+
+func chooseComparator(tx *lmdb.Txn, dbi lmdb.DBI, cnfCopy dbutils.BucketConfigItem) dbutils.CmpFunc {
+	if cnfCopy.CustomComparator == dbutils.DefaultCmp && cnfCopy.CustomDupComparator == dbutils.DefaultCmp {
+		if cnfCopy.Flags&lmdb.DupSort == 0 {
+			return dbutils.DefaultCmpFunc
+		} else {
+			return dbutils.DefaultDupCmpFunc
+		}
+	}
+	if cnfCopy.Flags&lmdb.DupSort == 0 {
+		return CustomCmpFunc(tx, dbi)
+	} else {
+		return CustomDupCmpFunc(tx, dbi)
+	}
+}
+
+func CustomCmpFunc(tx *lmdb.Txn, dbi lmdb.DBI) dbutils.CmpFunc {
+	return func(k1, k2, v1, v2 []byte) int {
+		return tx.Cmp(dbi, k1, k2)
+	}
+}
+
+func CustomDupCmpFunc(tx *lmdb.Txn, dbi lmdb.DBI) dbutils.CmpFunc {
+	return func(k1, k2, v1, v2 []byte) int {
+		cmp := tx.Cmp(dbi, common.CopyBytes(k1), common.CopyBytes(k2))
+		if cmp == 0 {
+			cmp = tx.DCmp(dbi, v1, v2)
+		}
+		return cmp
+	}
 }
 
 func (tx *lmdbTx) dropEvenIfBucketIsNotDeprecated(name string) error {
@@ -1062,8 +1110,8 @@ func (c *LmdbCursor) SeekExact(key []byte) ([]byte, error) {
 // Append - speedy feature of lmdb which is not part of KV interface.
 // Cast your cursor to *LmdbCursor to use this method.
 // Return error - if provided data will not sorted (or bucket have old records which mess with new in sorting manner).
-func (c *LmdbCursor) Append(key []byte, value []byte) error {
-	if len(key) == 0 {
+func (c *LmdbCursor) Append(k []byte, v []byte) error {
+	if len(k) == 0 {
 		return fmt.Errorf("lmdb doesn't support empty keys. bucket: %s", c.bucketName)
 	}
 
@@ -1075,20 +1123,21 @@ func (c *LmdbCursor) Append(key []byte, value []byte) error {
 	b := c.bucketCfg
 	if b.AutoDupSortKeysConversion {
 		from, to := b.DupFromLen, b.DupToLen
-		if len(key) != from && len(key) >= to {
-			return fmt.Errorf("dupsort bucket: %s, can have keys of len==%d and len<%d. key: %x", c.bucketName, from, to, key)
+		if len(k) != from && len(k) >= to {
+			return fmt.Errorf("dupsort bucket: %s, can have keys of len==%d and len<%d. key: %x", c.bucketName, from, to, k)
 		}
 
-		if len(key) == from {
-			value = append(key[to:], value...)
-			key = key[:to]
+		if len(k) == from {
+			v = append(k[to:], v...)
+			k = k[:to]
 		}
 	}
 
 	if b.Flags&lmdb.DupSort != 0 {
-		return c.appendDup(key, value)
+		return c.appendDup(k, v)
 	}
-	return c.append(key, value)
+
+	return c.append(k, v)
 }
 
 func (c *LmdbCursor) Close() error {
@@ -1257,14 +1306,15 @@ func (c *LmdbDupSortCursor) LastDup() ([]byte, error) {
 	return v, nil
 }
 
-func (c *LmdbCursor) AppendDup(key []byte, value []byte) error {
+func (c *LmdbCursor) AppendDup(k []byte, v []byte) error {
 	if c.c == nil {
 		if err := c.initCursor(); err != nil {
 			return err
 		}
 	}
 
-	return c.appendDup(key, value)
+	//return c.put(k, v)
+	return c.appendDup(k, v)
 }
 
 func (c *LmdbDupSortCursor) PutNoDupData(key, value []byte) error {
