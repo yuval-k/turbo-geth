@@ -1015,7 +1015,7 @@ func nextIncarnation(chaindata string, addrHash common.Hash) {
 	var found bool
 	var incarnationBytes [common.IncarnationLength]byte
 	startkey := make([]byte, common.HashLength+common.IncarnationLength+common.HashLength)
-	var fixedbits int = 8 * common.HashLength
+	var fixedbits = 8 * common.HashLength
 	copy(startkey, addrHash[:])
 	if err := ethDb.Walk(dbutils.CurrentStateBucket, startkey, fixedbits, func(k, v []byte) (bool, error) {
 		copy(incarnationBytes[:], k[common.HashLength:])
@@ -1609,6 +1609,36 @@ func supply(chaindata string) error {
 	return nil
 }
 
+func iterateNext(chaindata string) error {
+	db := ethdb.MustOpen(chaindata)
+	defer db.Close()
+	db.KV().View(context.Background(), func(tx ethdb.Tx) error {
+		c := tx.Cursor(dbutils.CurrentStateBucket)
+		for k, _, err := c.First(); k != nil; k, _, err = c.Next() {
+			if err != nil {
+				panic(err)
+			}
+		}
+		return nil
+	})
+	return nil
+}
+
+func iterateNextNoDup(chaindata string) error {
+	db := ethdb.MustOpen(chaindata)
+	defer db.Close()
+	db.KV().View(context.Background(), func(tx ethdb.Tx) error {
+		c := tx.CursorDupSort(dbutils.CurrentStateBucket)
+		for k, _, err := c.First(); k != nil; k, _, err = c.NextNoDup() {
+			if err != nil {
+				panic(err)
+			}
+		}
+		return nil
+	})
+	return nil
+}
+
 func extractCode(chaindata string) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
@@ -1812,6 +1842,17 @@ func main() {
 			fmt.Printf("Error: %v\n", err)
 		}
 	}
+	if *action == "iterateNext" {
+		if err := iterateNext(*chaindata); err != nil {
+			fmt.Printf("Error: %v\n", err)
+		}
+	}
+	if *action == "iterateNextNoDup" {
+		if err := iterateNextNoDup(*chaindata); err != nil {
+			fmt.Printf("Error: %v\n", err)
+		}
+	}
+
 	if *action == "iterateOverCode" {
 		if err := iterateOverCode(*chaindata); err != nil {
 			fmt.Printf("Error: %v\n", err)
