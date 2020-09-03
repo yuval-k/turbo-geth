@@ -1610,6 +1610,7 @@ func supply(chaindata string) error {
 }
 
 func iterateNext(chaindata string) error {
+	defer func(t time.Time) { fmt.Printf("hack.go:1615: %s\n", time.Since(t)) }(time.Now())
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
 	db.KV().View(context.Background(), func(tx ethdb.Tx) error {
@@ -1625,6 +1626,7 @@ func iterateNext(chaindata string) error {
 }
 
 func iterateNextNoDup(chaindata string) error {
+	defer func(t time.Time) { fmt.Printf("hack.go:1629: %s\n", time.Since(t)) }(time.Now())
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
 	db.KV().View(context.Background(), func(tx ethdb.Tx) error {
