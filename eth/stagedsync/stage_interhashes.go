@@ -238,17 +238,6 @@ func incrementIntermediateHashes(s *StageState, db ethdb.Database, to uint64, da
 	}
 	c := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.IntermediateTrieHashBucket)
 	del := func(k1, k2 []byte) error {
-		if len(k2) == 0 {
-			v, err := c.SeekExact(k1)
-			if err != nil { // if key not found, or found another one - then nothing to delete
-				return err
-			}
-			if v == nil {
-				return nil
-			}
-			return c.DeleteCurrent()
-		}
-
 		k, _, err := c.SeekBothExact(k1, k2)
 		if err != nil { // if key not found, or found another one - then nothing to delete
 			return err
@@ -387,17 +376,6 @@ func unwindIntermediateHashesStageImpl(u *UnwindState, s *StageState, db ethdb.D
 	buf.SetComparator(tx.(ethdb.HasTx).Tx().Comparator(dbutils.IntermediateTrieHashBucket))
 	collector := etl.NewCollector(datadir, buf)
 	del := func(k1, k2 []byte) error {
-		if len(k2) == 0 {
-			v, err := c.SeekExact(k1)
-			if err != nil { // if key not found, or found another one - then nothing to delete
-				return err
-			}
-			if v == nil {
-				return nil
-			}
-			return c.DeleteCurrent()
-		}
-
 		k, _, err := c.SeekBothExact(k1, k2)
 		if err != nil { // if key not found, or found another one - then nothing to delete
 			return err

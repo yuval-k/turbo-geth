@@ -369,18 +369,7 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(db ethdb.Database, quit <-chan struct{})
 
 		return true, nil
 	}
-	//k1 := common.FromHex("706682ae9e85dea8631316257faa9b00d7644e6bb62c41319210145239b51c250000000000000001")
-	//k2 := common.FromHex("fe")
-	//k3 := common.FromHex("ff")
-	//ih2 := tx.CursorDupSort(l.intermediateHashesBucket)
-	//
-	//k, v, _ := ih2.SeekBothRange(k1, k2)
-	//fmt.Printf("1: %x %x\n", k, v)
-	//k, v, _ = ih2.SeekBothRange(k1, k3)
-	//fmt.Printf("2: %x %x\n", k, v)
-	//k, v, _ = ih2.Next()
-	//fmt.Printf("2: %x %x\n", k, v)
-	//panic(1)
+
 	ih := IH(Filter(filter, tx.CursorDupSort(l.intermediateHashesBucket)))
 	if err := l.iteration(c, ih, true /* first */); err != nil {
 		return EmptyRoot, err
@@ -464,7 +453,6 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 		}
 		r.saveValueStorage(false, storageValue, hash)
 	case SHashStreamItem:
-		fmt.Printf("sih: %x %x\n", storageKey, hash)
 		r.advanceKeysStorage(storageKey, false /* terminator */)
 		if r.currStorage.Len() > 0 {
 			if err := r.genStructStorage(); err != nil {
@@ -504,7 +492,6 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 			return err
 		}
 	case AHashStreamItem:
-		fmt.Printf("aih: %x %x\n", accountKey, hash)
 		r.advanceKeysAccount(accountKey, false /* terminator */)
 		if r.curr.Len() > 0 && !r.wasIH {
 			r.cutoffKeysStorage(2 * (common.HashLength + common.IncarnationLength))

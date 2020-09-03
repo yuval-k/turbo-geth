@@ -1168,6 +1168,28 @@ func (c *LmdbDupSortCursor) initCursor() error {
 	return c.LmdbCursor.initCursor()
 }
 
+func (c *LmdbDupSortCursor) Delete(key []byte) error {
+	panic("use DeleteCurrent")
+}
+
+// DeleteExact - does delete
+func (c *LmdbDupSortCursor) DeleteExact(k1, k2 []byte) error {
+	if c.c == nil {
+		if err := c.initCursor(); err != nil {
+			return err
+		}
+	}
+
+	_, _, err := c.getBoth(k1, k2)
+	if err != nil { // if key not found, or found another one - then nothing to delete
+		if lmdb.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	return c.delCurrent()
+}
+
 func (c *LmdbDupSortCursor) SeekBothExact(key, value []byte) ([]byte, []byte, error) {
 	if c.c == nil {
 		if err := c.initCursor(); err != nil {
