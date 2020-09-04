@@ -238,6 +238,7 @@ func incrementIntermediateHashes(s *StageState, db ethdb.Database, to uint64, da
 	}
 	c := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.IntermediateTrieHashBucket)
 	del := func(k1, k2 []byte) error {
+		fmt.Printf("Del: %x %x\n", k1, k2)
 		k, _, err := c.SeekBothExact(k1, k2)
 		if err != nil { // if key not found, or found another one - then nothing to delete
 			panic(err)
