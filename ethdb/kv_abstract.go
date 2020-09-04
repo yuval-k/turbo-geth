@@ -52,6 +52,9 @@ type Cursor interface {
 
 	First() ([]byte, []byte, error)
 	Seek(seek []byte) ([]byte, []byte, error)
+
+	// SeekExact - set cursor to exactly matched key and return it's value
+	// if key has duplicates it returns first value
 	SeekExact(key []byte) ([]byte, error)
 	Next() ([]byte, []byte, error) // Next - returns next key/value (can iterate over DupSort key/values automatically)
 	Prev() ([]byte, []byte, error)
@@ -63,12 +66,15 @@ type Cursor interface {
 	// Reserve()
 
 	// PutCurrent - replace the item at the current cursor position.
+	// Warning! this method doesn't check order of keys, it means you can insert key in wrong place of bucket
 	//	The key parameter must still be provided, and must match it.
 	//	If using sorted duplicates (#MDB_DUPSORT) the data item must still
 	//	sort into the same place. This is intended to be used when the
 	//	new data is the same size as the old. Otherwise it will simply
 	//	perform a delete of the old record followed by an insert.
-	PutCurrent(key, value []byte) error
+	//
+	//PutCurrent(key, value []byte) error
+
 	// Current - return key/data at current cursor position
 	Current() ([]byte, []byte, error)
 
@@ -85,6 +91,8 @@ type Cursor interface {
 type CursorDupSort interface {
 	Cursor
 
+	// SeekBothExact -
+	// second parameter can be nil only if searched key has no duplicates, or return error
 	SeekBothExact(key, value []byte) ([]byte, []byte, error)
 	SeekBothRange(key, value []byte) ([]byte, []byte, error)
 	FirstDup() ([]byte, error)

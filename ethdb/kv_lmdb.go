@@ -1055,6 +1055,7 @@ func (c *LmdbCursor) putDupSort(key []byte, value []byte) error {
 
 	return c.put(key, value)
 }
+
 func (c *LmdbCursor) PutCurrent(key []byte, value []byte) error {
 	if len(key) == 0 {
 		return fmt.Errorf("lmdb doesn't support empty keys. bucket: %s", c.bucketName)

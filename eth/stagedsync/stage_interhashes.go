@@ -280,19 +280,25 @@ func incrementIntermediateHashes(s *StageState, db ethdb.Database, to uint64, da
 		}
 		k := make([]byte, len(keyHex)/2)
 		trie.CompressNibbles(keyHex, &k)
-		if hash == nil {
-			if len(k) > 40 {
-				return del(k[:40], k[40:])
-			} else {
-				return del(k, nil)
+		if len(k) > 40 {
+			if err := del(k[:40], k[40:]); err != nil {
+				return err
 			}
+		} else {
+			if err := del(k, nil); err != nil {
+				return err
+			}
+		}
+		if hash == nil {
+			return nil
 		}
 		if len(k) > 40 {
 			hash = append(k[40:], hash...)
 			k = k[:40]
 		}
-		//return c.Put(k, common.CopyBytes(hash))
-		return collector.Collect(k, common.CopyBytes(hash))
+
+		return c.Put(common.CopyBytes(k), common.CopyBytes(hash))
+		//return collector.Collect(common.CopyBytes(k), common.CopyBytes(hash))
 	}
 	loader := trie.NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
 	// hashCollector in the line below will collect deletes
@@ -407,25 +413,32 @@ func unwindIntermediateHashesStageImpl(u *UnwindState, s *StageState, db ethdb.D
 		}
 		return c.DeleteCurrent()
 	}
+
 	hashCollector := func(keyHex []byte, hash []byte) error {
 		if len(keyHex)%2 != 0 || len(keyHex) == 0 {
 			return nil
 		}
 		k := make([]byte, len(keyHex)/2)
 		trie.CompressNibbles(keyHex, &k)
-		if hash == nil {
-			if len(k) > 40 {
-				return del(k[:40], k[40:])
-			} else {
-				return del(k, nil)
+		if len(k) > 40 {
+			if err := del(k[:40], k[40:]); err != nil {
+				return err
 			}
+		} else {
+			if err := del(k, nil); err != nil {
+				return err
+			}
+		}
+		if hash == nil {
+			return nil
 		}
 		if len(k) > 40 {
 			hash = append(k[40:], hash...)
 			k = k[:40]
 		}
-		//return c.Put(k, common.CopyBytes(hash))
-		return collector.Collect(k, common.CopyBytes(hash))
+
+		return c.Put(common.CopyBytes(k), common.CopyBytes(hash))
+		//return collector.Collect(common.CopyBytes(k), common.CopyBytes(hash))
 	}
 	loader := trie.NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
 	// hashCollector in the line below will collect deletes
