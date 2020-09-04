@@ -359,11 +359,11 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(db ethdb.Database, quit <-chan struct{})
 	c := tx.Cursor(l.stateBucket)
 	var filter = func(k []byte) (bool, error) {
 		if l.rd.Retain(k) {
-			if l.hc != nil {
-				if err := l.hc(k, nil); err != nil {
-					return false, err
-				}
-			}
+			//if l.hc != nil {
+			//	if err := l.hc(k, nil); err != nil {
+			//		return false, err
+			//	}
+			//}
 			return false, nil
 		}
 
@@ -771,6 +771,9 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 		//fmt.Printf("After %x -> %x %x\n", seek, c.k, c.v)
 		return nil
 	}
+	if err := c.c.DeleteCurrent(); err != nil {
+		return err
+	}
 
 	return c._next()
 }
@@ -799,6 +802,10 @@ func (c *FilterCursor) _next() (err error) {
 			return err
 		} else if ok {
 			return nil
+		}
+
+		if err := c.c.DeleteCurrent(); err != nil {
+			return err
 		}
 
 		c.k, c.v, err = c.c.Next()
