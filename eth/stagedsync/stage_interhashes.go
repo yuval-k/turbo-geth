@@ -66,6 +66,7 @@ func regenerateIntermediateHashes(db ethdb.Database, datadir string, expectedRoo
 	buf := etl.NewSortableBuffer(etl.BufferOptimalSize)
 	buf.SetComparator(tx.(ethdb.HasTx).Tx().Comparator(dbutils.IntermediateTrieHashBucket))
 	collector := etl.NewCollector(datadir, buf)
+	c := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.IntermediateTrieHashBucket)
 	hashCollector := func(keyHex []byte, hash []byte) error {
 		if len(keyHex)%2 != 0 || len(keyHex) == 0 {
 			return nil
@@ -79,8 +80,8 @@ func regenerateIntermediateHashes(db ethdb.Database, datadir string, expectedRoo
 			hash = append(k[40:], hash...)
 			k = k[:40]
 		}
-		//return c.Put(k, common.CopyBytes(hash))
-		return collector.Collect(k, common.CopyBytes(hash))
+		return c.Put(k, common.CopyBytes(hash))
+		//return collector.Collect(k, common.CopyBytes(hash))
 	}
 	loader := trie.NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
 	if err := loader.Reset(trie.NewRetainList(0), hashCollector /* HashCollector */, false); err != nil {
@@ -280,6 +281,7 @@ func incrementIntermediateHashes(s *StageState, db ethdb.Database, to uint64, da
 		}
 		k := make([]byte, len(keyHex)/2)
 		trie.CompressNibbles(keyHex, &k)
+		fmt.Printf("collect: %x %d\n", k, len(hash))
 		if hash == nil {
 			if len(k) > 40 {
 				return del(k[:40], k[40:])
@@ -292,8 +294,8 @@ func incrementIntermediateHashes(s *StageState, db ethdb.Database, to uint64, da
 			k = k[:40]
 		}
 
-		//return c.Put(common.CopyBytes(k), common.CopyBytes(hash))
-		return collector.Collect(common.CopyBytes(k), common.CopyBytes(hash))
+		return c.Put(common.CopyBytes(k), common.CopyBytes(hash))
+		//return collector.Collect(common.CopyBytes(k), common.CopyBytes(hash))
 	}
 	loader := trie.NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
 	// hashCollector in the line below will collect deletes
@@ -415,6 +417,7 @@ func unwindIntermediateHashesStageImpl(u *UnwindState, s *StageState, db ethdb.D
 		}
 		k := make([]byte, len(keyHex)/2)
 		trie.CompressNibbles(keyHex, &k)
+		fmt.Printf("unwind: %x %d\n", k, len(hash))
 		if hash == nil {
 			if len(k) > 40 {
 				return del(k[:40], k[40:])
@@ -427,8 +430,8 @@ func unwindIntermediateHashesStageImpl(u *UnwindState, s *StageState, db ethdb.D
 			k = k[:40]
 		}
 
-		//return c.Put(common.CopyBytes(k), common.CopyBytes(hash))
-		return collector.Collect(common.CopyBytes(k), common.CopyBytes(hash))
+		return c.Put(common.CopyBytes(k), common.CopyBytes(hash))
+		//return collector.Collect(common.CopyBytes(k), common.CopyBytes(hash))
 	}
 	loader := trie.NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
 	// hashCollector in the line below will collect deletes

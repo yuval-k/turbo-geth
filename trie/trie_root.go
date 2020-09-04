@@ -842,6 +842,7 @@ func (c *IHCursor) Seek(seek []byte) ([]byte, []byte, bool, error) {
 		return k, v, false, nil
 	}
 
+	fmt.Printf("seek: %x -> %x %d\n", seek, k, len(v))
 	//return k, v, isSequence(seek, k), nil
 	return k, v, false, nil
 }
