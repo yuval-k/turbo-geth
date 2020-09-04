@@ -105,8 +105,7 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 			log.Info("Running a warmup...")
 			count := 0
 			if err := stateDB.Walk(dbutils.PlainStateBucket, nil, 0, func(_, _ []byte) (bool, error) {
-				if err := common.Stopped(quit); err != nil {
-					return false, nil
+				if err := common.Stopped(quit); err != nil {return false, nil
 				}
 				count++
 				if count%10000000 == 0 {
