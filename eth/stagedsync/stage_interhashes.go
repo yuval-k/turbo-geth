@@ -292,8 +292,8 @@ func incrementIntermediateHashes(s *StageState, db ethdb.Database, to uint64, da
 			k = k[:40]
 		}
 
-		return c.Put(common.CopyBytes(k), common.CopyBytes(hash))
-		//return collector.Collect(common.CopyBytes(k), common.CopyBytes(hash))
+		//return c.Put(common.CopyBytes(k), common.CopyBytes(hash))
+		return collector.Collect(common.CopyBytes(k), common.CopyBytes(hash))
 	}
 	loader := trie.NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
 	// hashCollector in the line below will collect deletes
@@ -427,8 +427,8 @@ func unwindIntermediateHashesStageImpl(u *UnwindState, s *StageState, db ethdb.D
 			k = k[:40]
 		}
 
-		return c.Put(common.CopyBytes(k), common.CopyBytes(hash))
-		//return collector.Collect(common.CopyBytes(k), common.CopyBytes(hash))
+		//return c.Put(common.CopyBytes(k), common.CopyBytes(hash))
+		return collector.Collect(common.CopyBytes(k), common.CopyBytes(hash))
 	}
 	loader := trie.NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
 	// hashCollector in the line below will collect deletes
