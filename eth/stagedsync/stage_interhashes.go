@@ -66,7 +66,6 @@ func regenerateIntermediateHashes(db ethdb.Database, datadir string, expectedRoo
 	buf := etl.NewSortableBuffer(etl.BufferOptimalSize)
 	buf.SetComparator(tx.(ethdb.HasTx).Tx().Comparator(dbutils.IntermediateTrieHashBucket))
 	collector := etl.NewCollector(datadir, buf)
-	c := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.IntermediateTrieHashBucket)
 	hashCollector := func(keyHex []byte, hash []byte) error {
 		if len(keyHex)%2 != 0 || len(keyHex) == 0 {
 			return nil
@@ -80,8 +79,7 @@ func regenerateIntermediateHashes(db ethdb.Database, datadir string, expectedRoo
 			hash = append(k[40:], hash...)
 			k = k[:40]
 		}
-		return c.Put(k, common.CopyBytes(hash))
-		//return collector.Collect(k, common.CopyBytes(hash))
+		return collector.Collect(k, common.CopyBytes(hash))
 	}
 	loader := trie.NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
 	if err := loader.Reset(trie.NewRetainList(0), hashCollector /* HashCollector */, false); err != nil {
@@ -240,14 +238,7 @@ func incrementIntermediateHashes(s *StageState, db ethdb.Database, to uint64, da
 	c := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.IntermediateTrieHashBucket)
 	del := func(k1, k2 []byte) error {
 		if len(k2) == 0 {
-			v, err := c.SeekExact(k1)
-			if err != nil { // if key not found, or found another one - then nothing to delete
-				return err
-			}
-			if v == nil {
-				return nil
-			}
-			return c.DeleteCurrent()
+			panic("something goes wrong")
 		}
 
 		k, _, err := c.SeekBothExact(k1, k2)
@@ -284,17 +275,14 @@ func incrementIntermediateHashes(s *StageState, db ethdb.Database, to uint64, da
 		if hash == nil {
 			if len(k) > 40 {
 				return del(k[:40], k[40:])
-			} else {
-				return del(k, nil)
 			}
 		}
 		if len(k) > 40 {
-			hash = append(common.CopyBytes(k[40:]), hash...)
+			hash = append(k[40:], hash...)
 			k = k[:40]
 		}
 
-		return c.Put(common.CopyBytes(k), common.CopyBytes(hash))
-		//return collector.Collect(common.CopyBytes(k), common.CopyBytes(hash))
+		return collector.Collect(k, common.CopyBytes(hash))
 	}
 	loader := trie.NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
 	// hashCollector in the line below will collect deletes
@@ -390,15 +378,7 @@ func unwindIntermediateHashesStageImpl(u *UnwindState, s *StageState, db ethdb.D
 	collector := etl.NewCollector(datadir, buf)
 	del := func(k1, k2 []byte) error {
 		if len(k2) == 0 {
-			v, err := c.SeekExact(k1)
-			if err != nil { // if key not found, or found another one - then nothing to delete
-				return err
-			}
-			if v == nil {
-				return nil
-			}
-
-			return c.DeleteCurrent()
+			panic("something goes wrong")
 		}
 
 		k, _, err := c.SeekBothExact(k1, k2)
@@ -420,17 +400,14 @@ func unwindIntermediateHashesStageImpl(u *UnwindState, s *StageState, db ethdb.D
 		if hash == nil {
 			if len(k) > 40 {
 				return del(k[:40], k[40:])
-			} else {
-				return del(k, nil)
 			}
 		}
 		if len(k) > 40 {
-			hash = append(common.CopyBytes(k[40:]), hash...)
+			hash = append(k[40:], hash...)
 			k = k[:40]
 		}
 
-		return c.Put(common.CopyBytes(k), common.CopyBytes(hash))
-		//return collector.Collect(common.CopyBytes(k), common.CopyBytes(hash))
+		return collector.Collect(k, common.CopyBytes(hash))
 	}
 	loader := trie.NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
 	// hashCollector in the line below will collect deletes
