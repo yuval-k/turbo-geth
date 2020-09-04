@@ -280,17 +280,12 @@ func incrementIntermediateHashes(s *StageState, db ethdb.Database, to uint64, da
 		}
 		k := make([]byte, len(keyHex)/2)
 		trie.CompressNibbles(keyHex, &k)
-		if len(k) > 40 {
-			if err := del(k[:40], k[40:]); err != nil {
-				return err
-			}
-		} else {
-			if err := del(k, nil); err != nil {
-				return err
-			}
-		}
 		if hash == nil {
-			return nil
+			if len(k) > 40 {
+				return del(k[:40], k[40:])
+			} else {
+				return del(k, nil)
+			}
 		}
 		if len(k) > 40 {
 			hash = append(k[40:], hash...)
@@ -420,17 +415,12 @@ func unwindIntermediateHashesStageImpl(u *UnwindState, s *StageState, db ethdb.D
 		}
 		k := make([]byte, len(keyHex)/2)
 		trie.CompressNibbles(keyHex, &k)
-		if len(k) > 40 {
-			if err := del(k[:40], k[40:]); err != nil {
-				return err
-			}
-		} else {
-			if err := del(k, nil); err != nil {
-				return err
-			}
-		}
 		if hash == nil {
-			return nil
+			if len(k) > 40 {
+				return del(k[:40], k[40:])
+			} else {
+				return del(k, nil)
+			}
 		}
 		if len(k) > 40 {
 			hash = append(k[40:], hash...)
