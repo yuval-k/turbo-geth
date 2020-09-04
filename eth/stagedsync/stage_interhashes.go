@@ -281,7 +281,6 @@ func incrementIntermediateHashes(s *StageState, db ethdb.Database, to uint64, da
 		}
 		k := make([]byte, len(keyHex)/2)
 		trie.CompressNibbles(keyHex, &k)
-		fmt.Printf("collect: %x %d\n", k, len(hash))
 		if hash == nil {
 			if len(k) > 40 {
 				return del(k[:40], k[40:])
@@ -290,7 +289,7 @@ func incrementIntermediateHashes(s *StageState, db ethdb.Database, to uint64, da
 			}
 		}
 		if len(k) > 40 {
-			hash = append(k[40:], hash...)
+			hash = append(common.CopyBytes(k[40:]), hash...)
 			k = k[:40]
 		}
 
@@ -398,6 +397,7 @@ func unwindIntermediateHashesStageImpl(u *UnwindState, s *StageState, db ethdb.D
 			if v == nil {
 				return nil
 			}
+
 			return c.DeleteCurrent()
 		}
 
@@ -417,7 +417,6 @@ func unwindIntermediateHashesStageImpl(u *UnwindState, s *StageState, db ethdb.D
 		}
 		k := make([]byte, len(keyHex)/2)
 		trie.CompressNibbles(keyHex, &k)
-		fmt.Printf("unwind: %x %d\n", k, len(hash))
 		if hash == nil {
 			if len(k) > 40 {
 				return del(k[:40], k[40:])
@@ -426,7 +425,7 @@ func unwindIntermediateHashesStageImpl(u *UnwindState, s *StageState, db ethdb.D
 			}
 		}
 		if len(k) > 40 {
-			hash = append(k[40:], hash...)
+			hash = append(common.CopyBytes(k[40:]), hash...)
 			k = k[:40]
 		}
 

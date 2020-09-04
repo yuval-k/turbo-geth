@@ -282,15 +282,15 @@ func (l *FlatDBTrieLoader) iteration(c ethdb.Cursor, ih *IHCursor, first bool) e
 	if len(l.ihK) > common.HashLength {
 		l.itemType = SHashStreamItem
 		l.accountKey = nil
-		l.storageKey = l.ihK
-		l.hashValue = l.ihV
+		l.storageKey = common.CopyBytes(l.ihK)
+		l.hashValue = common.CopyBytes(l.ihV)
 		l.storageValue = nil
 	} else {
 		l.itemType = AHashStreamItem
-		l.accountKey = l.ihK
+		l.accountKey = common.CopyBytes(l.ihK)
 		l.storageKey = nil
 		l.storageValue = nil
-		l.hashValue = l.ihV
+		l.hashValue = common.CopyBytes(l.ihV)
 	}
 
 	// skip subtree
@@ -746,7 +746,7 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 				return err
 			}
 			if c.k == nil {
-				c.k, c.v, err = c.c.NextNoDup()
+				c.k, c.v, err = c.c.Next()
 				if err != nil {
 					return err
 				}
@@ -765,9 +765,11 @@ func (c *FilterCursor) _seek(seek []byte) (err error) {
 	}
 	//fmt.Printf("_seek %x -> %x %x\n", seek, c.k, c.v)
 	DecompressNibbles(c.k, &c.kHex)
-	if ok, err := c.filter(c.kHex); err != nil {
+	ok, err := c.filter(c.kHex)
+	if err != nil {
 		return err
-	} else if ok {
+	}
+	if ok {
 		//fmt.Printf("After %x -> %x %x\n", seek, c.k, c.v)
 		return nil
 	}
@@ -800,7 +802,8 @@ func (c *FilterCursor) _next() (err error) {
 		ok, err = c.filter(c.kHex)
 		if err != nil {
 			return err
-		} else if ok {
+		}
+		if ok {
 			return nil
 		}
 
@@ -842,7 +845,7 @@ func (c *IHCursor) Seek(seek []byte) ([]byte, []byte, bool, error) {
 		return k, v, false, nil
 	}
 
-	fmt.Printf("seek: %x -> %x %d\n", seek, k, len(v))
+	//fmt.Printf("seek: %x -> %x %d\n", seek, k, len(v))
 	//return k, v, isSequence(seek, k), nil
 	return k, v, false, nil
 }
