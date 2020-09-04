@@ -378,7 +378,7 @@ func unwindIntermediateHashesStageImpl(u *UnwindState, s *StageState, db ethdb.D
 	del := func(k1, k2 []byte) error {
 		k, _, err := c.SeekBothExact(k1, k2)
 		if err != nil { // if key not found, or found another one - then nothing to delete
-			panic(err)
+			return err
 		}
 		if k == nil {
 			return nil

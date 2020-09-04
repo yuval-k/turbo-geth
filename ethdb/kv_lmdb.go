@@ -1202,7 +1202,7 @@ func (c *LmdbDupSortCursor) SeekBothExact(key, value []byte) ([]byte, []byte, er
 		if lmdb.IsNotFound(err) {
 			return nil, nil, nil
 		}
-		return []byte{}, nil, err
+		return []byte{}, nil, fmt.Errorf("SeekBothExact: %w", err)
 	}
 	return k, v, nil
 }
@@ -1219,7 +1219,7 @@ func (c *LmdbDupSortCursor) SeekBothRange(key, value []byte) ([]byte, []byte, er
 		if lmdb.IsNotFound(err) {
 			return nil, nil, nil
 		}
-		return []byte{}, nil, err
+		return []byte{}, nil, fmt.Errorf("SeekBothRange: %w", err)
 	}
 	return k, v, nil
 }
@@ -1236,7 +1236,7 @@ func (c *LmdbDupSortCursor) FirstDup() ([]byte, error) {
 		if lmdb.IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("FirstDup: %w", err)
 	}
 	return v, nil
 }
@@ -1254,7 +1254,7 @@ func (c *LmdbDupSortCursor) NextDup() ([]byte, []byte, error) {
 		if lmdb.IsNotFound(err) {
 			return nil, nil, nil
 		}
-		return []byte{}, nil, err
+		return []byte{}, nil, fmt.Errorf("NextDup: %w", err)
 	}
 	return k, v, nil
 }
@@ -1272,7 +1272,7 @@ func (c *LmdbDupSortCursor) NextNoDup() ([]byte, []byte, error) {
 		if lmdb.IsNotFound(err) {
 			return nil, nil, nil
 		}
-		return []byte{}, nil, err
+		return []byte{}, nil, fmt.Errorf("NextNoDup: %w", err)
 	}
 	return k, v, nil
 }
@@ -1289,7 +1289,7 @@ func (c *LmdbDupSortCursor) PrevDup() ([]byte, []byte, error) {
 		if lmdb.IsNotFound(err) {
 			return nil, nil, nil
 		}
-		return []byte{}, nil, err
+		return []byte{}, nil, fmt.Errorf("PrevDup: %w", err)
 	}
 	return k, v, nil
 }
@@ -1306,7 +1306,7 @@ func (c *LmdbDupSortCursor) PrevNoDup() ([]byte, []byte, error) {
 		if lmdb.IsNotFound(err) {
 			return nil, nil, nil
 		}
-		return []byte{}, nil, err
+		return []byte{}, nil, fmt.Errorf("PrevNoDup: %w", err)
 	}
 	return k, v, nil
 }
@@ -1323,7 +1323,7 @@ func (c *LmdbDupSortCursor) LastDup() ([]byte, error) {
 		if lmdb.IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("LastDup: %w", err)
 	}
 	return v, nil
 }
@@ -1335,8 +1335,10 @@ func (c *LmdbCursor) AppendDup(k []byte, v []byte) error {
 		}
 	}
 
-	//return c.put(k, v)
-	return c.appendDup(k, v)
+	if err := c.appendDup(k, v); err != nil {
+		return fmt.Errorf("AppendDup: %w", err)
+	}
+	return nil
 }
 
 func (c *LmdbDupSortCursor) PutNoDupData(key, value []byte) error {
@@ -1345,7 +1347,11 @@ func (c *LmdbDupSortCursor) PutNoDupData(key, value []byte) error {
 			return err
 		}
 	}
-	return c.putNoDupData(key, value)
+	if err := c.putNoDupData(key, value); err != nil {
+		return fmt.Errorf("appendDup: %w", err)
+	}
+
+	return nil
 }
 
 // DeleteCurrentDuplicates - delete all of the data items for the current key.
@@ -1355,7 +1361,10 @@ func (c *LmdbDupSortCursor) DeleteCurrentDuplicates() error {
 			return err
 		}
 	}
-	return c.delNoDupData()
+	if err := c.delNoDupData(); err != nil {
+		return fmt.Errorf("DeleteCurrentDuplicates: %w", err)
+	}
+	return nil
 }
 
 // Count returns the number of duplicates for the current key. See mdb_cursor_count
@@ -1365,7 +1374,11 @@ func (c *LmdbDupSortCursor) CountDuplicates() (uint64, error) {
 			return 0, err
 		}
 	}
-	return c.c.Count()
+	res, err := c.c.Count()
+	if err != nil {
+		return 0, fmt.Errorf("CountDuplicates: %w", err)
+	}
+	return res, nil
 }
 
 type LmdbDupFixedCursor struct {
