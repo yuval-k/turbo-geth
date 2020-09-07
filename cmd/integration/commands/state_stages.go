@@ -124,7 +124,7 @@ func syncBySmallSteps(ctx context.Context, chaindata string) error {
 		// All stages forward to `execStage + unwindEvery` block
 		execAtBlock := progress(stages.Execution).BlockNumber
 		execToBlock := execAtBlock + unwindEvery
-		if unwind > unwindEvery {
+		if unwind >= unwindEvery {
 			execToBlock = execAtBlock - unwind + unwindEvery
 		}
 		if execToBlock > stopAt {
