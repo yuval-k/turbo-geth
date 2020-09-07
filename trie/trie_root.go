@@ -156,7 +156,6 @@ func (l *FlatDBTrieLoader) SetStreamReceiver(receiver StreamReceiver) {
 // iteration moves through the database buckets and creates at most
 // one stream item, which is indicated by setting the field fstl.itemPresent to true
 func (l *FlatDBTrieLoader) iteration(c ethdb.Cursor, ih *IHCursor, first bool) error {
-	iteration++
 	var isIH, isIHSequence bool
 	var err error
 	if first {
@@ -711,9 +710,6 @@ func IH(f Filter, c ethdb.CursorDupSort) *IHCursor {
 	return &IHCursor{c: c, filter: f}
 }
 
-var ihCounter uint
-var iteration uint
-
 func (c *IHCursor) _seek(seek []byte) (k, v []byte, err error) {
 	if len(seek) > IHDupKeyLen {
 		k, v, err = c.c.SeekBothRange(seek[:IHDupKeyLen], seek[IHDupKeyLen:])
@@ -784,7 +780,6 @@ func (c *IHCursor) _next() (k, v []byte, err error) {
 }
 
 func (c *IHCursor) Seek(seek []byte) ([]byte, []byte, bool, error) {
-	ihCounter++
 	k, v, err := c._seek(seek)
 	if err != nil {
 		return []byte{}, nil, false, err
