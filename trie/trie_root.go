@@ -389,7 +389,6 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(db ethdb.Database, quit <-chan struct{})
 			l.logProgress()
 		}
 	}
-	fmt.Printf("Counters: ih=%d, iteration=%d\n", ihCounter, iteration)
 	return l.receiver.Root(), nil
 }
 
