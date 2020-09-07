@@ -87,10 +87,9 @@ func regenerateIntermediateHashes(db ethdb.Database, datadir string, expectedRoo
 			return nil
 		}
 		if len(k) > 40 {
-			hash = append(k[40:], hash...)
-			k = k[:40]
+			return collector.Collect(k[:40], append(k[40:], hash...))
 		}
-		return collector.Collect(k, common.CopyBytes(hash))
+		return collector.Collect(k, hash)
 	}
 	loader := trie.NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
 	if err := loader.Reset(trie.NewPrefixFilter(), hashCollector /* HashCollector */, false); err != nil {
@@ -252,11 +251,9 @@ func incrementIntermediateHashes(s *StageState, db ethdb.Database, to uint64, da
 			return fmt.Errorf("IH cursor must call Delete by itself")
 		}
 		if len(k) > 40 {
-			hash = append(k[40:], hash...)
-			k = k[:40]
+			return collector.Collect(k[:40], append(k[40:], hash...))
 		}
-
-		return collector.Collect(k, common.CopyBytes(hash))
+		return collector.Collect(k, hash)
 	}
 	loader := trie.NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
 	// hashCollector in the line below will collect deletes
@@ -358,11 +355,9 @@ func unwindIntermediateHashesStageImpl(u *UnwindState, s *StageState, db ethdb.D
 			return fmt.Errorf("IH cursor must call Delete by itself")
 		}
 		if len(k) > 40 {
-			hash = append(k[40:], hash...)
-			k = k[:40]
+			return collector.Collect(k[:40], append(k[40:], hash...))
 		}
-
-		return collector.Collect(k, common.CopyBytes(hash))
+		return collector.Collect(k, hash)
 	}
 	loader := trie.NewFlatDBTrieLoader(dbutils.CurrentStateBucket, dbutils.IntermediateTrieHashBucket)
 	// hashCollector in the line below will collect deletes
