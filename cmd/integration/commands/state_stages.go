@@ -110,7 +110,7 @@ func syncBySmallSteps(ctx context.Context, chaindata string) error {
 		stopAt = block
 	}
 
-	for progress(stages.Execution).BlockNumber < stopAt || (unwind < unwindEvery) {
+	for progress(stages.Execution).BlockNumber < stopAt || (unwind <= unwindEvery) {
 		select {
 		case <-ctx.Done():
 			return nil
