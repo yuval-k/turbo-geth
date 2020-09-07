@@ -153,6 +153,10 @@ func (l *FlatDBTrieLoader) SetStreamReceiver(receiver StreamReceiver) {
 	l.receiver = receiver
 }
 
+var (
+	c1, c2, c3, c4, c5 int
+)
+
 // iteration moves through the database buckets and creates at most
 // one stream item, which is indicated by setting the field fstl.itemPresent to true
 func (l *FlatDBTrieLoader) iteration(c ethdb.Cursor, ih *IHCursor, first bool) error {
@@ -269,6 +273,7 @@ func (l *FlatDBTrieLoader) iteration(c ethdb.Cursor, ih *IHCursor, first bool) e
 				return err
 			}
 		} else {
+			c3++
 			if nextAccount(l.ihK, l.nextAccountKey[:]) {
 				if l.ihK, l.ihV, _, err = ih.Seek(l.nextAccountKey[:]); err != nil {
 					return err
@@ -304,6 +309,7 @@ func (l *FlatDBTrieLoader) iteration(c ethdb.Cursor, ih *IHCursor, first bool) e
 		fmt.Printf("next: %x\n", next)
 	}
 
+	c4++
 	if l.ihK, l.ihV, isIHSequence, err = ih.Seek(next); err != nil {
 		return err
 	}
@@ -388,6 +394,7 @@ func (l *FlatDBTrieLoader) CalcTrieRoot(db ethdb.Database, quit <-chan struct{})
 			l.logProgress()
 		}
 	}
+	fmt.Printf("Counters: %d %d %d %d\n", c1, c2, c3, c4)
 	return l.receiver.Root(), nil
 }
 
