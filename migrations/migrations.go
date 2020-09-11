@@ -60,11 +60,12 @@ var migrations = []Migration{
 	dupSortHashState,
 	dupSortPlainState,
 	dupSortIH,
+	//logsIndex,
 }
 
 type Migration struct {
 	Name string
-	Up   func(db ethdb.Database, dataDir string, OnLoadCommit etl.LoadCommitHandler) error
+	Up   func(tx ethdb.Database, dataDir string, OnLoadCommit etl.LoadCommitHandler) error
 }
 
 var (

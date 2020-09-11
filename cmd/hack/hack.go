@@ -1608,6 +1608,96 @@ func extractCode(chaindata string) error {
 	})
 }
 
+func logIndex(chaindata string) error {
+	db := ethdb.MustOpen(chaindata)
+	defer db.Close()
+	datadir := ""
+	if err := db.ClearBuckets(dbutils.Receipts); err != nil {
+		return err
+	}
+	tx, err := db.Begin()
+	check(err)
+	defer tx.Rollback()
+
+	buf := etl.NewSortableBuffer(etl.BufferOptimalSize)
+	buf.SetComparator(tx.(ethdb.HasTx).Tx().Comparator(dbutils.Receipts))
+	collector := etl.NewCollector(datadir, buf)
+
+	topics := map[common.Hash][]byte{
+		common.HexToHash("4c13017ee95afc4bbd8a701dd9fbc9733f1f09f5a1b5438b5b9abd48e4c92d78"): {0},
+		common.HexToHash("000000000000000000000000d041d33bb1cbde94903a02c287f39ce55095e25e"): {1},
+		common.HexToHash("16cdf1707799c6655baac6e210f52b94b7cec08adcaf9ede7dfe8649da926146"): {2},
+		common.HexToHash("000000000000000000000000c9450a30b259ebb8631b9bc49c64dbaec472d6af"): {3},
+		common.HexToHash("00000000000000000000000023f6b61e953f76813b95a35cf10584b8b1ffe569"): {4},
+		common.HexToHash("4249545452455830300000000000000000000000000000000000000000000000"): {5},
+		common.HexToHash("000000000000000000000000193bb9b5e9b6099fb6c33dbb5ccda4ac18ed14d7"): {6},
+		common.HexToHash("000000000000000000000000aee51f5a76d12d801527ca6ff6ada1ca0bbeff0b"): {7},
+		common.HexToHash("0000000000000000000000002e7eaf5428c3ed9a347493c4c2a46e0080c208f7"): {8},
+		common.HexToHash("464d425756524833430000000000000000000000000000000000000000000000"): {9},
+		common.HexToHash("000000000000000000000000cd1e66ed539dd92fc40bbaa1fa16de8c02c14d45"): {9},
+		common.HexToHash("19dacbf83c5de6658e14cbf7bcae5c15eca2eedecf1c66fbca928e4d351bea0f"): {9},
+		common.HexToHash("30364d3956334c4d570000000000000000000000000000000000000000000000"): {9},
+		common.HexToHash("0000000000000000000000000ba6e46af25a13f57169255a34a4dac7ce12be04"): {9},
+		common.HexToHash("1733cbb53659d713b79580f79f3f9ff215f78a7c7aa45890f3b89fc5cddfbf32"): {9},
+		common.HexToHash("4141414141414749450000000000000000000000000000000000000000000000"): {9},
+	}
+	_ = topics
+	i := 0
+	if err := tx.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
+		//blockHash := k[len(k)-32:]
+		blockNum := k[:len(k)-32]
+
+		storageReceipts := []*types.ReceiptForStorage{}
+		if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
+			return false, err
+		}
+
+		for txIdx, storageReceipt := range storageReceipts {
+			txIndex := make([]byte, 4)
+			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
+
+			for logIdx, log := range storageReceipt.Logs {
+				i++
+				//fmt.Printf("kk: %x %x\n", common.CopyBytes(blockNum), storageReceipt.ContractAddress[:])
+
+				newK := append(common.CopyBytes(blockNum), log.Address[:]...)
+
+				if len(log.Topics) > 0 {
+					for _, topic := range log.Topics {
+						fmt.Printf("topic amount: %d\n", len(log.Topics))
+						logIndex := make([]byte, 4)
+						binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
+
+						//if _, ok := topics[topic]; !ok {
+						//fmt.Printf("v: %x \n", topic, )
+						//}
+						newV := append(topic[:], txIndex...)
+						newV = append(newV, logIndex...)
+						//fmt.Printf("k: %x\n", newK)
+						if err := collector.Collect(newK, newV); err != nil {
+							return false, err
+						}
+					}
+				} else {
+					panic("No topics!!!\n")
+					//fmt.Printf()
+				}
+			}
+		}
+		i++
+
+		if i > 10_000_000 {
+			return false, nil
+		}
+		return true, nil
+	}); err != nil {
+		panic(err)
+	}
+
+	//collector.Load(db)
+	return nil
+}
+
 func iterateOverCode(chaindata string) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
@@ -1859,6 +1949,11 @@ func main() {
 	}
 	if *action == "iterateOverCode" {
 		if err := iterateOverCode(*chaindata); err != nil {
+			fmt.Printf("Error: %v\n", err)
+		}
+	}
+	if *action == "logIndex" {
+		if err := logIndex(*chaindata); err != nil {
 			fmt.Printf("Error: %v\n", err)
 		}
 	}

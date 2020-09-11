@@ -4,18 +4,35 @@
 POST localhost:8545
 Content-Type: application/json
 
-{ "jsonrpc": "2.0", "method": "eth_syncing", "params": [], "id":1}
+{
+  "jsonrpc": "2.0",
+  "method": "eth_syncing",
+  "params": [],
+  "id": 1
+}
 
 ###
 
 POST localhost:8545
 Content-Type: application/json
 
-{ "jsonrpc": "2.0", "method": "debug_accountRange", "params": ["0x1e8480", "", 256, false, false, false], "id":1}
+{
+  "jsonrpc": "2.0",
+  "method": "debug_accountRange",
+  "params": [
+    "0x1e8480",
+    "",
+    256,
+    false,
+    false,
+    false
+  ],
+  "id": 1
+}
 
 ###
 
-# curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_getBlockByNumber", "params": ["0x1b4", true], "id":1}' localhost:8545
+# curl -X POST -H "Content-Type: application/json" --data "{"jsonrpc":"2.0","method":"eth_getBlockByNumber", "params": ["0x1b4", true], "id":1}" localhost:8545
 POST localhost:8545
 Content-Type: application/json
 
@@ -34,7 +51,15 @@ Content-Type: application/json
 POST localhost:8545
 Content-Type: application/json
 
-{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0xf4240",true],"id":2}
+{
+  "jsonrpc": "2.0",
+  "method": "eth_getBlockByNumber",
+  "params": [
+    "0xf4240",
+    true
+  ],
+  "id": 2
+}
 
 ###
 
@@ -53,6 +78,7 @@ Content-Type: application/json
   ],
   "id": 537758
 }
+
 ### > 60
 
 ### >20
@@ -71,7 +97,9 @@ Content-Type: application/json
 {
   "jsonrpc": "2.0",
   "method": "eth_getTransactionReceipt",
-  "params": ["0xc05ce241bec59900356ede868d170bc01d743c3cd5ecb129ca99596593022771"],
+  "params": [
+    "0xc05ce241bec59900356ede868d170bc01d743c3cd5ecb129ca99596593022771"
+  ],
   "id": 537758
 }
 
@@ -84,6 +112,15 @@ Content-Type: application/json
 {
   "jsonrpc": "2.0",
   "method": "eth_getLogs",
-  "params": ["0xcbf9651e8fd1858c9f3ba6ae96a093d2e03ce4ba1e966484b84aec4fc7026d2e"],
+  "params": [
+    {
+      "address": "0x6090a6e47849629b7245dfa1ca21d94cd15878ef",
+      "fromBlock": "0x3cfe4c",
+      "toBlock": "0x3cfe56",
+      "topics": [
+        "0x0f0c27adfd84b60b6f456b0e87cdccb1e5fb9603991588d87fa99f5b6b61e670"
+      ]
+    }
+  ],
   "id": 537758
 }
