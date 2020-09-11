@@ -4,13 +4,13 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/ledgerwatch/turbo-geth/common"
-	"github.com/ledgerwatch/turbo-geth/core/types"
-	"github.com/ledgerwatch/turbo-geth/rlp"
-
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/common/etl"
+	"github.com/ledgerwatch/turbo-geth/core/types"
 	"github.com/ledgerwatch/turbo-geth/ethdb"
+	"github.com/ledgerwatch/turbo-geth/rlp"
 	"github.com/ledgerwatch/turbo-geth/turbo/trie"
+	"github.com/spaolacci/murmur3"
 )
 
 var dupSortHashState = Migration{
@@ -130,63 +130,80 @@ var logsIndex = Migration{
 		if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Receipts); err != nil {
 			return err
 		}
-		buf := etl.NewSortableBuffer(etl.BufferOptimalSize)
 		comparator := tx.(ethdb.HasTx).Tx().Comparator(dbutils.Receipts)
-		buf.SetComparator(comparator)
-		collector := etl.NewCollector(datadir, buf)
 
-		i := 0
-		if err := tx.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
+		murmur := murmur3.New32()
+		var NoTopic = common.HexToHash("0000000000000000000000000000000000000000000000000000000000000000")
+		var NoTopics = []common.Hash{NoTopic}
+
+		extractFunc := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
 			//blockHash := k[len(k)-32:]
 			blockNum := k[:len(k)-32]
 
 			storageReceipts := []*types.ReceiptForStorage{}
 			if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
-				return false, err
+				return err
 			}
+
 			for txIdx, storageReceipt := range storageReceipts {
-				txIndex := make([]byte, 4)
-				binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
-
 				for logIdx, log := range storageReceipt.Logs {
-					i++
-					//fmt.Printf("kk: %x %x\n", common.CopyBytes(blockNum), storageReceipt.ContractAddress[:])
 
-					newK := append(common.CopyBytes(blockNum), log.Address[:]...)
+					topics := log.Topics
+					if len(log.Topics) == 0 {
+						topics = NoTopics
+					}
 
-					if len(log.Topics) > 0 {
-						for _, topic := range log.Topics {
-							fmt.Printf("topic amount: %d\n", len(log.Topics))
-							logIndex := make([]byte, 4)
-							binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
+					logIndex := make([]byte, 4)
+					binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
 
-							//if _, ok := topics[topic]; !ok {
-							//fmt.Printf("v: %x \n", topic, )
-							//}
-							newV := append(topic[:], txIndex...)
-							newV = append(newV, logIndex...)
-							//fmt.Printf("k: %x\n", newK)
-							if err := collector.Collect(newK, newV); err != nil {
-								return false, err
-							}
+					txIndex := make([]byte, 4)
+					binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
+
+					duplicatedTopics := map[common.Hash]struct{}{}
+					for _, topic := range topics {
+						if _, ok := duplicatedTopics[topic]; ok { // skip topics duplicates
+							continue
 						}
-					} else {
-						panic("No topics!!!\n")
-						//fmt.Printf()
+						duplicatedTopics[topic] = struct{}{}
+
+						if _, err := murmur.Write(topic[:]); err != nil {
+							return err
+						}
+
+						topicId := make([]byte, 4)
+						binary.BigEndian.PutUint32(topicId, murmur.Sum32())
+						murmur.Reset()
+
+						newK := log.Address[:]
+
+						newV := common.CopyBytes(blockNum)
+						newV = append(newV, topicId...)
+						newV = append(newV, txIndex...)
+						newV = append(newV, logIndex...)
+						if err := next(k, newK, newV); err != nil {
+							return err
+						}
 					}
 				}
 			}
-			i++
+			return nil
+		}
 
-			if i > 1000 {
-				return false, nil
-			}
-			return true, nil
-		}); err != nil {
+		if err := etl.Transform(
+			tx,
+			dbutils.BlockReceiptsPrefix,
+			dbutils.Receipts,
+			datadir,
+			extractFunc,
+			etl.IdentityLoadFunc,
+			etl.TransformArgs{
+				OnLoadCommit: OnLoadCommit,
+				Comparator:   comparator,
+			},
+		); err != nil {
 			return err
 		}
 
-		panic(1)
-		return OnLoadCommit(tx, nil, true)
+		return nil
 	},
 }

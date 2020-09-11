@@ -1621,7 +1621,7 @@ func logIndex(chaindata string) error {
 	check(err)
 	defer tx.Rollback()
 
-	var NoTopic = common.HexToHash("000000000000000000000000d041d33bb1cbde94903a02c287f39ce55095e25e")
+	var NoTopic = common.HexToHash("0000000000000000000000000000000000000000000000000000000000000000")
 	var NoTopics = []common.Hash{NoTopic}
 
 	buf := etl.NewSortableBuffer(etl.BufferOptimalSize)
@@ -1696,6 +1696,7 @@ func logIndex(chaindata string) error {
 					newK := log.Address[:]
 
 					newV := common.CopyBytes(blockNum)
+					//newV = append(newV, topicId...)
 					newV = append(newV, topic[:]...)
 					newV = append(newV, txIndex...)
 					newV = append(newV, logIndex...)
@@ -1811,7 +1812,9 @@ func logIndexBitmap(chaindata string) error {
 					b.Add(murmur.Sum32())
 					murmur.Reset()
 
-					fmt.Printf("len %d\n", b.FrozenSizeInBytes())
+					if b.FrozenSizeInBytes() != 25 {
+						fmt.Printf("len %d\n", b.FrozenSizeInBytes())
+					}
 					//newK := append(common.CopyBytes(blockNum), log.Address[:]...)
 					//newV = append(newV, txIndex...)
 					//newV = append(newV, logIndex...)
