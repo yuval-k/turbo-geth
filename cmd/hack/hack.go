@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
+	"github.com/spaolacci/murmur3"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/RoaringBitmap/gocroaring"
 	"github.com/holiman/uint256"
 	"github.com/ledgerwatch/lmdb-go/lmdb"
 	"github.com/ledgerwatch/turbo-geth/common"
@@ -1619,8 +1621,12 @@ func logIndex(chaindata string) error {
 	check(err)
 	defer tx.Rollback()
 
+	var NoTopic = common.HexToHash("000000000000000000000000d041d33bb1cbde94903a02c287f39ce55095e25e")
+	var NoTopics = []common.Hash{NoTopic}
+
 	buf := etl.NewSortableBuffer(etl.BufferOptimalSize)
-	buf.SetComparator(tx.(ethdb.HasTx).Tx().Comparator(dbutils.Receipts))
+	comparator := tx.(ethdb.HasTx).Tx().Comparator(dbutils.Receipts)
+	buf.SetComparator(comparator)
 	collector := etl.NewCollector(datadir, buf)
 
 	topics := map[common.Hash][]byte{
@@ -1643,6 +1649,124 @@ func logIndex(chaindata string) error {
 	}
 	_ = topics
 	i := 0
+
+	uniqueTopics := map[common.Hash]uint{}
+	murmur := murmur3.New32()
+
+	if err := tx.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
+		blockHash := k[len(k)-32:]
+		blockNum := k[:len(k)-32]
+
+		storageReceipts := []*types.ReceiptForStorage{}
+		if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
+			return false, err
+		}
+
+		for txIdx, storageReceipt := range storageReceipts {
+			for logIdx, log := range storageReceipt.Logs {
+				i++
+
+				topics := log.Topics
+				if len(log.Topics) == 0 {
+					topics = NoTopics
+				}
+
+				logIndex := make([]byte, 4)
+				binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
+
+				txIndex := make([]byte, 4)
+				binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
+
+				duplicatedTopics := map[common.Hash]struct{}{}
+				for _, topic := range topics {
+					if _, ok := duplicatedTopics[topic]; ok { // skip topics duplicates
+						continue
+					}
+					duplicatedTopics[topic] = struct{}{}
+					uniqueTopics[topic]++
+
+					if _, err := murmur.Write(topic[:]); err != nil {
+						return false, err
+					}
+
+					topicId := make([]byte, 4)
+					binary.BigEndian.PutUint32(topicId, murmur.Sum32())
+					murmur.Reset()
+
+					newK := log.Address[:]
+
+					newV := common.CopyBytes(blockNum)
+					newV = append(newV, topic[:]...)
+					newV = append(newV, txIndex...)
+					newV = append(newV, logIndex...)
+					//newV = append(newV, log.Data...)
+					//if len(log.Data) > 0 {
+					//	fmt.Printf("Empty data!!\n")
+					//}
+					//if len(log.Data) < 32 && len(log.Data) > 0 {
+					//	fmt.Printf("Small data %d\n", len(log.Data))
+					//}
+					//if len(log.Data) > 32  {
+					//	fmt.Printf("Big data: %x %x\n", blockHash, log.Data)
+					//}
+					_ = blockHash
+
+					if err := collector.Collect(newK, newV); err != nil {
+						return false, err
+					}
+				}
+			}
+		}
+		i++
+		//if i > 1_000_000 {
+		//	return false, nil
+		//}
+		return true, nil
+	}); err != nil {
+		panic(err)
+	}
+
+	//for t, i := range uniqueTopics {
+	//	if i < 1_00_000 {
+	//		continue
+	//	}
+	//	fmt.Printf("unique:  %d, %x\n", i, t)
+	//}
+
+	if err := collector.Load(tx, dbutils.Receipts, etl.IdentityLoadFunc, etl.TransformArgs{
+		Comparator: comparator,
+	}); err != nil {
+		return fmt.Errorf("fail load data to bucket: %w", err)
+	}
+
+	_, err = tx.Commit()
+	check(err)
+
+	//collector.Load(db)
+	return nil
+}
+
+func logIndexBitmap(chaindata string) error {
+	db := ethdb.MustOpen(chaindata)
+	defer db.Close()
+	datadir := ""
+	if err := db.ClearBuckets(dbutils.Receipts); err != nil {
+		return err
+	}
+	tx, err := db.Begin()
+	check(err)
+	defer tx.Rollback()
+
+	var NoTopic = common.HexToHash("000000000000000000000000d041d33bb1cbde94903a02c287f39ce55095e25e")
+	var NoTopics = []common.Hash{NoTopic}
+
+	buf := etl.NewSortableBuffer(etl.BufferOptimalSize)
+	comparator := tx.(ethdb.HasTx).Tx().Comparator(dbutils.Receipts)
+	buf.SetComparator(comparator)
+	collector := etl.NewCollector(datadir, buf)
+
+	murmur := murmur3.New32()
+	i := 0
 	if err := tx.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
 		//blockHash := k[len(k)-32:]
 		blockNum := k[:len(k)-32]
@@ -1658,42 +1782,62 @@ func logIndex(chaindata string) error {
 
 			for logIdx, log := range storageReceipt.Logs {
 				i++
-				//fmt.Printf("kk: %x %x\n", common.CopyBytes(blockNum), storageReceipt.ContractAddress[:])
 
-				newK := append(common.CopyBytes(blockNum), log.Address[:]...)
+				topics := log.Topics
+				if len(log.Topics) == 0 {
+					topics = NoTopics
+				}
 
-				if len(log.Topics) > 0 {
-					for _, topic := range log.Topics {
-						fmt.Printf("topic amount: %d\n", len(log.Topics))
-						logIndex := make([]byte, 4)
-						binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
-
-						//if _, ok := topics[topic]; !ok {
-						//fmt.Printf("v: %x \n", topic, )
-						//}
-						newV := append(topic[:], txIndex...)
-						newV = append(newV, logIndex...)
-						//fmt.Printf("k: %x\n", newK)
-						if err := collector.Collect(newK, newV); err != nil {
-							return false, err
-						}
+				duplicatedTopics := map[common.Hash]struct{}{}
+				for _, topic := range topics {
+					if _, ok := duplicatedTopics[topic]; ok { // skip topics duplicates
+						continue
 					}
-				} else {
-					panic("No topics!!!\n")
-					//fmt.Printf()
+					duplicatedTopics[topic] = struct{}{}
+
+					logIndex := make([]byte, 4)
+					binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
+
+					b := gocroaring.New()
+
+					b.Add(uint32(binary.BigEndian.Uint64(blockNum)))
+
+					// key
+					murmur.Write(topic[:])
+					b.Add(murmur.Sum32())
+					murmur.Reset()
+
+					murmur.Write(log.Address[:])
+					b.Add(murmur.Sum32())
+					murmur.Reset()
+
+					fmt.Printf("len %d\n", b.FrozenSizeInBytes())
+					//newK := append(common.CopyBytes(blockNum), log.Address[:]...)
+					//newV = append(newV, txIndex...)
+					//newV = append(newV, logIndex...)
+					//if err := collector.Collect(newK, newV); err != nil {
+					//	return false, err
+					//}
 				}
 			}
 		}
 		i++
-
-		if i > 10_000_000 {
-			return false, nil
-		}
+		//if i > 1_000_000 {
+		//	return false, nil
+		//}
 		return true, nil
 	}); err != nil {
 		panic(err)
 	}
 
+	if err := collector.Load(tx, dbutils.Receipts, etl.IdentityLoadFunc, etl.TransformArgs{
+		Comparator: comparator,
+	}); err != nil {
+		return fmt.Errorf("fail load data to bucket: %w", err)
+	}
+
+	_, err = tx.Commit()
+	check(err)
 	//collector.Load(db)
 	return nil
 }
@@ -1954,6 +2098,11 @@ func main() {
 	}
 	if *action == "logIndex" {
 		if err := logIndex(*chaindata); err != nil {
+			fmt.Printf("Error: %v\n", err)
+		}
+	}
+	if *action == "logIndexBitmap" {
+		if err := logIndexBitmap(*chaindata); err != nil {
 			fmt.Printf("Error: %v\n", err)
 		}
 	}
