@@ -21,7 +21,6 @@ import (
 	"github.com/ledgerwatch/turbo-geth/turbo/adapter"
 	"github.com/ledgerwatch/turbo-geth/turbo/transactions"
 	"math/big"
-	"time"
 )
 
 func getReceipts(ctx context.Context, db rawdb.DatabaseReader, cfg *params.ChainConfig, hash common.Hash) (types.Receipts, error) {
@@ -146,7 +145,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 	}
 
 	if len(crit.Addresses) == 0 {
-		// TODO: special case - handle by another bucket
+		// TODO: special case - handle by another bucket - by dbutils.ReceiptsIndex
 		filter = NewRangeFilter(begin, end, crit.Addresses, crit.Topics)
 		// Run the filter and return all the logs
 		logs, err := filter.Logs(ctx, api)
@@ -161,7 +160,6 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 	beginBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(beginBytes, uint32(begin))
 
-	defer func(t time.Time) { fmt.Printf("get_receipts.go:140: %s\n", time.Since(t)) }(time.Now())
 	for _, address := range crit.Addresses {
 		c := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.ReceiptsIndex2).Prefetch(10).(ethdb.CursorDupSort)
 	Logs:
@@ -170,6 +168,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 				return returnLogs(logs), err
 			}
 
+			fmt.Printf("%d\n", i)
 			i++
 			if !bytes.Equal(address[:], v[:20]) {
 				break

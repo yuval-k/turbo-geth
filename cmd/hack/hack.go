@@ -1793,7 +1793,7 @@ func logIndex(chaindata string) error {
 	err = tx.CommitAndBegin()
 	check(err)
 
-	if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex3); err != nil {
+	if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex); err != nil {
 		return err
 	}
 	extractFunc33 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
@@ -1853,7 +1853,7 @@ func logIndex(chaindata string) error {
 	if err := etl.Transform(
 		tx,
 		dbutils.BlockReceiptsPrefix,
-		dbutils.ReceiptsIndex3,
+		dbutils.ReceiptsIndex,
 		datadir,
 		extractFunc33,
 		etl.IdentityLoadFunc,
@@ -1882,7 +1882,6 @@ func logIndex(chaindata string) error {
 		for txIdx, storageReceipt := range storageReceipts {
 			for logIdx, log := range storageReceipt.Logs {
 				if len(log.Data) == 0 {
-					fmt.Printf("Empty data\n")
 					continue
 				}
 				logIndex := make([]byte, 4)
@@ -1960,6 +1959,45 @@ func logIndex(chaindata string) error {
 		etl.TransformArgs{
 			Comparator: comparator,
 		},
+	); err != nil {
+		return err
+	}
+
+	err = tx.CommitAndBegin()
+	check(err)
+
+	if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix2); err != nil {
+		return err
+	}
+	extractFunc9 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
+		storageReceipts := []*types.ReceiptForStorage{}
+		if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
+			return err
+		}
+
+		for i := range storageReceipts {
+			storageReceipts[i].Logs = nil
+		}
+
+		var bytes []byte
+		if bytes, err = rlp.EncodeToBytes(storageReceipts); err != nil {
+			return fmt.Errorf("encode block receipts for block %w", err)
+		}
+
+		if err := next(k, k[4:8], bytes); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err := etl.Transform(
+		tx,
+		dbutils.BlockReceiptsPrefix,
+		dbutils.BlockReceiptsPrefix2,
+		datadir,
+		extractFunc9,
+		etl.IdentityLoadFunc,
+		etl.TransformArgs{},
 	); err != nil {
 		return err
 	}

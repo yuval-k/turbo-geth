@@ -114,12 +114,12 @@ var (
 	BlockBodyPrefix     = "b" // blockBodyPrefix + num (uint64 big endian) + hash -> block body
 	BlockReceiptsPrefix = "r" // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
 
-	ReceiptsIndex  = "ri"  // addr -> blockN -> things
-	ReceiptsIndex2 = "ri2" // blockN -> addr -> things - this block must be bigger than ReceiptsIndex+Logs buckets
-	ReceiptsIndex3 = "ri3" // blockN + addr -> things - this block must be bigger than ReceiptsIndex+Logs buckets
-	Logs           = "rd"  // blockN + txIdx + logIdx -> logData
-	LogTopic       = "rid" //
-	TxHash         = "txh" // blockN -> txIdx + txHash
+	BlockReceiptsPrefix2 = "r2"  // same as blockReceiptsPrefix, but no logs
+	ReceiptsIndex        = "ri"  // addr -> blockN -> things
+	ReceiptsIndex2       = "ri2" // blockN -> addr -> things - this block must be bigger than ReceiptsIndex+Logs buckets
+	Logs                 = "rd"  // blockN + txIdx + logIdx -> logData
+	LogTopic             = "rid" //
+	TxHash               = "txh" // blockN -> txIdx + txHash
 
 	TxLookupPrefix  = "l" // txLookupPrefix + hash -> transaction/receipt lookup metadata
 	BloomBitsPrefix = "B" // bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash -> bloom bits
@@ -198,7 +198,6 @@ var Buckets = []string{
 	BlockReceiptsPrefix,
 	ReceiptsIndex,
 	ReceiptsIndex2,
-	ReceiptsIndex3,
 	Logs,
 	LogTopic,
 	TxLookupPrefix,
@@ -223,6 +222,7 @@ var Buckets = []string{
 	HeadHeaderKey,
 	Migrations,
 	TxHash,
+	BlockReceiptsPrefix2,
 }
 
 // DeprecatedBuckets - list of buckets which can be programmatically deleted - for example after migration
@@ -296,9 +296,6 @@ var BucketsConfigs = BucketsCfg{
 		Flags: lmdb.DupSort,
 	},
 	ReceiptsIndex2: {
-		Flags: lmdb.DupSort,
-	},
-	ReceiptsIndex3: {
 		Flags: lmdb.DupSort,
 	},
 	TxHash: {

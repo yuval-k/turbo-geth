@@ -333,3 +333,12 @@ func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, num
 	}
 	return nil
 }
+
+type ReceiptForStorage2 struct {
+	PostStateOrStatus []byte
+	CumulativeGasUsed uint64
+	TxHash            common.Hash
+	ContractAddress   common.Address
+	Logs              []*LogForStorage
+	GasUsed           uint64
+}
