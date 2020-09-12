@@ -23,7 +23,7 @@ import (
 const MaxTxTTL = 30 * time.Second
 
 type KvServer struct {
-	remote.UnimplementedKVServer // must be embedded to have forward compatible implementations.
+	remote.UnstableKVService // must be embedded to have forward compatible implementations.
 
 	kv ethdb.KV
 }
@@ -52,8 +52,8 @@ func StartGrpc(kv ethdb.KV, eth core.Backend, addr string, creds *credentials.Tr
 	var grpcServer *grpc.Server
 	if creds == nil {
 		grpcServer = grpc.NewServer(
-			grpc.NumStreamWorkers(20),  // reduce amount of goroutines
-			grpc.WriteBufferSize(1024), // reduce buffers to save mem
+			grpc.NumStreamWorkers(20),    // reduce amount of goroutines
+			grpc.WriteBufferSize(114096), // reduce buffers to save mem
 			grpc.ReadBufferSize(1024),
 			grpc.MaxConcurrentStreams(40), // to force clients reduce concurency level
 			grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(streamInterceptors...)),
@@ -70,9 +70,9 @@ func StartGrpc(kv ethdb.KV, eth core.Backend, addr string, creds *credentials.Tr
 			grpc.Creds(*creds),
 		)
 	}
-	remote.RegisterKVServer(grpcServer, kvSrv)
-	remote.RegisterDBServer(grpcServer, dbSrv)
-	remote.RegisterETHBACKENDServer(grpcServer, ethBackendSrv)
+	remote.RegisterKVService(grpcServer, remote.NewKVService(kvSrv))
+	remote.RegisterDBService(grpcServer, remote.NewDBService(dbSrv))
+	remote.RegisterETHBACKENDService(grpcServer, remote.NewETHBACKENDService(ethBackendSrv))
 
 	if metrics.Enabled {
 		grpc_prometheus.Register(grpcServer)
@@ -106,17 +106,30 @@ func (s *KvServer) Seek(stream remote.KV_SeekServer) error {
 
 	bucketName, prefix := in.BucketName, in.Prefix // 'in' value will cahnge, but this params will immutable
 
-	c := tx.Cursor(bucketName).Prefix(prefix)
+	var c ethdb.Cursor
 
 	txTicker := time.NewTicker(MaxTxTTL)
 	defer txTicker.Stop()
 
-	// send all items to client, if k==nil - stil send it to client and break loop
-	for k, v, err := c.Seek(in.SeekKey); ; k, v, err = c.Next() {
+	isDupsort := len(in.SeekValue) != 0
+	var k, v []byte
+	if !isDupsort {
+		c = tx.Cursor(bucketName).Prefix(prefix)
+		k, v, err = c.Seek(in.SeekKey)
 		if err != nil {
 			return err
 		}
+	} else {
+		cd := tx.CursorDupSort(bucketName)
+		k, v, err = cd.SeekBothRange(in.SeekKey, in.SeekValue)
+		if err != nil {
+			return err
+		}
+		c = cd
+	}
 
+	// send all items to client, if k==nil - still send it to client and break loop
+	for {
 		err = stream.Send(&remote.Pair{Key: common.CopyBytes(k), Value: common.CopyBytes(v)})
 		if err != nil {
 			return err
@@ -136,6 +149,11 @@ func (s *KvServer) Seek(stream remote.KV_SeekServer) error {
 			}
 		}
 
+		k, v, err = c.Next()
+		if err != nil {
+			return err
+		}
+
 		//TODO: protect against client - which doesn't send any requests
 		select {
 		default:
@@ -145,8 +163,14 @@ func (s *KvServer) Seek(stream remote.KV_SeekServer) error {
 			if err != nil {
 				return err
 			}
-			c = tx.Cursor(bucketName).Prefix(prefix)
-			_, _, _ = c.Seek(k)
+			if isDupsort {
+				dc := tx.CursorDupSort(bucketName)
+				_, _, _ = dc.SeekBothRange(k, v)
+				c = dc
+			} else {
+				c = tx.Cursor(bucketName).Prefix(prefix)
+				_, _, _ = c.Seek(k)
+			}
 		}
 	}
 }

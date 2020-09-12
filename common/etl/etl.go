@@ -90,6 +90,9 @@ func Transform(
 		bufferSize = args.BufferSize
 	}
 	buffer := getBufferByType(args.BufferType, bufferSize)
+	if args.Comparator != nil {
+		buffer.SetComparator(args.Comparator)
+	}
 	collector := NewCollector(datadir, buffer)
 
 	t := time.Now()

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/ledgerwatch/lmdb-go/lmdb"
 	"net"
 	"time"
 
@@ -58,6 +59,15 @@ type remoteCursor struct {
 	streamCancelFn     context.CancelFunc // this function needs to be called to close the stream
 	tx                 *remoteTx
 	bucketName         string
+	bucketCfg          dbutils.BucketConfigItem
+}
+
+type remoteCursorDupSort struct {
+	*remoteCursor
+}
+
+type remoteCursorDupFixed struct {
+	*remoteCursorDupSort
 }
 
 type RemoteBackend struct {
@@ -181,14 +191,17 @@ func (db *RemoteKV) DiskSize(ctx context.Context) (uint64, error) {
 }
 
 func (db *RemoteKV) Begin(ctx context.Context, parent Tx, writable bool) (Tx, error) {
-	panic("remote db doesn't support managed transactions")
+	return &remoteTx{ctx: ctx, db: db}, nil
 }
 
 func (db *RemoteKV) View(ctx context.Context, f func(tx Tx) error) (err error) {
-	t := &remoteTx{ctx: ctx, db: db}
-	defer t.Rollback()
+	tx, err := db.Begin(ctx, nil, false)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
 
-	return f(t)
+	return f(tx)
 }
 
 func (db *RemoteKV) Update(ctx context.Context, f func(tx Tx) error) (err error) {
@@ -260,17 +273,14 @@ func (c *remoteCursor) Prev() ([]byte, []byte, error) {
 }
 
 func (tx *remoteTx) Cursor(bucket string) Cursor {
-	c := &remoteCursor{tx: tx, ctx: tx.ctx, bucketName: bucket}
+	b := tx.db.buckets[bucket]
+	c := &remoteCursor{tx: tx, ctx: tx.ctx, bucketName: bucket, bucketCfg: b}
 	tx.cursors = append(tx.cursors, c)
 	return c
 }
 
-func (tx *remoteTx) CursorDupSort(bucket string) CursorDupSort {
-	panic("not supported")
-}
-
-func (tx *remoteTx) CursorDupFixed(bucket string) CursorDupFixed {
-	panic("not supported")
+func (c *remoteCursor) initCursor() error {
+	return nil
 }
 
 func (c *remoteCursor) Current() ([]byte, []byte, error)              { panic("not supported") }
@@ -323,7 +333,7 @@ func (c *remoteCursor) Next() ([]byte, []byte, error) {
 
 	// if streaming not requested, server will send data only when remoteKV send message to bi-directional channel
 	if !c.streamingRequested {
-		doStream := c.prefetch > 1
+		doStream := c.prefetch > 0
 		if err := c.stream.Send(&remote.SeekRequest{StartSreaming: doStream}); err != nil {
 			return []byte{}, nil, err
 		}
@@ -340,6 +350,75 @@ func (c *remoteCursor) Next() ([]byte, []byte, error) {
 func (c *remoteCursor) Last() ([]byte, []byte, error) {
 	panic("not implemented yet")
 }
+
+func (tx *remoteTx) CursorDupSort(bucket string) CursorDupSort {
+	return &remoteCursorDupSort{remoteCursor: tx.Cursor(bucket).(*remoteCursor)}
+}
+
+func (c *remoteCursorDupSort) Prefetch(v uint) Cursor {
+	c.prefetch = uint32(v)
+	return c
+}
+
+func (c *remoteCursorDupSort) initCursor() error {
+	if c.initialized {
+		return nil
+	}
+
+	if c.bucketCfg.AutoDupSortKeysConversion {
+		return fmt.Errorf("class remoteCursorDupSort not compatible with AutoDupSortKeysConversion buckets")
+	}
+
+	if c.bucketCfg.Flags&lmdb.DupSort == 0 {
+		return fmt.Errorf("class remoteCursorDupSort can be used only if bucket created with flag lmdb.DupSort")
+	}
+
+	return c.remoteCursor.initCursor()
+}
+
+func (c *remoteCursorDupSort) SeekBothExact(key, value []byte) ([]byte, []byte, error) {
+	panic("not supported")
+}
+
+func (c *remoteCursorDupSort) SeekBothRange(key, value []byte) ([]byte, []byte, error) {
+	if c.stream != nil {
+		c.streamCancelFn() // This will close the stream and free resources
+		c.stream = nil
+	}
+	c.initialized = true
+
+	var err error
+	var streamCtx context.Context
+	streamCtx, c.streamCancelFn = context.WithCancel(c.ctx) // We create child context for the stream so we can cancel it to prevent leak
+	c.stream, err = c.tx.db.remoteKV.Seek(streamCtx)
+	if err != nil {
+		return []byte{}, nil, err
+	}
+	err = c.stream.Send(&remote.SeekRequest{BucketName: c.bucketName, SeekKey: key, SeekValue: value, Prefix: c.prefix, StartSreaming: false})
+	if err != nil {
+		return []byte{}, nil, err
+	}
+
+	pair, err := c.stream.Recv()
+	if err != nil {
+		return []byte{}, nil, err
+	}
+
+	return pair.Key, pair.Value, nil
+}
+
+func (c *remoteCursorDupSort) DeleteExact(k1, k2 []byte) error      { panic("not supported") }
+func (c *remoteCursorDupSort) FirstDup() ([]byte, error)            { panic("not supported") }
+func (c *remoteCursorDupSort) NextDup() ([]byte, []byte, error)     { panic("not supported") }
+func (c *remoteCursorDupSort) NextNoDup() ([]byte, []byte, error)   { panic("not supported") }
+func (c *remoteCursorDupSort) PrevDup() ([]byte, []byte, error)     { panic("not supported") }
+func (c *remoteCursorDupSort) PrevNoDup() ([]byte, []byte, error)   { panic("not supported") }
+func (c *remoteCursorDupSort) LastDup() ([]byte, error)             { panic("not supported") }
+func (c *remoteCursorDupSort) AppendDup(k []byte, v []byte) error   { panic("not supported") }
+func (c *remoteCursorDupSort) PutNoDupData(key, value []byte) error { panic("not supported") }
+func (c *remoteCursorDupSort) DeleteCurrentDuplicates() error       { panic("not supported") }
+func (c *remoteCursorDupSort) CountDuplicates() (uint64, error)     { panic("not supported") }
+func (tx *remoteTx) CursorDupFixed(bucket string) CursorDupFixed    { panic("not supported") }
 
 func (back *RemoteBackend) AddLocal(signedTx []byte) ([]byte, error) {
 	res, err := back.remoteEthBackend.Add(context.Background(), &remote.TxRequest{Signedtx: signedTx})

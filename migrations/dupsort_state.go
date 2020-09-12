@@ -127,10 +127,10 @@ var dupSortIH = Migration{
 var logsIndex = Migration{
 	Name: "logs_index_test",
 	Up: func(tx ethdb.Database, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
-		if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Receipts); err != nil {
+		if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex); err != nil {
 			return err
 		}
-		comparator := tx.(ethdb.HasTx).Tx().Comparator(dbutils.Receipts)
+		comparator := tx.(ethdb.HasTx).Tx().Comparator(dbutils.ReceiptsIndex)
 
 		murmur := murmur3.New32()
 		var NoTopic = common.HexToHash("0000000000000000000000000000000000000000000000000000000000000000")
@@ -192,7 +192,7 @@ var logsIndex = Migration{
 		if err := etl.Transform(
 			tx,
 			dbutils.BlockReceiptsPrefix,
-			dbutils.Receipts,
+			dbutils.ReceiptsIndex,
 			datadir,
 			extractFunc,
 			etl.IdentityLoadFunc,

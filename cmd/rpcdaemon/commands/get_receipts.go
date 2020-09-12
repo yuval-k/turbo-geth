@@ -1,12 +1,13 @@
 package commands
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
-	"math/big"
-
 	"github.com/ledgerwatch/turbo-geth/common"
+	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/common/hexutil"
 	"github.com/ledgerwatch/turbo-geth/core"
 	"github.com/ledgerwatch/turbo-geth/core/bloombits"
@@ -19,6 +20,8 @@ import (
 	"github.com/ledgerwatch/turbo-geth/rpc"
 	"github.com/ledgerwatch/turbo-geth/turbo/adapter"
 	"github.com/ledgerwatch/turbo-geth/turbo/transactions"
+	"math/big"
+	"time"
 )
 
 func getReceipts(ctx context.Context, db rawdb.DatabaseReader, cfg *params.ChainConfig, hash common.Hash) (types.Receipts, error) {
@@ -107,10 +110,17 @@ func newFilter(addresses []common.Address, topics [][]common.Hash) *Filter {
 
 // GetLogs returns logs matching the given argument that are stored within the state.
 func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([]*types.Log, error) {
+	var begin, end int64
+
 	var filter *Filter
 	if crit.BlockHash != nil {
-		// Block filter requested, construct a single-shot filter
-		filter = NewBlockFilter(*crit.BlockHash, crit.Addresses, crit.Topics)
+		// TODO: use index here
+		number := rawdb.ReadHeaderNumber(api.dbReader, *crit.BlockHash)
+		if number == nil {
+			return nil, fmt.Errorf("block not found: %x", *crit.BlockHash)
+		}
+		begin = int64(*number)
+		end = int64(*number)
 	} else {
 		// Convert the RPC block numbers into internal representations
 		latest, err := getLatestBlockNumber(api.dbReader)
@@ -118,23 +128,128 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 			return nil, err
 		}
 
-		begin := int64(latest)
+		begin = int64(latest)
 		if crit.FromBlock != nil {
 			begin = crit.FromBlock.Int64()
 		}
-		end := int64(latest)
+		end = int64(latest)
 		if crit.ToBlock != nil {
 			end = crit.ToBlock.Int64()
 		}
+	}
 
-		filter = NewRangeFilter(begin, end, crit.Addresses, crit.Topics)
-	}
-	// Run the filter and return all the logs
-	logs, err := filter.Logs(ctx, api)
+	var logs []*types.Log
+
+	tx, err := api.dbReader.Begin()
 	if err != nil {
-		return nil, err
+		return returnLogs(logs), err
 	}
+
+	if len(crit.Addresses) == 0 {
+		// TODO: special case - handle by another bucket
+		filter = NewRangeFilter(begin, end, crit.Addresses, crit.Topics)
+		// Run the filter and return all the logs
+		logs, err := filter.Logs(ctx, api)
+		if err != nil {
+			return nil, err
+		}
+		return returnLogs(logs), err
+	}
+
+	i := 0
+	dataKey := make([]byte, 8+4+4)
+	beginBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(beginBytes, uint32(begin))
+
+	defer func(t time.Time) { fmt.Printf("get_receipts.go:140: %s\n", time.Since(t)) }(time.Now())
+	for _, address := range crit.Addresses {
+		c := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.ReceiptsIndex2).Prefetch(10).(ethdb.CursorDupSort)
+	Logs:
+		for k, v, err := c.SeekBothRange(beginBytes, address[:]); k != nil; k, v, err = c.Next() {
+			if err != nil {
+				return returnLogs(logs), err
+			}
+
+			i++
+			if !bytes.Equal(address[:], v[:20]) {
+				break
+			}
+
+			var (
+				blockNumberBytes = v[20:24]
+				blockNumber      = int64(binary.BigEndian.Uint32(blockNumberBytes))
+				txIndex          = v[24:28]
+				logIndex         = v[28:32]
+				topicsBytes      = v[32:]
+			)
+
+			if blockNumber > end {
+				break
+			}
+
+			topicsInLog := make([]common.Hash, 0, len(topicsBytes)/32)
+			if !matchTopics(topicsBytes, &topicsInLog, crit.Topics) {
+				continue Logs
+			}
+
+			copy(dataKey, blockNumberBytes)
+			copy(dataKey[4:], txIndex)
+			copy(dataKey[8:], logIndex)
+
+			logData, err := tx.Get(dbutils.Logs, dataKey)
+			if err != nil {
+				return returnLogs(logs), err
+			}
+
+			hash := rawdb.ReadCanonicalHash(tx, uint64(blockNumber))
+			if hash == (common.Hash{}) {
+				return returnLogs(logs), fmt.Errorf("block not found")
+			}
+
+			txHash, err := tx.Get(dbutils.TxHash, append(common.CopyBytes(blockNumberBytes), txIndex...))
+			if err != nil {
+				return returnLogs(logs), err
+			}
+
+			logs = append(logs, &types.Log{
+				Address:     address,
+				BlockNumber: uint64(blockNumber),
+				BlockHash:   hash,
+				Data:        logData,
+				Topics:      topicsInLog,
+				TxIndex:     uint(binary.BigEndian.Uint32(txIndex)),
+				TxHash:      common.BytesToHash(txHash),
+				Index:       uint(binary.BigEndian.Uint32(logIndex)),
+			})
+		}
+	}
+
 	return returnLogs(logs), err
+}
+
+func matchTopics(topicsBytes []byte, topicsInLog *[]common.Hash, topicsToMatch [][]common.Hash) bool {
+	match := false
+	for i := 0; i < len(topicsBytes); i += 32 {
+		topicInLog := common.BytesToHash(topicsBytes[i : i+32])
+		*topicsInLog = append(*topicsInLog, topicInLog)
+		if match {
+			continue
+		}
+		for _, sub := range topicsToMatch {
+			match = len(sub) == 0 // empty rule set == wildcard
+			if match {
+				break
+			}
+
+			for _, topic := range sub {
+				if topicInLog == topic {
+					match = true
+					break
+				}
+			}
+		}
+	}
+	return match
 }
 
 // NewRangeFilter creates a new filter which uses a bloom filter on blocks to
