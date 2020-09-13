@@ -25,7 +25,6 @@ import (
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/core/types"
 	"github.com/ledgerwatch/turbo-geth/log"
-	"github.com/ledgerwatch/turbo-geth/params"
 )
 
 // TxLookupEntry is a positional metadata to help looking up the data content of
@@ -90,7 +89,7 @@ func ReadTransaction(db DatabaseReader, hash common.Hash) (*types.Transaction, c
 
 // ReadReceipt retrieves a specific transaction receipt from the database, along with
 // its added positional metadata.
-func ReadReceipt(db DatabaseReader, hash common.Hash, config *params.ChainConfig) (*types.Receipt, common.Hash, uint64, uint64) {
+func ReadReceipt(db DatabaseReader, hash common.Hash) (*types.Receipt, common.Hash, uint64, uint64) {
 	// Retrieve the context of the receipt based on the transaction hash
 	blockNumber := ReadTxLookupEntry(db, hash)
 	if blockNumber == nil {
@@ -101,7 +100,7 @@ func ReadReceipt(db DatabaseReader, hash common.Hash, config *params.ChainConfig
 		return nil, common.Hash{}, 0, 0
 	}
 	// Read all the receipts from the block and return the one with the matching hash
-	receipts := ReadReceipts(db, blockHash, *blockNumber, config)
+	receipts := ReadReceipts(db, blockHash, *blockNumber)
 	for receiptIndex, receipt := range receipts {
 		if receipt.TxHash == hash {
 			return receipt, blockHash, *blockNumber, uint64(receiptIndex)
@@ -132,10 +131,11 @@ func TransactionHash(db DatabaseReader, blockNumber uint32, txIndex uint32) (com
 
 	txHash, err := db.Get(dbutils.TxHash, key)
 	if err != nil {
-		return common.Hash{}, err
+		fmt.Printf("BBB: %s\n", err)
+		return common.Hash{}, fmt.Errorf("%w: blockNumber=%d, txIndex=%d", err, blockNumber, txIndex)
 	}
 	if len(txHash) == 0 {
-		return common.Hash{}, fmt.Errorf("tx not found: %d, %d", blockNumber, txIndex)
+		return common.Hash{}, fmt.Errorf("tx not found: blockNumber=%d, txIndex=%d", blockNumber, txIndex)
 	}
 
 	return common.BytesToHash(txHash), nil
@@ -149,6 +149,7 @@ func LogData(db DatabaseReader, blockNumber uint32, txIndex uint32, logIndex uin
 
 	data, err := db.Get(dbutils.Logs, key)
 	if err != nil {
+		fmt.Printf("AAA: %s\n", err)
 		return nil, err
 	}
 	if len(data) == 0 {

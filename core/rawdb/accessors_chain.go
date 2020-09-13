@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"github.com/ledgerwatch/turbo-geth/turbo/rawdb"
 	"math/big"
 
 	"github.com/ledgerwatch/turbo-geth/common"
@@ -439,7 +440,11 @@ func ReadReceipts(db DatabaseReader, hash common.Hash, number uint64, config *pa
 		log.Error("Missing body but have receipt", "hash", hash, "number", number)
 		return nil
 	}
-	if err := receipts.DeriveFields(config, hash, number, body.Transactions); err != nil {
+
+	senders := rawdb.ReadSenders(db, hash, number)
+	body.SendersToTxs(senders)
+
+	if err := receipts.DeriveFields(hash, number, body.Transactions); err != nil {
 		log.Error("Failed to derive block receipts fields", "hash", hash, "number", number, "err", err)
 		return nil
 	}

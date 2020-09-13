@@ -116,7 +116,7 @@ var (
 
 	BlockReceiptsPrefix2 = "r2"  // same as blockReceiptsPrefix, but no logs
 	ReceiptsIndex        = "ri"  // addr -> blockN + things
-	ReceiptsIndex2       = "ri2" // blockN -> txIdx + logIdx + addr + topics - this block must be bigger than ReceiptsIndex+Logs buckets
+	ReceiptsIndex2       = "ri2" // blockN -> addr + txIdx + logIdx + topics - this block must be bigger than ReceiptsIndex+Logs buckets
 	Logs                 = "rd"  // blockN + txIdx + logIdx -> logData
 	LogTopic             = "rid" //
 	TxHash               = "txh" // blockN -> txIdx + txHash

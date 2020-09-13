@@ -23,14 +23,14 @@ import (
 	"math/big"
 )
 
-func getReceipts(ctx context.Context, db rawdb.DatabaseReader, cfg *params.ChainConfig, hash common.Hash) (types.Receipts, error) {
+func getReceipts(ctx context.Context, db rawdb.DatabaseReader, hash common.Hash) (types.Receipts, error) {
 	number := rawdb.ReadHeaderNumber(db, hash)
 	if number == nil {
 		return nil, fmt.Errorf("block not found: %x", hash)
 	}
 
 	block := rawdb.ReadBlock(db, hash, *number)
-	if cached := rawdb.ReadReceipts(db, block.Hash(), block.NumberU64(), cfg); cached != nil {
+	if cached := rawdb.ReadReceipts(db, block.Hash(), block.NumberU64()); cached != nil {
 		return cached, nil
 	}
 
@@ -66,10 +66,8 @@ func (api *APIImpl) GetLogsByHash(ctx context.Context, hash common.Hash) ([][]*t
 	if number == nil {
 		return nil, fmt.Errorf("block not found: %x", hash)
 	}
-	genesisHash := rawdb.ReadBlockByNumber(api.dbReader, 0).Hash()
-	chainConfig := rawdb.ReadChainConfig(api.dbReader, genesisHash)
 
-	receipts, err := getReceipts(ctx, api.dbReader, chainConfig, hash)
+	receipts, err := getReceipts(ctx, api.dbReader, hash)
 	if err != nil {
 		return nil, fmt.Errorf("getReceipts error: %v", err)
 	}
@@ -177,62 +175,78 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 	beginBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(beginBytes, begin)
 
-	if len(crit.Addresses) == 0 {
-		c1 := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.ReceiptsIndex2).Prefetch(10).(ethdb.CursorDupSort)
-		for k, v, err := c1.Seek(beginBytes); k != nil; k, v, err = c1.Next() {
-			if err != nil {
-				return returnLogs(logs), fmt.Errorf("aa: %w", err)
-			}
+	fmt.Printf("1\n")
 
-			var (
-				blockNumberBytes = k
-				blockNumber      = binary.BigEndian.Uint32(blockNumberBytes)
-				txIndexBytes     = v[0:4]
-				logIndexBytes    = v[4:8]
-				addr             = v[8:28]
-				topicsBytes      = v[28:]
-				txIndex          = binary.BigEndian.Uint32(txIndexBytes)
-				logIndex         = binary.BigEndian.Uint32(logIndexBytes)
-			)
+	c1 := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.ReceiptsIndex2).Prefetch(10).(ethdb.CursorDupSort)
 
-			i++
-			if blockNumber > end {
-				break
-			}
-			topicsInLog := make([]common.Hash, 0, len(topicsBytes)/32)
-			if !matchTopics(topicsBytes, &topicsInLog, crit.Topics) {
-				continue
-			}
-
-			logData, err := rawdb.LogData(tx, blockNumber, txIndex, logIndex)
-			if err != nil {
-				return returnLogs(logs), err
-			}
-
-			hash := rawdb.ReadCanonicalHash(tx, uint64(blockNumber))
-			if hash == (common.Hash{}) {
-				return returnLogs(logs), fmt.Errorf("block not found")
-			}
-
-			txHash, err := rawdb.TransactionHash(tx, blockNumber, txIndex)
-			if err != nil {
-				return returnLogs(logs), err
-			}
-
-			logs = append(logs, &types.Log{
-				Address:     common.BytesToAddress(addr),
-				BlockNumber: uint64(blockNumber),
-				BlockHash:   hash,
-				Data:        logData,
-				Topics:      topicsInLog,
-				TxIndex:     uint(txIndex),
-				TxHash:      txHash,
-				Index:       uint(logIndex),
-			})
+	for k, v, err := c1.Seek(beginBytes); k != nil; k, v, err = c1.Next() {
+		if err != nil {
+			return returnLogs(logs), err
 		}
 
-		return returnLogs(logs), err
+		var (
+			blockNumberBytes = k
+			blockNumber      = binary.BigEndian.Uint32(blockNumberBytes)
+			addr             = v[0:20]
+			txIndexBytes     = v[20:24]
+			logIndexBytes    = v[24:28]
+			topicsBytes      = v[28:]
+			txIndex          = binary.BigEndian.Uint32(txIndexBytes)
+			logIndex         = binary.BigEndian.Uint32(logIndexBytes)
+		)
+
+		i++
+		fmt.Printf("i: %d\n", i)
+		if blockNumber > end {
+			break
+		}
+
+		if len(crit.Addresses) > 0 {
+			match := false
+			for _, address := range crit.Addresses {
+				if bytes.Equal(address[:], addr) {
+					match = true
+					break
+				}
+			}
+			if !match {
+				continue
+			}
+		}
+
+		topicsInLog := make([]common.Hash, 0, len(topicsBytes)/32)
+		if !matchTopics(topicsBytes, &topicsInLog, crit.Topics) {
+			continue
+		}
+
+		logData, err := rawdb.LogData(tx, blockNumber, txIndex, logIndex)
+		if err != nil {
+			return returnLogs(logs), err
+		}
+
+		hash := rawdb.ReadCanonicalHash(tx, uint64(blockNumber))
+		if hash == (common.Hash{}) {
+			return returnLogs(logs), fmt.Errorf("block not found")
+		}
+
+		txHash, err := rawdb.TransactionHash(tx, blockNumber, txIndex)
+		if err != nil {
+			return returnLogs(logs), err
+		}
+
+		logs = append(logs, &types.Log{
+			Address:     common.BytesToAddress(addr),
+			BlockNumber: uint64(blockNumber),
+			BlockHash:   hash,
+			Data:        logData,
+			Topics:      topicsInLog,
+			TxIndex:     uint(txIndex),
+			TxHash:      txHash,
+			Index:       uint(logIndex),
+		})
 	}
+
+	return returnLogs(logs), err
 
 	c := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.ReceiptsIndex).Prefetch(10).(ethdb.CursorDupSort)
 	for _, address := range crit.Addresses {
@@ -362,10 +376,7 @@ func (api *APIImpl) GetTransactionReceipt(ctx context.Context, hash common.Hash)
 		return nil, fmt.Errorf("transaction %#x not found", hash)
 	}
 
-	genesisHash := rawdb.ReadBlockByNumber(api.dbReader, 0).Hash()
-	chainConfig := rawdb.ReadChainConfig(api.dbReader, genesisHash)
-
-	receipts, err := getReceipts(ctx, api.dbReader, chainConfig, blockHash)
+	receipts, err := getReceipts(ctx, api.dbReader, blockHash)
 	if err != nil {
 		return nil, fmt.Errorf("getReceipts error: %v", err)
 	}
@@ -539,8 +550,7 @@ func (f *Filter) checkMatches(ctx context.Context, header *types.Header, api *AP
 	if len(logs) > 0 {
 		// We have matching logs, check if we need to resolve full logs via the light client
 		if logs[0].TxHash == (common.Hash{}) {
-			chainConfig := getChainConfig(api.dbReader)
-			receipts := rawdb.ReadReceipts(api.dbReader, header.Hash(), header.Number.Uint64(), chainConfig)
+			receipts := rawdb.ReadReceipts(api.dbReader, header.Hash(), header.Number.Uint64())
 			unfiltered = unfiltered[:0]
 			for _, receipt := range receipts {
 				unfiltered = append(unfiltered, receipt.Logs...)

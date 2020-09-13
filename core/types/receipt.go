@@ -26,8 +26,6 @@ import (
 
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/hexutil"
-	"github.com/ledgerwatch/turbo-geth/crypto"
-	"github.com/ledgerwatch/turbo-geth/params"
 	"github.com/ledgerwatch/turbo-geth/rlp"
 )
 
@@ -293,9 +291,8 @@ func (r Receipts) GetRlp(i int) []byte {
 
 // DeriveFields fills the receipts with their computed fields based on consensus
 // data and contextual infos like containing block and transactions.
-func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, number uint64, txs Transactions) error {
-	signer := MakeSigner(config, new(big.Int).SetUint64(number))
-
+// this method doesnt derive tx sender
+func (r Receipts) DeriveFields(hash common.Hash, number uint64, txs Transactions) error {
 	logIndex := uint(0)
 	if len(txs) != len(r) {
 		return errors.New("transaction and receipt count mismatch")
@@ -309,12 +306,6 @@ func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, num
 		r[i].BlockNumber = new(big.Int).SetUint64(number)
 		r[i].TransactionIndex = uint(i)
 
-		// The contract address can be derived from the transaction itself
-		if txs[i].To() == nil {
-			// Deriving the signer is expensive, only do if it's actually needed
-			from, _ := Sender(signer, txs[i])
-			r[i].ContractAddress = crypto.CreateAddress(from, txs[i].Nonce())
-		}
 		// The used gas can be calculated based on previous r
 		if i == 0 {
 			r[i].GasUsed = r[i].CumulativeGasUsed
@@ -332,13 +323,4 @@ func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, num
 		}
 	}
 	return nil
-}
-
-type ReceiptForStorage2 struct {
-	PostStateOrStatus []byte
-	CumulativeGasUsed uint64
-	TxHash            common.Hash
-	ContractAddress   common.Address
-	Logs              []*LogForStorage
-	GasUsed           uint64
 }

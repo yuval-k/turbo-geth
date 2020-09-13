@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
+	"github.com/c2h5oh/datasize"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -27,7 +28,6 @@ import (
 	"github.com/ledgerwatch/turbo-geth/common/etl"
 	"github.com/ledgerwatch/turbo-geth/consensus/ethash"
 	"github.com/ledgerwatch/turbo-geth/core"
-	"github.com/ledgerwatch/turbo-geth/core/rawdb"
 	"github.com/ledgerwatch/turbo-geth/core/state"
 	"github.com/ledgerwatch/turbo-geth/core/types"
 	"github.com/ledgerwatch/turbo-geth/core/types/accounts"
@@ -39,6 +39,7 @@ import (
 	"github.com/ledgerwatch/turbo-geth/params"
 	"github.com/ledgerwatch/turbo-geth/rlp"
 	"github.com/ledgerwatch/turbo-geth/turbo/trie"
+	"github.com/ledgerwatch/turbo-geth/turbo/rawdb"
 	"github.com/wcharczuk/go-chart"
 	"github.com/wcharczuk/go-chart/util"
 )
@@ -1619,55 +1620,31 @@ func logIndex(chaindata string) error {
 	check(err)
 	defer tx.Rollback()
 
-	topics := map[common.Hash][]byte{
-		common.HexToHash("4c13017ee95afc4bbd8a701dd9fbc9733f1f09f5a1b5438b5b9abd48e4c92d78"): {0},
-		common.HexToHash("000000000000000000000000d041d33bb1cbde94903a02c287f39ce55095e25e"): {1},
-		common.HexToHash("16cdf1707799c6655baac6e210f52b94b7cec08adcaf9ede7dfe8649da926146"): {2},
-		common.HexToHash("000000000000000000000000c9450a30b259ebb8631b9bc49c64dbaec472d6af"): {3},
-		common.HexToHash("00000000000000000000000023f6b61e953f76813b95a35cf10584b8b1ffe569"): {4},
-		common.HexToHash("4249545452455830300000000000000000000000000000000000000000000000"): {5},
-		common.HexToHash("000000000000000000000000193bb9b5e9b6099fb6c33dbb5ccda4ac18ed14d7"): {6},
-		common.HexToHash("000000000000000000000000aee51f5a76d12d801527ca6ff6ada1ca0bbeff0b"): {7},
-		common.HexToHash("0000000000000000000000002e7eaf5428c3ed9a347493c4c2a46e0080c208f7"): {8},
-		common.HexToHash("464d425756524833430000000000000000000000000000000000000000000000"): {9},
-		common.HexToHash("000000000000000000000000cd1e66ed539dd92fc40bbaa1fa16de8c02c14d45"): {9},
-		common.HexToHash("19dacbf83c5de6658e14cbf7bcae5c15eca2eedecf1c66fbca928e4d351bea0f"): {9},
-		common.HexToHash("30364d3956334c4d570000000000000000000000000000000000000000000000"): {9},
-		common.HexToHash("0000000000000000000000000ba6e46af25a13f57169255a34a4dac7ce12be04"): {9},
-		common.HexToHash("1733cbb53659d713b79580f79f3f9ff215f78a7c7aa45890f3b89fc5cddfbf32"): {9},
-		common.HexToHash("4141414141414749450000000000000000000000000000000000000000000000"): {9},
-	}
-	_ = topics
 	//var NoTopic = common.HexToHash("0000000000000000000000000000000000000000000000000000000000000000")
 	//var NoTopics = []common.Hash{NoTopic}
+	blockNumBytes := make([]byte, 4)
+	txIndex := make([]byte, 4)
+	logIndex := make([]byte, 4)
 
 	uniqueTopics := map[common.Hash]uint{}
-
 	if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex); err != nil {
 		return err
 	}
 	comparator := tx.(ethdb.HasTx).Tx().Comparator(dbutils.ReceiptsIndex)
 
 	extractFunc := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
-		//blockHash := k[len(k)-32:]
+		blockHash := k[len(k)-32:]
 		blockNum := k[:len(k)-32]
+		storageReceipts := rawdb.ReadReceipts(tx, common.BytesToHash(blockHash), binary.BigEndian.Uint64(blockNum))
 
-		storageReceipts := []*types.ReceiptForStorage{}
-		if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
-			return err
-		}
-
-		for txIdx, storageReceipt := range storageReceipts {
-			for logIdx, log := range storageReceipt.Logs {
+		for _, storageReceipt := range storageReceipts {
+			for _, log := range storageReceipt.Logs {
 				if log.Removed {
 					continue
 				}
 
-				logIndex := make([]byte, 4)
-				binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
-
-				txIndex := make([]byte, 4)
-				binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
+				binary.BigEndian.PutUint32(txIndex, uint32(log.TxIndex))
+				binary.BigEndian.PutUint32(logIndex, uint32(log.Index))
 
 				if len(log.Topics) > 10 {
 					panic(1)
@@ -1687,10 +1664,10 @@ func logIndex(chaindata string) error {
 
 				newK := log.Address[:]
 
-				blockNumBytes := make([]byte, 4)
 				binary.BigEndian.PutUint32(blockNumBytes, uint32(binary.BigEndian.Uint64(blockNum)))
 
-				newV := blockNumBytes
+				newV := make([]byte, 0, 4+4+4+len(topicsToStore))
+				newV = append(newV, blockNumBytes...)
 				newV = append(newV, txIndex...)
 				newV = append(newV, logIndex...)
 				newV = append(newV, topicsToStore...)
@@ -1723,29 +1700,18 @@ func logIndex(chaindata string) error {
 		return err
 	}
 	extractFunc22 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
-		//blockHash := k[len(k)-32:]
+		blockHash := k[len(k)-32:]
 		blockNum := k[:len(k)-32]
+		storageReceipts := rawdb.ReadReceipts(tx, common.BytesToHash(blockHash), binary.BigEndian.Uint64(blockNum))
 
-		storageReceipts := []*types.ReceiptForStorage{}
-		if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
-			return err
-		}
-
-		for txIdx, storageReceipt := range storageReceipts {
-			for logIdx, log := range storageReceipt.Logs {
+		for _, storageReceipt := range storageReceipts {
+			for _, log := range storageReceipt.Logs {
 				if log.Removed {
 					continue
 				}
 
-				logIndex := make([]byte, 4)
-				binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
-
-				txIndex := make([]byte, 4)
-				binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
-
-				if len(log.Topics) > 10 {
-					panic(1)
-				}
+				binary.BigEndian.PutUint32(txIndex, uint32(log.TxIndex))
+				binary.BigEndian.PutUint32(logIndex, uint32(log.Index))
 
 				var topicsToStore = make([]byte, 0, 32*len(log.Topics))
 				duplicatedTopics := map[common.Hash]struct{}{}
@@ -1759,12 +1725,12 @@ func logIndex(chaindata string) error {
 					topicsToStore = append(topicsToStore, topic[:]...)
 				}
 
-				blockNumBytes := make([]byte, 4)
 				binary.BigEndian.PutUint32(blockNumBytes, uint32(binary.BigEndian.Uint64(blockNum)))
 
 				newK := blockNumBytes
 
-				newV := log.Address[:]
+				newV := make([]byte, 0, 20+4+4+len(topicsToStore))
+				newV = append(newV, log.Address[:]...)
 				newV = append(newV, txIndex...)
 				newV = append(newV, logIndex...)
 				newV = append(newV, topicsToStore...)
@@ -1785,80 +1751,7 @@ func logIndex(chaindata string) error {
 		etl.IdentityLoadFunc,
 		etl.TransformArgs{
 			Comparator: comparator,
-		},
-	); err != nil {
-		return err
-	}
-
-	err = tx.CommitAndBegin()
-	check(err)
-
-	if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex); err != nil {
-		return err
-	}
-	extractFunc33 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
-		//blockHash := k[len(k)-32:]
-		blockNum := k[:len(k)-32]
-
-		storageReceipts := []*types.ReceiptForStorage{}
-		if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
-			return err
-		}
-
-		for txIdx, storageReceipt := range storageReceipts {
-			for logIdx, log := range storageReceipt.Logs {
-				if log.Removed {
-					continue
-				}
-
-				logIndex := make([]byte, 4)
-				binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
-
-				txIndex := make([]byte, 4)
-				binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
-
-				if len(log.Topics) > 10 {
-					panic(1)
-				}
-
-				var topicsToStore = make([]byte, 0, 32*len(log.Topics))
-				duplicatedTopics := map[common.Hash]struct{}{}
-				for _, topic := range log.Topics {
-					if _, ok := duplicatedTopics[topic]; ok { // skip topics duplicates
-						continue
-					}
-					duplicatedTopics[topic] = struct{}{}
-					uniqueTopics[topic]++
-
-					topicsToStore = append(topicsToStore, topic[:]...)
-				}
-
-				blockNumBytes := make([]byte, 4)
-				binary.BigEndian.PutUint32(blockNumBytes, uint32(binary.BigEndian.Uint64(blockNum)))
-
-				newK := append(blockNumBytes, log.Address[:]...)
-
-				newV := txIndex
-				newV = append(newV, logIndex...)
-				//newV = append(newV, blockHash...)
-				newV = append(newV, topicsToStore...)
-				if err := next(k, newK, newV); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	}
-
-	if err := etl.Transform(
-		tx,
-		dbutils.BlockReceiptsPrefix,
-		dbutils.ReceiptsIndex,
-		datadir,
-		extractFunc33,
-		etl.IdentityLoadFunc,
-		etl.TransformArgs{
-			Comparator: comparator,
+			BufferSize: int(256 * datasize.MB),
 		},
 	); err != nil {
 		return err
@@ -1871,27 +1764,18 @@ func logIndex(chaindata string) error {
 		return err
 	}
 	extractFunc2 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
-		//blockHash := k[len(k)-32:]
+		blockHash := k[len(k)-32:]
 		blockNum := k[:len(k)-32]
+		storageReceipts := rawdb.ReadReceipts(tx, common.BytesToHash(blockHash), binary.BigEndian.Uint64(blockNum))
 
-		storageReceipts := []*types.ReceiptForStorage{}
-		if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
-			return err
-		}
-
-		for txIdx, storageReceipt := range storageReceipts {
-			for logIdx, log := range storageReceipt.Logs {
+		for _, storageReceipt := range storageReceipts {
+			for _, log := range storageReceipt.Logs {
 				if len(log.Data) == 0 {
 					continue
 				}
-				logIndex := make([]byte, 4)
-				binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
-
-				txIndex := make([]byte, 4)
-				binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
-
-				blockNumBytes := make([]byte, 4)
 				binary.BigEndian.PutUint32(blockNumBytes, uint32(binary.BigEndian.Uint64(blockNum)))
+				binary.BigEndian.PutUint32(txIndex, uint32(log.TxIndex))
+				binary.BigEndian.PutUint32(logIndex, uint32(log.Index))
 
 				newK := blockNumBytes
 				newK = append(newK, txIndex...)
@@ -1913,7 +1797,9 @@ func logIndex(chaindata string) error {
 		datadir,
 		extractFunc2,
 		etl.IdentityLoadFunc,
-		etl.TransformArgs{},
+		etl.TransformArgs{
+			BufferSize: int(256 * datasize.MB),
+		},
 	); err != nil {
 		return err
 	}
@@ -1935,10 +1821,7 @@ func logIndex(chaindata string) error {
 		}
 
 		for txIdx, tx := range block.Transactions() {
-			txIndex := make([]byte, 4)
 			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
-
-			blockNumBytes := make([]byte, 4)
 			binary.BigEndian.PutUint32(blockNumBytes, uint32(binary.BigEndian.Uint64(blockNum)))
 
 			txHash := tx.Hash()
@@ -1958,6 +1841,7 @@ func logIndex(chaindata string) error {
 		etl.IdentityLoadFunc,
 		etl.TransformArgs{
 			Comparator: comparator,
+			BufferSize: int(256 * datasize.MB),
 		},
 	); err != nil {
 		return err
@@ -1997,7 +1881,9 @@ func logIndex(chaindata string) error {
 		datadir,
 		extractFunc9,
 		etl.IdentityLoadFunc,
-		etl.TransformArgs{},
+		etl.TransformArgs{
+			BufferSize: int(256 * datasize.MB),
+		},
 	); err != nil {
 		return err
 	}
