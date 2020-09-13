@@ -1627,6 +1627,7 @@ func logIndex(chaindata string) error {
 	logIndex := make([]byte, 4)
 
 	uniqueTopics := map[common.Hash]uint{}
+
 	if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex); err != nil {
 		return err
 	}
@@ -1688,6 +1689,7 @@ func logIndex(chaindata string) error {
 		etl.IdentityLoadFunc,
 		etl.TransformArgs{
 			Comparator: comparator,
+			BufferSize: int(512 * datasize.MB),
 		},
 	); err != nil {
 		return err
@@ -1751,7 +1753,135 @@ func logIndex(chaindata string) error {
 		etl.IdentityLoadFunc,
 		etl.TransformArgs{
 			Comparator: comparator,
-			BufferSize: int(256 * datasize.MB),
+			BufferSize: int(512 * datasize.MB),
+		},
+	); err != nil {
+		return err
+	}
+
+	err = tx.CommitAndBegin()
+	check(err)
+
+	if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex3); err != nil {
+		return err
+	}
+	extractFunc23 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
+		blockHash := k[len(k)-32:]
+		blockNum := k[:len(k)-32]
+		storageReceipts := rawdb.ReadReceipts(tx, common.BytesToHash(blockHash), binary.BigEndian.Uint64(blockNum))
+
+		for _, storageReceipt := range storageReceipts {
+			for _, log := range storageReceipt.Logs {
+				if log.Removed {
+					continue
+				}
+
+				binary.BigEndian.PutUint32(txIndex, uint32(log.TxIndex))
+				binary.BigEndian.PutUint32(logIndex, uint32(log.Index))
+
+				var topicsToStore = make([]byte, 0, 32*len(log.Topics))
+				duplicatedTopics := map[common.Hash]struct{}{}
+				for _, topic := range log.Topics {
+					if _, ok := duplicatedTopics[topic]; ok { // skip topics duplicates
+						continue
+					}
+					duplicatedTopics[topic] = struct{}{}
+					uniqueTopics[topic]++
+
+					topicsToStore = append(topicsToStore, topic[:]...)
+				}
+
+				binary.BigEndian.PutUint32(blockNumBytes, uint32(binary.BigEndian.Uint64(blockNum)))
+
+				newK := blockNumBytes
+
+				newV := make([]byte, 0, 20+4+4+32+len(topicsToStore))
+				newV = append(newV, log.Address[:]...)
+				newV = append(newV, txIndex...)
+				newV = append(newV, logIndex...)
+				newV = append(newV, log.TxHash[:]...)
+				newV = append(newV, topicsToStore...)
+				if err := next(k, newK, newV); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+
+	if err := etl.Transform(
+		tx,
+		dbutils.BlockReceiptsPrefix,
+		dbutils.ReceiptsIndex3,
+		datadir,
+		extractFunc23,
+		etl.IdentityLoadFunc,
+		etl.TransformArgs{
+			Comparator: comparator,
+			BufferSize: int(512 * datasize.MB),
+		},
+	); err != nil {
+		return err
+	}
+
+	err = tx.CommitAndBegin()
+	check(err)
+
+	if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex4); err != nil {
+		return err
+	}
+	extractFunc24 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
+		blockHash := k[len(k)-32:]
+		blockNum := k[:len(k)-32]
+		storageReceipts := rawdb.ReadReceipts(tx, common.BytesToHash(blockHash), binary.BigEndian.Uint64(blockNum))
+
+		for _, storageReceipt := range storageReceipts {
+			for _, log := range storageReceipt.Logs {
+				if log.Removed {
+					continue
+				}
+
+				binary.BigEndian.PutUint32(txIndex, uint32(log.TxIndex))
+				binary.BigEndian.PutUint32(logIndex, uint32(log.Index))
+
+				var topicsToStore = make([]byte, 0, 32*len(log.Topics))
+				duplicatedTopics := map[common.Hash]struct{}{}
+				for _, topic := range log.Topics {
+					if _, ok := duplicatedTopics[topic]; ok { // skip topics duplicates
+						continue
+					}
+					duplicatedTopics[topic] = struct{}{}
+					uniqueTopics[topic]++
+
+					topicsToStore = append(topicsToStore, topic[:]...)
+				}
+
+				binary.BigEndian.PutUint32(blockNumBytes, uint32(binary.BigEndian.Uint64(blockNum)))
+
+				newK := append(blockNumBytes, log.Address[:]...)
+
+				newV := make([]byte, 0, 4+4+len(topicsToStore))
+				newV = append(newV, txIndex...)
+				newV = append(newV, logIndex...)
+				newV = append(newV, topicsToStore...)
+				if err := next(k, newK, newV); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+
+	if err := etl.Transform(
+		tx,
+		dbutils.BlockReceiptsPrefix,
+		dbutils.ReceiptsIndex4,
+		datadir,
+		extractFunc24,
+		etl.IdentityLoadFunc,
+		etl.TransformArgs{
+			Comparator: comparator,
+			BufferSize: int(512 * datasize.MB),
 		},
 	); err != nil {
 		return err
@@ -1798,7 +1928,7 @@ func logIndex(chaindata string) error {
 		extractFunc2,
 		etl.IdentityLoadFunc,
 		etl.TransformArgs{
-			BufferSize: int(256 * datasize.MB),
+			BufferSize: int(512 * datasize.MB),
 		},
 	); err != nil {
 		return err
@@ -1841,7 +1971,7 @@ func logIndex(chaindata string) error {
 		etl.IdentityLoadFunc,
 		etl.TransformArgs{
 			Comparator: comparator,
-			BufferSize: int(256 * datasize.MB),
+			BufferSize: int(512 * datasize.MB),
 		},
 	); err != nil {
 		return err

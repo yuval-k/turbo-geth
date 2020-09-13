@@ -302,6 +302,7 @@ func (c *remoteCursor) Seek(seek []byte) ([]byte, []byte, error) {
 	if c.stream != nil {
 		c.streamCancelFn() // This will close the stream and free resources
 		c.stream = nil
+		c.streamingRequested = false
 	}
 	c.initialized = true
 
@@ -384,6 +385,7 @@ func (c *remoteCursorDupSort) SeekBothRange(key, value []byte) ([]byte, []byte, 
 	if c.stream != nil {
 		c.streamCancelFn() // This will close the stream and free resources
 		c.stream = nil
+		c.streamingRequested = false
 	}
 	c.initialized = true
 

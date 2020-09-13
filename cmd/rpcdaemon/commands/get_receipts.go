@@ -172,85 +172,79 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 	}
 
 	i := 0
-	beginBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(beginBytes, begin)
+	blockNBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(blockNBytes, begin)
 
-	fmt.Printf("1\n")
+	if len(crit.Addresses) == 0 {
+		c1 := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.ReceiptsIndex2).Prefetch(10).(ethdb.CursorDupSort)
 
-	c1 := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.ReceiptsIndex2).Prefetch(10).(ethdb.CursorDupSort)
-
-	for k, v, err := c1.Seek(beginBytes); k != nil; k, v, err = c1.Next() {
-		if err != nil {
-			return returnLogs(logs), err
-		}
-
-		var (
-			blockNumberBytes = k
-			blockNumber      = binary.BigEndian.Uint32(blockNumberBytes)
-			addr             = v[0:20]
-			txIndexBytes     = v[20:24]
-			logIndexBytes    = v[24:28]
-			topicsBytes      = v[28:]
-			txIndex          = binary.BigEndian.Uint32(txIndexBytes)
-			logIndex         = binary.BigEndian.Uint32(logIndexBytes)
-		)
-
-		i++
-		fmt.Printf("i: %d\n", i)
-		if blockNumber > end {
-			break
-		}
-
-		if len(crit.Addresses) > 0 {
-			match := false
-			for _, address := range crit.Addresses {
-				if bytes.Equal(address[:], addr) {
-					match = true
-					break
-				}
+		for k, v, err := c1.Seek(blockNBytes); k != nil; k, v, err = c1.Next() {
+			if err != nil {
+				return returnLogs(logs), err
 			}
-			if !match {
+
+			var (
+				blockNumberBytes = k
+				addr             = v[:20]
+				txIndexBytes     = v[20:24]
+				logIndexBytes    = v[24:28]
+				topicsBytes      = v[28:]
+				blockNumber      = binary.BigEndian.Uint32(blockNumberBytes)
+			)
+
+			i++
+			if blockNumber > end {
+				break
+			}
+
+			var (
+				txIndex  = binary.BigEndian.Uint32(txIndexBytes)
+				logIndex = binary.BigEndian.Uint32(logIndexBytes)
+			)
+
+			if !matchTopics(topicsBytes, crit.Topics) {
 				continue
 			}
+
+			topicsInLog := make([]common.Hash, 0, len(topicsBytes)/32)
+			for i := 0; i < len(topicsBytes); i += 32 {
+				topicInLog := common.BytesToHash(topicsBytes[i : i+32])
+				topicsInLog = append(topicsInLog, topicInLog)
+			}
+
+			logData, err := rawdb.LogData(tx, blockNumber, txIndex, logIndex)
+			if err != nil {
+				return returnLogs(logs), err
+			}
+
+			hash := rawdb.ReadCanonicalHash(tx, uint64(blockNumber))
+			if hash == (common.Hash{}) {
+				return returnLogs(logs), fmt.Errorf("block not found")
+			}
+
+			txHash, err := rawdb.TransactionHash(tx, blockNumber, txIndex)
+			if err != nil {
+				return returnLogs(logs), err
+			}
+
+			logs = append(logs, &types.Log{
+				Address:     common.BytesToAddress(addr),
+				BlockNumber: uint64(blockNumber),
+				BlockHash:   hash,
+				Data:        logData,
+				Topics:      topicsInLog,
+				TxIndex:     uint(txIndex),
+				TxHash:      txHash,
+				Index:       uint(logIndex),
+			})
 		}
 
-		topicsInLog := make([]common.Hash, 0, len(topicsBytes)/32)
-		if !matchTopics(topicsBytes, &topicsInLog, crit.Topics) {
-			continue
-		}
-
-		logData, err := rawdb.LogData(tx, blockNumber, txIndex, logIndex)
-		if err != nil {
-			return returnLogs(logs), err
-		}
-
-		hash := rawdb.ReadCanonicalHash(tx, uint64(blockNumber))
-		if hash == (common.Hash{}) {
-			return returnLogs(logs), fmt.Errorf("block not found")
-		}
-
-		txHash, err := rawdb.TransactionHash(tx, blockNumber, txIndex)
-		if err != nil {
-			return returnLogs(logs), err
-		}
-
-		logs = append(logs, &types.Log{
-			Address:     common.BytesToAddress(addr),
-			BlockNumber: uint64(blockNumber),
-			BlockHash:   hash,
-			Data:        logData,
-			Topics:      topicsInLog,
-			TxIndex:     uint(txIndex),
-			TxHash:      txHash,
-			Index:       uint(logIndex),
-		})
+		return returnLogs(logs), err
 	}
-
-	return returnLogs(logs), err
 
 	c := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.ReceiptsIndex).Prefetch(10).(ethdb.CursorDupSort)
 	for _, address := range crit.Addresses {
-		for k, v, err := c.SeekBothRange(address[:], beginBytes); k != nil; k, v, err = c.Next() {
+		for k, v, err := c.SeekBothRange(address[:], blockNBytes); k != nil; k, v, err = c.Next() {
 			if err != nil {
 				return returnLogs(logs), err
 			}
@@ -262,23 +256,30 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 				logIndexBytes    = v[8:12]
 				topicsBytes      = v[12:]
 				blockNumber      = binary.BigEndian.Uint32(blockNumberBytes)
-				txIndex          = binary.BigEndian.Uint32(txIndexBytes)
-				logIndex         = binary.BigEndian.Uint32(logIndexBytes)
 			)
 
-			fmt.Printf("%d\n", i)
 			i++
-			if !bytes.Equal(address[:], addr) {
-				break
-			}
-
 			if blockNumber > end {
 				break
 			}
 
-			topicsInLog := make([]common.Hash, 0, len(topicsBytes)/32)
-			if !matchTopics(topicsBytes, &topicsInLog, crit.Topics) {
+			if !bytes.Equal(address[:], addr) {
+				break
+			}
+
+			var (
+				txIndex  = binary.BigEndian.Uint32(txIndexBytes)
+				logIndex = binary.BigEndian.Uint32(logIndexBytes)
+			)
+
+			if !matchTopics(topicsBytes, crit.Topics) {
 				continue
+			}
+
+			topicsInLog := make([]common.Hash, 0, len(topicsBytes)/32)
+			for i := 0; i < len(topicsBytes); i += 32 {
+				topicInLog := common.BytesToHash(topicsBytes[i : i+32])
+				topicsInLog = append(topicsInLog, topicInLog)
 			}
 
 			logData, err := rawdb.LogData(tx, blockNumber, txIndex, logIndex)
@@ -312,11 +313,10 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 	return returnLogs(logs), err
 }
 
-func matchTopics(topicsBytes []byte, topicsInLog *[]common.Hash, topicsToMatch [][]common.Hash) bool {
+func matchTopics(topicsBytes []byte, topicsToMatch [][]common.Hash) bool {
 	match := false
 	for i := 0; i < len(topicsBytes); i += 32 {
 		topicInLog := common.BytesToHash(topicsBytes[i : i+32])
-		*topicsInLog = append(*topicsInLog, topicInLog)
 		if match {
 			continue
 		}

@@ -165,11 +165,17 @@ func (s *KvServer) Seek(stream remote.KV_SeekServer) error {
 			}
 			if isDupsort {
 				dc := tx.CursorDupSort(bucketName)
-				_, _, _ = dc.SeekBothRange(k, v)
+				k, v, err = dc.SeekBothRange(k, v)
+				if err != nil {
+					return err
+				}
 				c = dc
 			} else {
 				c = tx.Cursor(bucketName).Prefix(prefix)
-				_, _, _ = c.Seek(k)
+				k, v, err = c.Seek(k)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}

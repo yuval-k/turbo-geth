@@ -114,12 +114,10 @@ Content-Type: application/json
   "method": "eth_getLogs",
   "params": [
     {
-      "address": "0x6090a6e47849629b7245dfa1ca21d94cd15878ef",
       "fromBlock": "0x3cf04c",
       "toBlock": "0x3cfe56",
       "topics": [
-        "0x0f0c27adfd84b60b6f456b0e87cdccb1e5fb9603991588d87fa99f5b6b61e670",
-        "0x7d4646bbc88eccd949cb3aeed6da58f399c61f33beaa210d19dc535f2485801a"
+        "0x0f0c27adfd84b60b6f456b0e87cdccb1e5fb9603991588d87fa99f5b6b61e670"
       ]
     }
   ],

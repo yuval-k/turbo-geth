@@ -19,6 +19,7 @@ package rawdb
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/ledgerwatch/turbo-geth/ethdb"
 	"math/big"
 
 	"github.com/ledgerwatch/turbo-geth/common"
@@ -131,11 +132,10 @@ func TransactionHash(db DatabaseReader, blockNumber uint32, txIndex uint32) (com
 
 	txHash, err := db.Get(dbutils.TxHash, key)
 	if err != nil {
-		fmt.Printf("BBB: %s\n", err)
-		return common.Hash{}, fmt.Errorf("%w: blockNumber=%d, txIndex=%d", err, blockNumber, txIndex)
-	}
-	if len(txHash) == 0 {
-		return common.Hash{}, fmt.Errorf("tx not found: blockNumber=%d, txIndex=%d", blockNumber, txIndex)
+		if err == ethdb.ErrKeyNotFound {
+			return common.Hash{}, nil
+		}
+		return common.Hash{}, fmt.Errorf("transaction hash: %w: blockNumber=%d, txIndex=%d", err, blockNumber, txIndex)
 	}
 
 	return common.BytesToHash(txHash), nil
@@ -149,11 +149,10 @@ func LogData(db DatabaseReader, blockNumber uint32, txIndex uint32, logIndex uin
 
 	data, err := db.Get(dbutils.Logs, key)
 	if err != nil {
-		fmt.Printf("AAA: %s\n", err)
-		return nil, err
-	}
-	if len(data) == 0 {
-		return nil, fmt.Errorf("log data not found: %d, %d", blockNumber, txIndex)
+		if err == ethdb.ErrKeyNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("log data: %w: blockNumber=%d, txIndex=%d", err, blockNumber, txIndex)
 	}
 
 	return data, nil
