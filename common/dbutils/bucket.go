@@ -115,8 +115,8 @@ var (
 	BlockReceiptsPrefix = "r" // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
 
 	BlockReceiptsPrefix2 = "r2"  // same as blockReceiptsPrefix, but no logs
-	ReceiptsIndex        = "ri"  // addr -> blockN -> things
-	ReceiptsIndex2       = "ri2" // blockN -> addr -> things - this block must be bigger than ReceiptsIndex+Logs buckets
+	ReceiptsIndex        = "ri"  // addr -> blockN + things
+	ReceiptsIndex2       = "ri2" // blockN -> txIdx + logIdx + addr + topics - this block must be bigger than ReceiptsIndex+Logs buckets
 	Logs                 = "rd"  // blockN + txIdx + logIdx -> logData
 	LogTopic             = "rid" //
 	TxHash               = "txh" // blockN -> txIdx + txHash
