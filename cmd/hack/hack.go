@@ -1628,6 +1628,26 @@ func logIndex(chaindata string) error {
 
 	uniqueTopics := map[common.Hash]uint{}
 
+	//if err := tx.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
+	//	blockHash := k[len(k)-32:]
+	//	blockNum := k[:len(k)-32]
+	//	senders := rawdb2.ReadSenders(db, common.BytesToHash(blockHash), binary.BigEndian.Uint64(blockNum))
+	//	storageReceipts := rawdb.ReadReceipts(tx, common.BytesToHash(blockHash), binary.BigEndian.Uint64(blockNum))
+	//
+	//		fmt.Printf("senders: %x\n ", senders)
+	//	for _, storageReceipt := range storageReceipts {
+	//		fmt.Printf("storageReceipt.ContractAddress: %x\n ", storageReceipt.ContractAddress)
+	//		for _, log := range storageReceipt.Logs {
+	//			fmt.Printf("log.Address: %x\n ", log.Address)
+	//		}
+	//	}
+	//
+	//	return true, nil
+	//}); err != nil {
+	//	panic(err)
+	//}
+	//return nil
+
 	if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex); err != nil {
 		return err
 	}
