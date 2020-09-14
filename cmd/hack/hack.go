@@ -1616,7 +1616,7 @@ func logIndex(chaindata string) error {
 	if err := db.ClearBuckets(dbutils.ReceiptsIndex); err != nil {
 		return err
 	}
-	tx, err := db.Begin()
+	tx, err := db.Begin(context.Background())
 	check(err)
 	defer tx.Rollback()
 
@@ -1715,7 +1715,7 @@ func logIndex(chaindata string) error {
 		return err
 	}
 
-	err = tx.CommitAndBegin()
+	err = tx.CommitAndBegin(context.Background())
 	check(err)
 
 	if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex2); err != nil {
@@ -1779,7 +1779,7 @@ func logIndex(chaindata string) error {
 		return err
 	}
 
-	err = tx.CommitAndBegin()
+	err = tx.CommitAndBegin(context.Background())
 	check(err)
 
 	//if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex3); err != nil {
@@ -1844,7 +1844,7 @@ func logIndex(chaindata string) error {
 	//	return err
 	//}
 	//
-	//err = tx.CommitAndBegin()
+	//err = tx.CommitAndBegin(context.Background())
 	//check(err)
 
 	if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex4); err != nil {
@@ -1907,7 +1907,7 @@ func logIndex(chaindata string) error {
 		return err
 	}
 
-	err = tx.CommitAndBegin()
+	err = tx.CommitAndBegin(context.Background())
 	check(err)
 
 	if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs); err != nil {
@@ -1954,7 +1954,7 @@ func logIndex(chaindata string) error {
 		return err
 	}
 
-	err = tx.CommitAndBegin()
+	err = tx.CommitAndBegin(context.Background())
 	check(err)
 
 	if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.TxHash); err != nil {
@@ -1997,7 +1997,7 @@ func logIndex(chaindata string) error {
 		return err
 	}
 
-	err = tx.CommitAndBegin()
+	err = tx.CommitAndBegin(context.Background())
 	check(err)
 
 	if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix2); err != nil {
@@ -2055,7 +2055,7 @@ func logIndex(chaindata string) error {
 func logIndexBitmap(chaindata string) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
-	tx, err := db.Begin()
+	tx, err := db.Begin(context.Background())
 	check(err)
 	defer tx.Rollback()
 

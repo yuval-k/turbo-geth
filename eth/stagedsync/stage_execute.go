@@ -1,6 +1,7 @@
 package stagedsync
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -67,7 +68,7 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 		useExternalTx = true
 	} else {
 		var err error
-		tx, err = stateDB.Begin()
+		tx, err = stateDB.Begin(context.Background())
 		if err != nil {
 			return err
 		}
@@ -147,11 +148,11 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 			if err = s.Update(batch, blockNum); err != nil {
 				return err
 			}
-			if err = batch.CommitAndBegin(); err != nil {
+			if err = batch.CommitAndBegin(context.Background()); err != nil {
 				return err
 			}
 			if !useExternalTx {
-				if err = tx.CommitAndBegin(); err != nil {
+				if err = tx.CommitAndBegin(context.Background()); err != nil {
 					return err
 				}
 			}

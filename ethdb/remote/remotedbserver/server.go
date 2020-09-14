@@ -1,14 +1,13 @@
 package remotedbserver
 
 import (
-	"context"
 	"io"
 	"net"
 	"time"
 
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/grpc-ecosystem/go-grpc-middleware/recovery"
+	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
@@ -89,18 +88,25 @@ func NewKvServer(kv ethdb.KV) *KvServer {
 	return &KvServer{kv: kv}
 }
 
+var counter int
+
 func (s *KvServer) Seek(stream remote.KV_SeekServer) error {
 	in, recvErr := stream.Recv()
 	if recvErr != nil {
 		return recvErr
 	}
-
-	tx, err := s.kv.Begin(context.Background(), nil, false)
+	counter++
+	tx, err := s.kv.Begin(stream.Context(), nil, false)
 	if err != nil {
 		return err
 	}
 	rollback := func() {
+		if tx == nil {
+			return
+		}
+		counter--
 		tx.Rollback()
+		tx = nil
 	}
 	defer rollback()
 
@@ -153,13 +159,14 @@ func (s *KvServer) Seek(stream remote.KV_SeekServer) error {
 		if err != nil {
 			return err
 		}
-
 		//TODO: protect against client - which doesn't send any requests
 		select {
 		default:
 		case <-txTicker.C:
+			counter--
 			tx.Rollback()
-			tx, err = s.kv.Begin(context.Background(), nil, false)
+			counter++
+			tx, err = s.kv.Begin(stream.Context(), nil, false)
 			if err != nil {
 				return err
 			}
