@@ -308,7 +308,7 @@ var BucketsConfigs = BucketsCfg{
 		Flags: lmdb.DupSort,
 	},
 	TxHash: {
-		Flags: lmdb.DupSort,
+		Flags: lmdb.DupSort | lmdb.DupFixed,
 	},
 	Test1: {
 		Flags: lmdb.DupSort,
