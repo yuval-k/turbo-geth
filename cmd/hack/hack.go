@@ -1665,245 +1665,11 @@ func logIndex(chaindata string) error {
 	logEvery := time.NewTicker(30 * time.Second)
 	defer logEvery.Stop()
 
-	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex))
-	//check(tx.CommitAndBegin(context.Background()))
-	comparator := tx.(ethdb.HasTx).Tx().Comparator(dbutils.ReceiptsIndex)
-	//extractFunc := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
-	//	blockHashBytes := k[len(k)-32:]
-	//	blockNum64Bytes := k[:len(k)-32]
-	//	//blockHash := common.BytesToHash(blockHashBytes)
-	//	blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
-	//	canonicalHash := rawdb.ReadCanonicalHash(tx, blockNum)
-	//	if !bytes.Equal(blockHashBytes, canonicalHash[:]) {
-	//		return nil
-	//	}
-	//
-	//	// Convert the receipts from their storage form to their internal representation
-	//	storageReceipts := []*types.ReceiptForStorage{}
-	//	if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
-	//		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
-	//		return nil
-	//	}
-	//	receipts = receipts[:0]
-	//	for _, storageReceipt := range storageReceipts {
-	//		receipts = append(receipts, (*types.Receipt)(storageReceipt))
-	//	}
-	//
-	//	for txIdx, storageReceipt := range receipts {
-	//		binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
-	//		for logIdx, log := range storageReceipt.Logs {
-	//			if log.Removed {
-	//				continue
-	//			}
-	//			binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
-	//
-	//			var topicsToStore = make([]byte, 0, 32*len(log.Topics))
-	//			duplicatedTopics := map[common.Hash]struct{}{}
-	//			for _, topic := range log.Topics {
-	//				if _, ok := duplicatedTopics[topic]; ok { // skip topics duplicates
-	//					continue
-	//				}
-	//				duplicatedTopics[topic] = struct{}{}
-	//
-	//				topicsToStore = append(topicsToStore, topic[:]...)
-	//			}
-	//
-	//			newK := common.CopyBytes(log.Address[:])
-	//
-	//			newV := make([]byte, 0, 4+4+4+len(topicsToStore))
-	//			newV = append(newV, blockNumBytes...)
-	//			newV = append(newV, txIndex...)
-	//			newV = append(newV, logIndex...)
-	//			newV = append(newV, topicsToStore...)
-	//			if err := next(k, newK, newV); err != nil {
-	//				return err
-	//			}
-	//		}
-	//
-	//	}
-	//	return nil
-	//}
-	//
-	//if err := etl.Transform(
-	//	tx,
-	//	dbutils.BlockReceiptsPrefix,
-	//	dbutils.ReceiptsIndex,
-	//	datadir,
-	//	extractFunc,
-	//	etl.IdentityLoadFunc,
-	//	etl.TransformArgs{
-	//		Comparator: comparator,
-	//		BufferSize: int(4 * datasize.GB),
-	//	},
-	//); err != nil {
-	//	return err
-	//}
-	//
-	//check(tx.CommitAndBegin(context.Background()))
-	//
-	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex2))
-	//check(tx.CommitAndBegin(context.Background()))
-	//extractFunc22 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
-	//	blockHashBytes := k[len(k)-32:]
-	//	blockNum64Bytes := k[:len(k)-32]
-	//	blockHash := common.BytesToHash(blockHashBytes)
-	//	blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
-	//	canonicalHash := rawdb.ReadCanonicalHash(tx, blockNum)
-	//	if !bytes.Equal(blockHashBytes, canonicalHash[:]) {
-	//		return nil
-	//	}
-	//
-	//	// Convert the receipts from their storage form to their internal representation
-	//	storageReceipts := []*types.ReceiptForStorage{}
-	//	if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
-	//		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
-	//		return nil
-	//	}
-	//	receipts = receipts[:0]
-	//	for _, storageReceipt := range storageReceipts {
-	//		receipts = append(receipts, (*types.Receipt)(storageReceipt))
-	//	}
-	//
-	//	if err := receipts.DeriveFieldsNoTxHash(blockHash, blockNum); err != nil {
-	//		log.Error("Failed to derive block receipts fields", "hash", blockHash, "number", blockNum, "err", err)
-	//		return nil
-	//	}
-	//
-	//	for txIdx, storageReceipt := range receipts {
-	//		binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
-	//
-	//		for logIdx, log := range storageReceipt.Logs {
-	//			if log.Removed {
-	//				continue
-	//			}
-	//
-	//			binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
-	//
-	//			var topicsToStore = make([]byte, 0, 32*len(log.Topics))
-	//			duplicatedTopics := map[common.Hash]struct{}{}
-	//			for _, topic := range log.Topics {
-	//				if _, ok := duplicatedTopics[topic]; ok { // skip topics duplicates
-	//					continue
-	//				}
-	//				duplicatedTopics[topic] = struct{}{}
-	//
-	//				topicsToStore = append(topicsToStore, topic[:]...)
-	//			}
-	//
-	//			newK := common.CopyBytes(blockNumBytes)
-	//
-	//			newV := make([]byte, 0, 20+4+4+len(topicsToStore))
-	//			newV = append(newV, log.Address[:]...)
-	//			newV = append(newV, txIndex...)
-	//			newV = append(newV, logIndex...)
-	//			newV = append(newV, topicsToStore...)
-	//			if err := next(k, newK, newV); err != nil {
-	//				return err
-	//			}
-	//		}
-	//	}
-	//	return nil
-	//}
-	//
-	//if err := etl.Transform(
-	//	tx,
-	//	dbutils.BlockReceiptsPrefix,
-	//	dbutils.ReceiptsIndex2,
-	//	datadir,
-	//	extractFunc22,
-	//	etl.IdentityLoadFunc,
-	//	etl.TransformArgs{
-	//		Comparator: comparator,
-	//		BufferSize: int(4 * datasize.GB),
-	//	},
-	//); err != nil {
-	//	return err
-	//}
-	//
-	//check(tx.CommitAndBegin(context.Background()))
-
-	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex4))
-	//check(tx.CommitAndBegin(context.Background()))
-	//extractFunc24 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
-	//	blockHashBytes := k[len(k)-32:]
-	//	blockNum64Bytes := k[:len(k)-32]
-	//	blockHash := common.BytesToHash(blockHashBytes)
-	//	blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
-	//	canonicalHash := rawdb.ReadCanonicalHash(tx, blockNum)
-	//	if !bytes.Equal(blockHashBytes, canonicalHash[:]) {
-	//		return nil
-	//	}
-	//
-	//	// Convert the receipts from their storage form to their internal representation
-	//	storageReceipts := []*types.ReceiptForStorage{}
-	//	if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
-	//		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
-	//		return nil
-	//	}
-	//	receipts = receipts[:0]
-	//	for _, storageReceipt := range storageReceipts {
-	//		receipts = append(receipts, (*types.Receipt)(storageReceipt))
-	//	}
-	//
-	//	if err := receipts.DeriveFieldsNoTxHash(blockHash, blockNum); err != nil {
-	//		log.Error("Failed to derive block receipts fields", "hash", blockHash, "number", blockNum, "err", err)
-	//		return nil
-	//	}
-	//
-	//	for txIdx, storageReceipt := range receipts {
-	//		binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
-	//
-	//		for logIdx, log := range storageReceipt.Logs {
-	//			if log.Removed {
-	//				continue
-	//			}
-	//
-	//			binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
-	//
-	//			var topicsToStore = make([]byte, 0, 32*len(log.Topics))
-	//			duplicatedTopics := map[common.Hash]struct{}{}
-	//			for _, topic := range log.Topics {
-	//				if _, ok := duplicatedTopics[topic]; ok { // skip topics duplicates
-	//					continue
-	//				}
-	//				duplicatedTopics[topic] = struct{}{}
-	//
-	//				topicsToStore = append(topicsToStore, topic[:]...)
-	//			}
-	//
-	//			newK := append(common.CopyBytes(blockNumBytes), log.Address[:]...)
-	//
-	//			newV := make([]byte, 0, 4+4+len(topicsToStore))
-	//			newV = append(newV, txIndex...)
-	//			newV = append(newV, logIndex...)
-	//			newV = append(newV, topicsToStore...)
-	//			if err := next(k, newK, newV); err != nil {
-	//				return err
-	//			}
-	//		}
-	//	}
-	//	return nil
-	//}
-	//
-	//if err := etl.Transform(
-	//	tx,
-	//	dbutils.BlockReceiptsPrefix,
-	//	dbutils.ReceiptsIndex4,
-	//	datadir,
-	//	extractFunc24,
-	//	etl.IdentityLoadFunc,
-	//	etl.TransformArgs{
-	//		Comparator: comparator,
-	//		BufferSize: int(4 * datasize.GB),
-	//	},
-	//); err != nil {
-	//	return err
-	//}
-	//
-	//check(tx.CommitAndBegin(context.Background()))
-	//
 	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix2))
+	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs, dbutils.Logs2, dbutils.Logs3))
+	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex, dbutils.ReceiptsIndex2, dbutils.ReceiptsIndex4))
 	check(tx.CommitAndBegin(context.Background()))
+	comparator := tx.(ethdb.HasTx).Tx().Comparator(dbutils.ReceiptsIndex)
 
 	check(tx.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
 		blockHashBytes := k[len(k)-32:]
@@ -1929,6 +1695,127 @@ func logIndex(chaindata string) error {
 			return false, fmt.Errorf("invalid receipt array RLP: %w, hash=%x", err, hash)
 		}
 
+		receipts = receipts[:0]
+		for _, storageReceipt := range storageReceipts {
+			receipts = append(receipts, (*types.Receipt)(storageReceipt))
+		}
+
+		// dbutils.Logs dbutils.Logs2
+
+		for txIdx, storageReceipt := range receipts {
+			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
+
+			for logIdx, log := range storageReceipt.Logs {
+				if log.Removed {
+					continue
+				}
+
+				binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
+
+				var topicsToStore = make([]byte, 0, 32*len(log.Topics))
+				duplicatedTopics := map[common.Hash]struct{}{}
+				for _, topic := range log.Topics {
+					if _, ok := duplicatedTopics[topic]; ok { // skip topics duplicates
+						continue
+					}
+					duplicatedTopics[topic] = struct{}{}
+
+					topicsToStore = append(topicsToStore, topic[:]...)
+				}
+
+				newV := make([]byte, 0, 20+4+4+len(topicsToStore))
+				newV = append(newV, log.Address[:]...)
+				newV = append(newV, txIndex...)
+				newV = append(newV, logIndex...)
+				newV = append(newV, topicsToStore...)
+				if err := tx.Put(dbutils.Logs, common.CopyBytes(blockNumBytes), newV); err != nil {
+					return false, err
+				}
+
+				newV2 := make([]byte, 0, 4+4+len(topicsToStore))
+				newV2 = append(newV2, txIndex...)
+				newV2 = append(newV2, logIndex...)
+				newV2 = append(newV2, topicsToStore...)
+				if err := tx.Put(dbutils.Logs2, append(common.CopyBytes(blockNumBytes), log.Address[:]...), newV2); err != nil {
+					return false, err
+				}
+			}
+		}
+
+		// dbutils.Logs3
+		logs = logs[:0]
+		for _, receipt := range receipts {
+			txLogs := make([][]byte, len(receipt.Logs))
+
+			for logIdx, log := range receipt.Logs {
+				txLogs[logIdx] = log.Data
+			}
+
+			logs = append(logs, txLogs)
+		}
+
+		encoder.MustEncode(logs)
+		defer buf.Reset()
+		if err := tx.Append(dbutils.Logs3, common.CopyBytes(blockNumBytes), common.CopyBytes(buf.Bytes())); err != nil {
+			return false, err
+		}
+
+		// Index Index2 Index4
+
+		for txIdx, storageReceipt := range receipts {
+			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
+			for logIdx, log := range storageReceipt.Logs {
+				if log.Removed {
+					continue
+				}
+				binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
+
+				var topicsToStore = make([]byte, 0, 32*len(log.Topics))
+				duplicatedTopics := map[common.Hash]struct{}{}
+				for _, topic := range log.Topics {
+					if _, ok := duplicatedTopics[topic]; ok { // skip topics duplicates
+						continue
+					}
+					duplicatedTopics[topic] = struct{}{}
+
+					topicsToStore = append(topicsToStore, topic[:]...)
+				}
+
+				newK := common.CopyBytes(log.Address[:])
+
+				newV := make([]byte, 0, 4+4+4+len(topicsToStore))
+				newV = append(newV, blockNumBytes...)
+				newV = append(newV, txIndex...)
+				newV = append(newV, logIndex...)
+				newV = append(newV, topicsToStore...)
+				if err := tx.Put(dbutils.ReceiptsIndex, newK, newV); err != nil {
+					return false, err
+				}
+
+				newK2 := common.CopyBytes(blockNumBytes)
+
+				newV2 := make([]byte, 0, 20+4+4+len(topicsToStore))
+				newV2 = append(newV2, log.Address[:]...)
+				newV2 = append(newV2, txIndex...)
+				newV2 = append(newV2, logIndex...)
+				newV2 = append(newV2, topicsToStore...)
+				if err := tx.Put(dbutils.ReceiptsIndex2, newK2, newV2); err != nil {
+					return false, err
+				}
+
+				newK3 := append(common.CopyBytes(blockNumBytes), log.Address[:]...)
+
+				newV3 := make([]byte, 0, 4+4+len(topicsToStore))
+				newV3 = append(newV3, txIndex...)
+				newV3 = append(newV3, logIndex...)
+				newV3 = append(newV3, topicsToStore...)
+				if err := tx.Put(dbutils.ReceiptsIndex4, newK3, newV3); err != nil {
+					return false, err
+				}
+			}
+		}
+
+		// dbutils.BlockReceiptsPrefix2
 		for i := range storageReceipts {
 			storageReceipts[i].Logs = nil
 		}
@@ -1947,165 +1834,7 @@ func logIndex(chaindata string) error {
 
 	check(tx.CommitAndBegin(context.Background()))
 
-	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs))
-	check(tx.CommitAndBegin(context.Background()))
-	check(tx.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
-		blockHashBytes := k[len(k)-32:]
-		blockNum64Bytes := k[:len(k)-32]
-		//blockHash := common.BytesToHash(blockHashBytes)
-		blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
-		canonicalHash := rawdb.ReadCanonicalHash(tx, blockNum)
-		if !bytes.Equal(blockHashBytes, canonicalHash[:]) {
-			return true, nil
-		}
-
-		select {
-		default:
-		case <-logEvery.C:
-			log.Info("progress", "blockNum", blockNum)
-		}
-
-		binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
-
-		// Convert the receipts from their storage form to their internal representation
-		storageReceipts := []*types.ReceiptForStorage{}
-		if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
-			return false, fmt.Errorf("invalid receipt array RLP: %w, hash=%x", err, hash)
-		}
-
-		receipts = receipts[:0]
-		for _, storageReceipt := range storageReceipts {
-			receipts = append(receipts, (*types.Receipt)(storageReceipt))
-		}
-
-		for txIdx, storageReceipt := range storageReceipts {
-			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
-			for logIdx, log := range storageReceipt.Logs {
-				binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
-
-				newK := common.CopyBytes(blockNumBytes)
-				newK = append(newK, txIndex...)
-				newK = append(newK, logIndex...)
-				if err := tx.Append(dbutils.Logs, newK, common.CopyBytes(log.Data)); err != nil {
-					return false, err
-				}
-			}
-		}
-
-		return true, nil
-	}))
-
-	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs2))
-	check(tx.CommitAndBegin(context.Background()))
-
-	check(tx.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
-		blockHashBytes := k[len(k)-32:]
-		blockNum64Bytes := k[:len(k)-32]
-		//blockHash := common.BytesToHash(blockHashBytes)
-		blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
-		canonicalHash := rawdb.ReadCanonicalHash(tx, blockNum)
-		if !bytes.Equal(blockHashBytes, canonicalHash[:]) {
-			return true, nil
-		}
-
-		select {
-		default:
-		case <-logEvery.C:
-			log.Info("progress", "blockNum", blockNum)
-		}
-
-		binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
-
-		// Convert the receipts from their storage form to their internal representation
-		storageReceipts := []*types.ReceiptForStorage{}
-		if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
-			return false, fmt.Errorf("invalid receipt array RLP: %w, hash=%x", err, hash)
-		}
-
-		receipts = receipts[:0]
-		for _, storageReceipt := range storageReceipts {
-			receipts = append(receipts, (*types.Receipt)(storageReceipt))
-		}
-
-		logs = logs[:0]
-		for txIdx, storageReceipt := range storageReceipts {
-			var logs = make([][]byte, 0, len(storageReceipt.Logs))
-			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
-
-			for logIdx, log := range storageReceipt.Logs {
-				logs[logIdx] = log.Data
-			}
-
-			newK := append(common.CopyBytes(blockNumBytes), txIndex...)
-
-			encoder.MustEncode(logs)
-
-			if err := tx.Append(dbutils.Logs2, newK, common.CopyBytes(buf.Bytes())); err != nil {
-				return false, err
-			}
-			buf.Reset()
-		}
-
-		return true, nil
-	}))
-
-	check(tx.CommitAndBegin(context.Background()))
-
-	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs3))
-	check(tx.CommitAndBegin(context.Background()))
-
-	check(tx.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
-		blockHashBytes := k[len(k)-32:]
-		blockNum64Bytes := k[:len(k)-32]
-		//blockHash := common.BytesToHash(blockHashBytes)
-		blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
-		canonicalHash := rawdb.ReadCanonicalHash(tx, blockNum)
-		if !bytes.Equal(blockHashBytes, canonicalHash[:]) {
-			return true, nil
-		}
-
-		select {
-		default:
-		case <-logEvery.C:
-			log.Info("progress", "blockNum", blockNum)
-		}
-
-		binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
-
-		// Convert the receipts from their storage form to their internal representation
-		storageReceipts := []*types.ReceiptForStorage{}
-		if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
-			return false, fmt.Errorf("invalid receipt array RLP: %w, hash=%x", err, hash)
-		}
-
-		receipts = receipts[:0]
-		for _, storageReceipt := range storageReceipts {
-			receipts = append(receipts, (*types.Receipt)(storageReceipt))
-		}
-
-		logs = logs[:0]
-		for _, storageReceipt := range storageReceipts {
-			txLogs := make([][]byte, len(storageReceipt.Logs))
-
-			for logIdx, log := range storageReceipt.Logs {
-				txLogs[logIdx] = log.Data
-			}
-
-			logs = append(logs, txLogs)
-		}
-
-		encoder.MustEncode(logs)
-		defer buf.Reset()
-
-		if err := tx.Append(dbutils.Logs3, common.CopyBytes(blockNumBytes), common.CopyBytes(buf.Bytes())); err != nil {
-			return false, err
-		}
-
-		return true, nil
-	}))
-
-	check(tx.CommitAndBegin(context.Background()))
-
+	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.TxHash))
 	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.TxHash2))
 	check(tx.CommitAndBegin(context.Background()))
 
@@ -2136,54 +1865,17 @@ func logIndex(chaindata string) error {
 		}
 
 		txHashes := make([]byte, 0, len(body.Transactions)*32)
-		for _, tx := range body.Transactions {
-			txHash := tx.Hash()
-			txHashes = append(txHashes, txHash[:]...)
-		}
-
-		return true, tx.Append(dbutils.TxHash2, common.CopyBytes(blockNumBytes), txHashes)
-	}))
-
-	check(tx.CommitAndBegin(context.Background()))
-
-	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.TxHash))
-	check(tx.CommitAndBegin(context.Background()))
-
-	check(tx.Walk(dbutils.BlockBodyPrefix, nil, 0, func(k, v []byte) (bool, error) {
-		blockHashBytes := k[len(k)-32:]
-		blockNum64Bytes := k[:len(k)-32]
-		//blockHash := common.BytesToHash(blockHashBytes)
-		blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
-		binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
-		canonicalHash := rawdb.ReadCanonicalHash(tx, blockNum)
-		if !bytes.Equal(blockHashBytes, canonicalHash[:]) {
-			return true, nil
-		}
-
-		select {
-		default:
-		case <-logEvery.C:
-			log.Info("progress", "blockNum", blockNum)
-		}
-
-		bodyRlp, err := rawdb2.DecompressBlockBody(v)
-		if err != nil {
-			return false, err
-		}
-		body := new(types.Body)
-		if err := rlp.Decode(bytes.NewReader(bodyRlp), body); err != nil {
-			return false, fmt.Errorf("invalid receipt array RLP: %w, hash=%x", err, hash)
-		}
-
 		for txIdx, txn := range body.Transactions {
-			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
-
 			txHash := txn.Hash()
+			txHashes = append(txHashes, txHash[:]...)
+
+			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
 			if err := tx.Append(dbutils.TxHash, common.CopyBytes(blockNumBytes), append(common.CopyBytes(txIndex), txHash[:]...)); err != nil {
 				return false, err
 			}
 		}
-		return true, nil
+
+		return true, tx.Append(dbutils.TxHash2, common.CopyBytes(blockNumBytes), txHashes)
 	}))
 
 	check(tx.CommitAndBegin(context.Background()))
