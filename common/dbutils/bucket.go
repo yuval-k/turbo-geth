@@ -118,7 +118,6 @@ var (
 	ReceiptsIndex        = "ri"   // addr -> blockN + txIdx + logIdx + topics
 	ReceiptsIndex2       = "ri2"  // blockN -> addr + txIdx + logIdx + topics - this block must be bigger than ReceiptsIndex+Logs buckets
 	Logs                 = "rd"   // blockN + txIdx + logIdx -> logData
-	Logs2                = "rd2"  // blockN + txIdx -> cbor([]logData)
 	Logs3                = "rd3"  // blockN -> cbor([][]logData)
 	TxHash               = "txh"  // blockN -> txIdx + txHash
 	TxHash2              = "txh2" // blockN -> []txHash
@@ -230,7 +229,6 @@ var Buckets = []string{
 	TxHash,
 	BlockReceiptsPrefix2,
 	TxHash2,
-	Logs2,
 	Logs3,
 }
 
