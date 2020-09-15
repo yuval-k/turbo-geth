@@ -1730,7 +1730,7 @@ func logIndex(chaindata string) error {
 	//	etl.IdentityLoadFunc,
 	//	etl.TransformArgs{
 	//		Comparator: comparator,
-	//		BufferSize: int(2 * datasize.GB),
+	//		BufferSize: int(4 * datasize.GB),
 	//	},
 	//); err != nil {
 	//	return err
@@ -1811,7 +1811,7 @@ func logIndex(chaindata string) error {
 	//	etl.IdentityLoadFunc,
 	//	etl.TransformArgs{
 	//		Comparator: comparator,
-	//		BufferSize: int(2 * datasize.GB),
+	//		BufferSize: int(4 * datasize.GB),
 	//	},
 	//); err != nil {
 	//	return err
@@ -1861,7 +1861,7 @@ func logIndex(chaindata string) error {
 	//	extractFunc9,
 	//	etl.IdentityLoadFunc,
 	//	etl.TransformArgs{
-	//		BufferSize: int(2 * datasize.GB),
+	//		BufferSize: int(4 * datasize.GB),
 	//	},
 	//); err != nil {
 	//	return err
@@ -1927,7 +1927,7 @@ func logIndex(chaindata string) error {
 	//	extractFunc2,
 	//	etl.IdentityLoadFunc,
 	//	etl.TransformArgs{
-	//		BufferSize: int(2 * datasize.GB),
+	//		BufferSize: int(4 * datasize.GB),
 	//	},
 	//); err != nil {
 	//	return err
@@ -1971,7 +1971,7 @@ func logIndex(chaindata string) error {
 	//
 	//		encoder.MustEncode(logs)
 	//
-	//		if err := next(k, newK, common.CopyBytes(buf.Bytes())); err != nil {
+	//		if err := next(k, newK, buf.Bytes()); err != nil {
 	//			return err
 	//		}
 	//		buf.Reset()
@@ -1988,7 +1988,7 @@ func logIndex(chaindata string) error {
 	//	extractFuncLog2,
 	//	etl.IdentityLoadFunc,
 	//	etl.TransformArgs{
-	//		BufferSize: int(2 * datasize.GB),
+	//		BufferSize: int(4 * datasize.GB),
 	//	},
 	//); err != nil {
 	//	return err
@@ -2035,7 +2035,7 @@ func logIndex(chaindata string) error {
 			encoder.MustEncode(logs)
 
 			newK := common.CopyBytes(blockNumBytes)
-			if err := next(k, newK, common.CopyBytes(buf.Bytes())); err != nil {
+			if err := next(k, newK, buf.Bytes()); err != nil {
 				return err
 			}
 			buf.Reset()
@@ -2052,7 +2052,7 @@ func logIndex(chaindata string) error {
 		extractFuncLog3,
 		etl.IdentityLoadFunc,
 		etl.TransformArgs{
-			BufferSize: int(2 * datasize.GB),
+			BufferSize: int(4 * datasize.GB),
 		},
 	); err != nil {
 		return err
@@ -2100,7 +2100,7 @@ func logIndex(chaindata string) error {
 		extractFuncTxHash2,
 		etl.IdentityLoadFunc,
 		etl.TransformArgs{
-			BufferSize: int(2 * datasize.GB),
+			BufferSize: int(4 * datasize.GB),
 		},
 	); err != nil {
 		return err
@@ -2147,7 +2147,7 @@ func logIndex(chaindata string) error {
 		etl.IdentityLoadFunc,
 		etl.TransformArgs{
 			Comparator: comparator,
-			BufferSize: int(2 * datasize.GB),
+			BufferSize: int(4 * datasize.GB),
 		},
 	); err != nil {
 		return err
