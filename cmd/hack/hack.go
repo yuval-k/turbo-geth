@@ -1659,14 +1659,9 @@ func logIndex(chaindata string) error {
 	encoder := codecpool.Encoder(&buf)
 	defer codecpool.Return(encoder)
 
-	//if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex); err != nil {
-	//	return err
-	//}
+	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex))
+	//check(tx.CommitAndBegin(context.Background()))
 	comparator := tx.(ethdb.HasTx).Tx().Comparator(dbutils.ReceiptsIndex)
-	//
-	//err = tx.CommitAndBegin(context.Background())
-	//check(err)
-	//
 	//extractFunc := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
 	//	blockHashBytes := k[len(k)-32:]
 	//	blockNum64Bytes := k[:len(k)-32]
@@ -1737,14 +1732,10 @@ func logIndex(chaindata string) error {
 	//	return err
 	//}
 	//
-	//err = tx.CommitAndBegin(context.Background())
-	//check(err)
+	//check(tx.CommitAndBegin(context.Background()))
 
-	//if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex2); err != nil {
-	//	return err
-	//}
-	//err = tx.CommitAndBegin(context.Background())
-	//check(err)
+	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex2))
+	//check(tx.CommitAndBegin(context.Background()))
 	//extractFunc22 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
 	//		blockHashBytes := k[len(k)-32:]
 	//		blockNum64Bytes := k[:len(k)-32]
@@ -1813,14 +1804,10 @@ func logIndex(chaindata string) error {
 	//	return err
 	//}
 	//
-	//err = tx.CommitAndBegin(context.Background())
-	//check(err)
+	//check(tx.CommitAndBegin(context.Background()))
 
-	//if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.TxHash); err != nil {
-	//	return err
-	//}
-	//err = tx.CommitAndBegin(context.Background())
-	//check(err)
+	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.TxHash))
+	//check(tx.CommitAndBegin(context.Background()))
 	//extractFunc4 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
 	//	//blockHash := k[len(k)-32:]
 	//	blockNum := k[:len(k)-32]
@@ -1858,14 +1845,10 @@ func logIndex(chaindata string) error {
 	//	return err
 	//}
 	//
-	//err = tx.CommitAndBegin(context.Background())
-	//check(err)
+	//check(tx.CommitAndBegin(context.Background()))
 
-	//if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix2); err != nil {
-	//	return err
-	//}
-	//err = tx.CommitAndBegin(context.Background())
-	//check(err)
+	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix2))
+	//check(tx.CommitAndBegin(context.Background()))
 	//extractFunc9 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
 	//	storageReceipts := []*types.ReceiptForStorage{}
 	//	if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
@@ -1901,14 +1884,10 @@ func logIndex(chaindata string) error {
 	//	return err
 	//}
 	//
-	//_, err = tx.Commit()
-	//check(err)
+	//check(tx.CommitAndBegin(context.Background()))
 
-	//if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs); err != nil {
-	//	return err
-	//}
-	//err = tx.CommitAndBegin(context.Background())
-	//check(err)
+	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs))
+	//check(tx.CommitAndBegin(context.Background()))
 	//extractFunc2 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
 	//	blockHashBytes := k[len(k)-32:]
 	//	blockNum64Bytes := k[:len(k)-32]
@@ -1974,11 +1953,8 @@ func logIndex(chaindata string) error {
 	//	return err
 	//}
 
-	if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs2); err != nil {
-		return err
-	}
-	err = tx.CommitAndBegin(context.Background())
-	check(err)
+	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs2))
+	check(tx.CommitAndBegin(context.Background()))
 
 	extractFuncLog2 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
 		blockHashBytes := k[len(k)-32:]
@@ -2049,8 +2025,7 @@ func logIndex(chaindata string) error {
 		return err
 	}
 
-	err = tx.CommitAndBegin(context.Background())
-	check(err)
+	check(tx.CommitAndBegin(context.Background()))
 
 	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.TxHash2))
 	check(tx.CommitAndBegin(context.Background()))
@@ -2092,6 +2067,8 @@ func logIndex(chaindata string) error {
 		return err
 	}
 
+	check(tx.CommitAndBegin(context.Background()))
+
 	_ = logIndex
 	_ = buf
 	_ = comparator
@@ -2110,7 +2087,8 @@ func logIndexBitmap(chaindata string) error {
 
 	defer func(t time.Time) { fmt.Printf("hack.go:1802: %s\n", time.Since(t)) }(time.Now())
 	x := common.FromHex("6090a6e47849629b7245dfa1ca21d94cd15878ef")
-	for k, _, _ := c.SeekBothRange(x, common.FromHex("00000000003cf04c")); k != nil; k, _, err = c.Next() {
+	for k, _, err := c.SeekBothRange(x, common.FromHex("00000000003cf04c")); k != nil; k, _, err = c.Next() {
+		check(err)
 		if !bytes.Equal(x, k) {
 			break
 		}

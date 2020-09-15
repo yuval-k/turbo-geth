@@ -335,9 +335,9 @@ func ReadTdRLP(db DatabaseReader, hash common.Hash, number uint64) rlp.RawValue 
 		// So during the first check for ancient db, the data is not yet in there,
 		// but when we reach into leveldb, the data was already moved. That would
 		// result in a not found error.
-		if len(data) == 0 {
-			//data, _ = db.Ancient(freezerDifficultyTable, number)
-		}
+		//if len(data) == 0 {
+		//	data, _ = db.Ancient(freezerDifficultyTable, number)
+		//}
 	}
 	return nil // Can't find the data anywhere.
 }
