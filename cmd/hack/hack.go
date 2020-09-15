@@ -1622,7 +1622,7 @@ func logIndex(chaindata string) error {
 	//var NoTopics = []common.Hash{NoTopic}
 	blockNumBytes := make([]byte, 4)
 	txIndex := make([]byte, 4)
-	logIndex := make([]byte, 2)
+	logIndex := make([]byte, 4)
 
 	//max := 0
 	//if err := tx.Walk(dbutils.Logs, nil, 0, func(k, v []byte) (bool, error) {
@@ -1707,27 +1707,28 @@ func logIndex(chaindata string) error {
 		}
 
 		// dbutils.Logs
-		//for txIdx, receipt := range receipts {
-		//	binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
-		//
-		//	for logIdx, log := range receipt.Logs {
-		//		binary.BigEndian.PutUint16(logIndex, uint16(logIdx))
-		//
-		//		newK := common.CopyBytes(blockNumBytes)
-		//		newK = append(newK, txIndex...)
-		//		newK = append(newK, logIndex...)
-		//		if err := tx.Put(dbutils.Logs, newK, common.CopyBytes(log.Data)); err != nil {
-		//			return false, err
-		//		}
-		//	}
-		//}
+		for txIdx, receipt := range receipts {
+			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
+
+			for logIdx, log := range receipt.Logs {
+				binary.BigEndian.PutUint16(logIndex, uint16(logIdx))
+
+				newK := common.CopyBytes(blockNumBytes)
+				newK = append(newK, logIndex...)
+				if err := tx.Put(dbutils.Logs, newK, common.CopyBytes(log.Data)); err != nil {
+					return false, err
+				}
+			}
+		}
 
 		// Index Index2 Index4
 
+		logIdx := uint32(1) // logIdx - indexed IN THE BLOCK and starting from 1.
 		for txIdx, storageReceipt := range receipts {
 			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
-			for logIdx, log := range storageReceipt.Logs {
-				binary.BigEndian.PutUint16(logIndex, uint16(logIdx))
+			for _, log := range storageReceipt.Logs {
+				binary.BigEndian.PutUint32(logIndex, logIdx)
+				logIdx++
 
 				var topicsToStore = make([]byte, 0, 32*len(log.Topics))
 				for _, topic := range log.Topics {
@@ -1736,7 +1737,7 @@ func logIndex(chaindata string) error {
 					{
 						newK := append(common.CopyBytes(log.Address[:]), topic[31])
 
-						newV := make([]byte, 0, 4+4+2)
+						newV := make([]byte, 0, 4+4+4)
 						newV = append(newV, blockNumBytes...)
 						newV = append(newV, txIndex...)
 						newV = append(newV, logIndex...)
@@ -1748,7 +1749,7 @@ func logIndex(chaindata string) error {
 					{
 						newK := append(common.CopyBytes(blockNumBytes), topic[31])
 
-						newV := make([]byte, 0, 20+4+2)
+						newV := make([]byte, 0, 20+4+4)
 						newV = append(newV, log.Address[:]...)
 						newV = append(newV, txIndex...)
 						newV = append(newV, logIndex...)
@@ -1760,7 +1761,7 @@ func logIndex(chaindata string) error {
 
 				newK := common.CopyBytes(log.Address[:])
 
-				newV := make([]byte, 0, 4+4+2+len(topicsToStore))
+				newV := make([]byte, 0, 4+4+4+len(topicsToStore))
 				newV = append(newV, blockNumBytes...)
 				newV = append(newV, txIndex...)
 				newV = append(newV, logIndex...)
@@ -1771,7 +1772,7 @@ func logIndex(chaindata string) error {
 
 				newK2 := common.CopyBytes(blockNumBytes)
 
-				newV2 := make([]byte, 0, 20+4+2+len(topicsToStore))
+				newV2 := make([]byte, 0, 20+4+4+len(topicsToStore))
 				newV2 = append(newV2, log.Address[:]...)
 				newV2 = append(newV2, txIndex...)
 				newV2 = append(newV2, logIndex...)
