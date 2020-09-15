@@ -1669,7 +1669,7 @@ func logIndex(chaindata string) error {
 	check(tx.CommitAndBegin(context.Background()))
 	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs, dbutils.Logs2, dbutils.Logs3))
 	check(tx.CommitAndBegin(context.Background()))
-	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex, dbutils.ReceiptsIndex2, dbutils.ReceiptsIndex4))
+	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex, dbutils.ReceiptsIndex2))
 	check(tx.CommitAndBegin(context.Background()))
 
 	comparator := tx.(ethdb.HasTx).Tx().Comparator(dbutils.ReceiptsIndex)
@@ -1694,7 +1694,6 @@ func logIndex(chaindata string) error {
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.Logs3)
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.ReceiptsIndex)
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.ReceiptsIndex2)
-			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.ReceiptsIndex4)
 		}
 
 		binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
