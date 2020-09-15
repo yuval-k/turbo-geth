@@ -1712,18 +1712,11 @@ func logIndex(chaindata string) error {
 
 		// dbutils.Logs dbutils.Logs2
 		logs = logs[:0]
-		for _, receipt := range receipts {
-
-			for logIdx, log := range receipt.Logs {
-			}
-
-		}
-
-		for txIdx, storageReceipt := range receipts {
+		for txIdx, receipt := range receipts {
 			txLogs := make([][]byte, len(receipt.Logs))
 			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
 
-			for logIdx, log := range storageReceipt.Logs {
+			for logIdx, log := range receipt.Logs {
 				if log.Removed {
 					fmt.Printf("Removed log...\n")
 				}
