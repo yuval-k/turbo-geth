@@ -1818,6 +1818,86 @@ func logIndex(chaindata string) error {
 	//}
 	//
 	//check(tx.CommitAndBegin(context.Background()))
+
+	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex4))
+	//check(tx.CommitAndBegin(context.Background()))
+	//extractFunc24 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
+	//	blockHashBytes := k[len(k)-32:]
+	//	blockNum64Bytes := k[:len(k)-32]
+	//	blockHash := common.BytesToHash(blockHashBytes)
+	//	blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
+	//	canonicalHash := rawdb.ReadCanonicalHash(tx, blockNum)
+	//	if !bytes.Equal(blockHashBytes, canonicalHash[:]) {
+	//		return nil
+	//	}
+	//
+	//	// Convert the receipts from their storage form to their internal representation
+	//	storageReceipts := []*types.ReceiptForStorage{}
+	//	if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
+	//		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
+	//		return nil
+	//	}
+	//	receipts = receipts[:0]
+	//	for _, storageReceipt := range storageReceipts {
+	//		receipts = append(receipts, (*types.Receipt)(storageReceipt))
+	//	}
+	//
+	//	if err := receipts.DeriveFieldsNoTxHash(blockHash, blockNum); err != nil {
+	//		log.Error("Failed to derive block receipts fields", "hash", blockHash, "number", blockNum, "err", err)
+	//		return nil
+	//	}
+	//
+	//	for txIdx, storageReceipt := range receipts {
+	//		binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
+	//
+	//		for logIdx, log := range storageReceipt.Logs {
+	//			if log.Removed {
+	//				continue
+	//			}
+	//
+	//			binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
+	//
+	//			var topicsToStore = make([]byte, 0, 32*len(log.Topics))
+	//			duplicatedTopics := map[common.Hash]struct{}{}
+	//			for _, topic := range log.Topics {
+	//				if _, ok := duplicatedTopics[topic]; ok { // skip topics duplicates
+	//					continue
+	//				}
+	//				duplicatedTopics[topic] = struct{}{}
+	//
+	//				topicsToStore = append(topicsToStore, topic[:]...)
+	//			}
+	//
+	//			newK := append(common.CopyBytes(blockNumBytes), log.Address[:]...)
+	//
+	//			newV := make([]byte, 0, 4+4+len(topicsToStore))
+	//			newV = append(newV, txIndex...)
+	//			newV = append(newV, logIndex...)
+	//			newV = append(newV, topicsToStore...)
+	//			if err := next(k, newK, newV); err != nil {
+	//				return err
+	//			}
+	//		}
+	//	}
+	//	return nil
+	//}
+	//
+	//if err := etl.Transform(
+	//	tx,
+	//	dbutils.BlockReceiptsPrefix,
+	//	dbutils.ReceiptsIndex4,
+	//	datadir,
+	//	extractFunc24,
+	//	etl.IdentityLoadFunc,
+	//	etl.TransformArgs{
+	//		Comparator: comparator,
+	//		BufferSize: int(4 * datasize.GB),
+	//	},
+	//); err != nil {
+	//	return err
+	//}
+	//
+	//check(tx.CommitAndBegin(context.Background()))
 	//
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix2))
 	//check(tx.CommitAndBegin(context.Background()))
@@ -2032,15 +2112,15 @@ func logIndex(chaindata string) error {
 			}
 
 			logs = append(logs, txLogs)
-			encoder.MustEncode(logs)
-
-			newK := common.CopyBytes(blockNumBytes)
-			if err := next(k, newK, buf.Bytes()); err != nil {
-				return err
-			}
-			buf.Reset()
 		}
 
+		encoder.MustEncode(logs)
+
+		newK := common.CopyBytes(blockNumBytes)
+		if err := next(k, newK, buf.Bytes()); err != nil {
+			return err
+		}
+		buf.Reset()
 		return nil
 	}
 
