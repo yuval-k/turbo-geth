@@ -1666,9 +1666,12 @@ func logIndex(chaindata string) error {
 	defer logEvery.Stop()
 
 	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix2))
+	check(tx.CommitAndBegin(context.Background()))
 	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs, dbutils.Logs2, dbutils.Logs3))
+	check(tx.CommitAndBegin(context.Background()))
 	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex, dbutils.ReceiptsIndex2, dbutils.ReceiptsIndex4))
 	check(tx.CommitAndBegin(context.Background()))
+
 	comparator := tx.(ethdb.HasTx).Tx().Comparator(dbutils.ReceiptsIndex)
 
 	check(tx.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
@@ -1685,6 +1688,13 @@ func logIndex(chaindata string) error {
 		default:
 		case <-logEvery.C:
 			log.Info("progress1", "blockNum", blockNum)
+			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.BlockReceiptsPrefix2)
+			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.Logs)
+			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.Logs2)
+			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.Logs3)
+			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.ReceiptsIndex)
+			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.ReceiptsIndex2)
+			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.ReceiptsIndex4)
 		}
 
 		binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
@@ -1838,6 +1848,8 @@ func logIndex(chaindata string) error {
 		default:
 		case <-logEvery.C:
 			log.Info("progress", "blockNum", blockNum)
+			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.TxHash)
+			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.TxHash2)
 		}
 
 		bodyRlp, err := rawdb2.DecompressBlockBody(v)
@@ -1871,6 +1883,11 @@ func logIndex(chaindata string) error {
 	_ = datadir
 
 	return nil
+}
+
+func printBucketSize(tx ethdb.Tx, bucket string) {
+	sz, _ := tx.(ethdb.HasTx).Tx().BucketSize(bucket)
+	log.Info("size", bucket, common.StorageSize(sz))
 }
 
 func logIndexBitmap(chaindata string) error {
