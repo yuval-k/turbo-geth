@@ -1886,7 +1886,7 @@ func logIndex(chaindata string) error {
 }
 
 func printBucketSize(tx ethdb.Tx, bucket string) {
-	sz, _ := tx.(ethdb.HasTx).Tx().BucketSize(bucket)
+	sz, _ := tx.BucketSize(bucket)
 	log.Info("size", bucket, common.StorageSize(sz))
 }
 
