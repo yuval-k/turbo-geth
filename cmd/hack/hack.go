@@ -1762,7 +1762,7 @@ func logIndex(chaindata string) error {
 
 				newK := common.CopyBytes(log.Address[:])
 
-				newV := make([]byte, 0, 4+4+4+len(topicsToStore))
+				newV := make([]byte, 0, 4+4+2+len(topicsToStore))
 				newV = append(newV, blockNumBytes...)
 				newV = append(newV, txIndex...)
 				newV = append(newV, logIndex...)
@@ -1773,7 +1773,7 @@ func logIndex(chaindata string) error {
 
 				newK2 := common.CopyBytes(blockNumBytes)
 
-				newV2 := make([]byte, 0, 20+4+4+len(topicsToStore))
+				newV2 := make([]byte, 0, 20+4+2+len(topicsToStore))
 				newV2 = append(newV2, log.Address[:]...)
 				newV2 = append(newV2, txIndex...)
 				newV2 = append(newV2, logIndex...)
@@ -1847,10 +1847,7 @@ func logIndex(chaindata string) error {
 			}
 		}
 
-		buf.Reset()
-		encoder.MustEncode(txHashes)
-
-		if err := tx.Put(dbutils.TxHash2, common.CopyBytes(blockNumBytes), common.CopyBytes(buf.Bytes())); err != nil {
+		if err := tx.Put(dbutils.TxHash2, common.CopyBytes(blockNumBytes), common.CopyBytes(txHashes)); err != nil {
 			return false, err
 		}
 
