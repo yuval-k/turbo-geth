@@ -439,8 +439,8 @@ func ReadReceipts(db DatabaseReader, hash common.Hash, number uint64) types.Rece
 		return nil
 	}
 
-	senders := ReadSenders(db, hash, number)
-	body.SendersToTxs(senders)
+	//senders := ReadSenders(db, hash, number)
+	//body.SendersToTxs(senders)
 
 	if err := receipts.DeriveFields(hash, number, body.Transactions); err != nil {
 		log.Error("Failed to derive block receipts fields", "hash", hash, "number", number, "err", err)

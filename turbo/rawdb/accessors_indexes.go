@@ -19,12 +19,12 @@ package rawdb
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/ledgerwatch/turbo-geth/ethdb"
 	"math/big"
 
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/core/types"
+	"github.com/ledgerwatch/turbo-geth/ethdb"
 	"github.com/ledgerwatch/turbo-geth/log"
 )
 

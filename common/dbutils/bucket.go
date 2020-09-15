@@ -114,14 +114,17 @@ var (
 	BlockBodyPrefix     = "b" // blockBodyPrefix + num (uint64 big endian) + hash -> block body
 	BlockReceiptsPrefix = "r" // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
 
-	BlockReceiptsPrefix2 = "r2"  // same as blockReceiptsPrefix, but no logs
-	ReceiptsIndex        = "ri"  // addr -> blockN + things
-	ReceiptsIndex2       = "ri2" // blockN -> addr + txIdx + logIdx + topics - this block must be bigger than ReceiptsIndex+Logs buckets
-	ReceiptsIndex3       = "ri3" // blockN -> addr + txIdx + logIdx + txHash + topics - this block must be bigger than ReceiptsIndex+Logs buckets
-	ReceiptsIndex4       = "ri4" // blockN + addr -> txIdx + logIdx + topics - This one can simplify code
-	Logs                 = "rd"  // blockN + txIdx + logIdx -> logData
-	LogTopic             = "rid" //
-	TxHash               = "txh" // blockN -> txIdx + txHash
+	BlockReceiptsPrefix2 = "r2"   // same as blockReceiptsPrefix, but no logs
+	ReceiptsIndex        = "ri"   // addr -> blockN + txIdx + logIdx + topics
+	ReceiptsIndex2       = "ri2"  // blockN -> addr + txIdx + logIdx + topics - this block must be bigger than ReceiptsIndex+Logs buckets
+	ReceiptsIndex4       = "ri4"  // blockN + addr -> txIdx + logIdx + topics - This one can simplify code
+	Logs                 = "rd"   // blockN + txIdx + logIdx -> logData
+	Logs2                = "rd2"  // blockN + txIdx -> cbor([]logData)
+	TxHash               = "txh"  // blockN -> txIdx + txHash
+	TxHash2              = "txh2" // blockN -> []txHash
+
+	Test1 = "test_1" // addr -> blockN
+	Test2 = "test_2" // blockN -> addr
 
 	TxLookupPrefix  = "l" // txLookupPrefix + hash -> transaction/receipt lookup metadata
 	BloomBitsPrefix = "B" // bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash -> bloom bits
@@ -200,10 +203,10 @@ var Buckets = []string{
 	BlockReceiptsPrefix,
 	ReceiptsIndex,
 	ReceiptsIndex2,
-	ReceiptsIndex3,
 	ReceiptsIndex4,
+	Test1,
+	Test2,
 	Logs,
-	LogTopic,
 	TxLookupPrefix,
 	BloomBitsPrefix,
 	PreimagePrefix,
@@ -227,6 +230,8 @@ var Buckets = []string{
 	Migrations,
 	TxHash,
 	BlockReceiptsPrefix2,
+	TxHash2,
+	Logs2,
 }
 
 // DeprecatedBuckets - list of buckets which can be programmatically deleted - for example after migration
@@ -302,13 +307,16 @@ var BucketsConfigs = BucketsCfg{
 	ReceiptsIndex2: {
 		Flags: lmdb.DupSort,
 	},
-	ReceiptsIndex3: {
-		Flags: lmdb.DupSort,
-	},
 	ReceiptsIndex4: {
 		Flags: lmdb.DupSort,
 	},
 	TxHash: {
+		Flags: lmdb.DupSort,
+	},
+	Test1: {
+		Flags: lmdb.DupSort,
+	},
+	Test2: {
 		Flags: lmdb.DupSort,
 	},
 }
