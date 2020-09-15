@@ -1666,10 +1666,10 @@ func logIndex(chaindata string) error {
 
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix2))
 	//check(tx.CommitAndBegin(context.Background()))
-	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs))
-	//check(tx.CommitAndBegin(context.Background()))
+	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs))
+	check(tx.CommitAndBegin(context.Background()))
 	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex, dbutils.ReceiptsIndex2, dbutils.ReceiptsIndex3, dbutils.ReceiptsIndex4))
-	//check(tx.CommitAndBegin(context.Background()))
+	check(tx.CommitAndBegin(context.Background()))
 	//
 	check(tx.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
 		blockHashBytes := k[len(k)-32:]
