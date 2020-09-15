@@ -1684,7 +1684,7 @@ func logIndex(chaindata string) error {
 		select {
 		default:
 		case <-logEvery.C:
-			log.Info("progress", "blockNum", blockNum)
+			log.Info("progress1", "blockNum", blockNum)
 		}
 
 		binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
@@ -1756,7 +1756,7 @@ func logIndex(chaindata string) error {
 
 		encoder.MustEncode(logs)
 		defer buf.Reset()
-		if err := tx.Append(dbutils.Logs3, common.CopyBytes(blockNumBytes), common.CopyBytes(buf.Bytes())); err != nil {
+		if err := tx.Put(dbutils.Logs3, common.CopyBytes(blockNumBytes), common.CopyBytes(buf.Bytes())); err != nil {
 			return false, err
 		}
 
@@ -1825,7 +1825,7 @@ func logIndex(chaindata string) error {
 			return false, fmt.Errorf("encode block receipts for block %w", err)
 		}
 
-		if err := tx.Append(dbutils.BlockReceiptsPrefix2, common.CopyBytes(k[4:8]), common.CopyBytes(bytes)); err != nil {
+		if err := tx.Put(dbutils.BlockReceiptsPrefix2, common.CopyBytes(k[4:8]), common.CopyBytes(bytes)); err != nil {
 			return false, err
 		}
 
@@ -1870,12 +1870,12 @@ func logIndex(chaindata string) error {
 			txHashes = append(txHashes, txHash[:]...)
 
 			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
-			if err := tx.Append(dbutils.TxHash, common.CopyBytes(blockNumBytes), append(common.CopyBytes(txIndex), txHash[:]...)); err != nil {
+			if err := tx.Put(dbutils.TxHash, common.CopyBytes(blockNumBytes), append(common.CopyBytes(txIndex), txHash[:]...)); err != nil {
 				return false, err
 			}
 		}
 
-		return true, tx.Append(dbutils.TxHash2, common.CopyBytes(blockNumBytes), txHashes)
+		return true, tx.Put(dbutils.TxHash2, common.CopyBytes(blockNumBytes), txHashes)
 	}))
 
 	check(tx.CommitAndBegin(context.Background()))
