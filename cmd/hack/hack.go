@@ -1638,15 +1638,15 @@ func logIndex(chaindata string) error {
 	fmt.Printf("max: %d\n", max)
 
 	max = 0
+	count := 0
 	if err := tx.Walk(dbutils.Logs, nil, 0, func(k, v []byte) (bool, error) {
-		if len(v) > max {
-			max = len(v)
-		}
+		count++
+		max += len(v)
 		return true, nil
 	}); err != nil {
 		panic(err)
 	}
-	fmt.Printf("max: %d\n", max)
+	fmt.Printf("max: %.2f\n", float64(max)/float64(count))
 	return nil
 
 	var buf bytes.Buffer
