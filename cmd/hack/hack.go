@@ -1711,14 +1711,24 @@ func logIndex(chaindata string) error {
 		}
 
 		// dbutils.Logs dbutils.Logs2
+		logs = logs[:0]
+		for _, receipt := range receipts {
+
+			for logIdx, log := range receipt.Logs {
+			}
+
+		}
 
 		for txIdx, storageReceipt := range receipts {
+			txLogs := make([][]byte, len(receipt.Logs))
 			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
 
 			for logIdx, log := range storageReceipt.Logs {
 				if log.Removed {
 					fmt.Printf("Removed log...\n")
 				}
+
+				txLogs[logIdx] = log.Data
 
 				binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
 
@@ -1728,33 +1738,27 @@ func logIndex(chaindata string) error {
 				if err := tx.Put(dbutils.Logs, newK, common.CopyBytes(log.Data)); err != nil {
 					return false, err
 				}
+			}
 
-				newK2 := common.CopyBytes(blockNumBytes)
-				newK2 = append(newK2, txIndex...)
-				if err := tx.Put(dbutils.Logs2, newK2, append(common.CopyBytes(txIndex), log.Data...)); err != nil {
-					return false, err
-				}
+			logs = append(logs, txLogs)
+
+			newK2 := common.CopyBytes(blockNumBytes)
+			newK2 = append(newK2, txIndex...)
+
+			buf.Reset()
+			encoder.MustEncode(txLogs)
+			if err := tx.Put(dbutils.Logs2, newK2, common.CopyBytes(buf.Bytes())); err != nil {
+				return false, err
 			}
 		}
 
 		// dbutils.Logs3
-		logs = logs[:0]
-		for _, receipt := range receipts {
-			txLogs := make([][]byte, len(receipt.Logs))
 
-			for logIdx, log := range receipt.Logs {
-				txLogs[logIdx] = log.Data
-			}
-
-			logs = append(logs, txLogs)
-		}
-
+		buf.Reset()
 		encoder.MustEncode(logs)
-		defer buf.Reset()
 		if err := tx.Put(dbutils.Logs3, common.CopyBytes(blockNumBytes), common.CopyBytes(buf.Bytes())); err != nil {
 			return false, err
 		}
-
 		// Index Index2 Index4
 
 		for txIdx, storageReceipt := range receipts {
