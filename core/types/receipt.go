@@ -343,7 +343,6 @@ func (r Receipts) DeriveFieldsNoTxHash(hash common.Hash, number uint64) error {
 		for j := 0; j < len(r[i].Logs); j++ {
 			r[i].Logs[j].BlockNumber = number
 			r[i].Logs[j].BlockHash = hash
-			r[i].Logs[j].TxHash = r[i].TxHash
 			r[i].Logs[j].TxIndex = uint(i)
 			r[i].Logs[j].Index = logIndex
 			logIndex++

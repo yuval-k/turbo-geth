@@ -1659,36 +1659,40 @@ func logIndex(chaindata string) error {
 	encoder := codecpool.Encoder(&buf)
 	defer codecpool.Return(encoder)
 
+	receipts := make(types.Receipts, 0, 256)
+	logs := make([][][]byte, 0, 256)
+
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex))
 	//check(tx.CommitAndBegin(context.Background()))
 	comparator := tx.(ethdb.HasTx).Tx().Comparator(dbutils.ReceiptsIndex)
 	//extractFunc := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
 	//	blockHashBytes := k[len(k)-32:]
 	//	blockNum64Bytes := k[:len(k)-32]
-	//	blockHash := common.BytesToHash(blockHashBytes)
+	//	//blockHash := common.BytesToHash(blockHashBytes)
 	//	blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
-	//	binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
-	//
-	//	// We're deriving many fields from the block body, retrieve beside the receipt
-	//	receipts := rawdb2.ReadRawReceipts(tx, blockHash, blockNum)
-	//	if receipts == nil {
+	//	canonicalHash := rawdb.ReadCanonicalHash(tx, blockNum)
+	//	if !bytes.Equal(blockHashBytes, canonicalHash[:]) {
 	//		return nil
 	//	}
 	//
-	//	if err := receipts.DeriveFieldsNoTxHash(blockHash, blockNum); err != nil {
-	//		log.Error("Failed to derive block receipts fields", "hash", blockHash, "number", blockNum, "err", err)
+	//	// Convert the receipts from their storage form to their internal representation
+	//	storageReceipts := []*types.ReceiptForStorage{}
+	//	if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
+	//		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
 	//		return nil
 	//	}
+	//	receipts = receipts[:0]
+	//	for _, storageReceipt := range storageReceipts {
+	//		receipts = append(receipts, (*types.Receipt)(storageReceipt))
+	//	}
 	//
-	//
-	//	for _, storageReceipt := range receipts {
-	//		for _, log := range storageReceipt.Logs {
+	//	for txIdx, storageReceipt := range receipts {
+	//		binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
+	//		for logIdx, log := range storageReceipt.Logs {
 	//			if log.Removed {
 	//				continue
 	//			}
-	//
-	//			binary.BigEndian.PutUint32(txIndex, uint32(log.TxIndex))
-	//			binary.BigEndian.PutUint32(logIndex, uint32(log.Index))
+	//			binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
 	//
 	//			var topicsToStore = make([]byte, 0, 32*len(log.Topics))
 	//			duplicatedTopics := map[common.Hash]struct{}{}
@@ -1733,20 +1737,28 @@ func logIndex(chaindata string) error {
 	//}
 	//
 	//check(tx.CommitAndBegin(context.Background()))
-
+	//
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex2))
 	//check(tx.CommitAndBegin(context.Background()))
 	//extractFunc22 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
-	//		blockHashBytes := k[len(k)-32:]
-	//		blockNum64Bytes := k[:len(k)-32]
-	//		blockHash := common.BytesToHash(blockHashBytes)
-	//		blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
-	//		binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
-	//
-	//	// We're deriving many fields from the block body, retrieve beside the receipt
-	//	receipts := rawdb2.ReadRawReceipts(tx, blockHash, blockNum)
-	//	if receipts == nil {
+	//	blockHashBytes := k[len(k)-32:]
+	//	blockNum64Bytes := k[:len(k)-32]
+	//	blockHash := common.BytesToHash(blockHashBytes)
+	//	blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
+	//	canonicalHash := rawdb.ReadCanonicalHash(tx, blockNum)
+	//	if !bytes.Equal(blockHashBytes, canonicalHash[:]) {
 	//		return nil
+	//	}
+	//
+	//	// Convert the receipts from their storage form to their internal representation
+	//	storageReceipts := []*types.ReceiptForStorage{}
+	//	if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
+	//		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
+	//		return nil
+	//	}
+	//	receipts = receipts[:0]
+	//	for _, storageReceipt := range storageReceipts {
+	//		receipts = append(receipts, (*types.Receipt)(storageReceipt))
 	//	}
 	//
 	//	if err := receipts.DeriveFieldsNoTxHash(blockHash, blockNum); err != nil {
@@ -1754,14 +1766,15 @@ func logIndex(chaindata string) error {
 	//		return nil
 	//	}
 	//
-	//	for _, storageReceipt := range receipts {
-	//		for _, log := range storageReceipt.Logs {
+	//	for txIdx, storageReceipt := range receipts {
+	//		binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
+	//
+	//		for logIdx, log := range storageReceipt.Logs {
 	//			if log.Removed {
 	//				continue
 	//			}
 	//
-	//			binary.BigEndian.PutUint32(txIndex, uint32(log.TxIndex))
-	//			binary.BigEndian.PutUint32(logIndex, uint32(log.Index))
+	//			binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
 	//
 	//			var topicsToStore = make([]byte, 0, 32*len(log.Topics))
 	//			duplicatedTopics := map[common.Hash]struct{}{}
@@ -1805,51 +1818,21 @@ func logIndex(chaindata string) error {
 	//}
 	//
 	//check(tx.CommitAndBegin(context.Background()))
-
-	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.TxHash))
-	//check(tx.CommitAndBegin(context.Background()))
-	//extractFunc4 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
-	//	//blockHash := k[len(k)-32:]
-	//	blockNum := k[:len(k)-32]
-	//	binary.BigEndian.PutUint32(blockNumBytes, uint32(binary.BigEndian.Uint64(blockNum)))
 	//
-	//	body := new(types.Body)
-	//	if err := rlp.Decode(bytes.NewReader(v), body); err != nil {
-	//		log.Error("Invalid block body RLP", "hash", hash, "err", err)
-	//		return nil
-	//	}
-	//
-	//	for txIdx, tx := range body.Transactions {
-	//		binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
-	//
-	//		txHash := tx.Hash()
-	//		if err := next(k, common.CopyBytes(blockNumBytes), append(txIndex, txHash[:]...)); err != nil {
-	//			return err
-	//		}
-	//	}
-	//	return nil
-	//}
-	//
-	//if err := etl.Transform(
-	//	tx,
-	//	dbutils.BlockBodyPrefix,
-	//	dbutils.TxHash,
-	//	datadir,
-	//	extractFunc4,
-	//	etl.IdentityLoadFunc,
-	//	etl.TransformArgs{
-	//		Comparator: comparator,
-	//		BufferSize: int(2 * datasize.GB),
-	//	},
-	//); err != nil {
-	//	return err
-	//}
-	//
-	//check(tx.CommitAndBegin(context.Background()))
-
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix2))
 	//check(tx.CommitAndBegin(context.Background()))
 	//extractFunc9 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
+	//	blockHashBytes := k[len(k)-32:]
+	//	blockNum64Bytes := k[:len(k)-32]
+	//	//blockHash := common.BytesToHash(blockHashBytes)
+	//	blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
+	//	canonicalHash := rawdb.ReadCanonicalHash(tx, blockNum)
+	//	if !bytes.Equal(blockHashBytes, canonicalHash[:]) {
+	//		return nil
+	//	}
+	//
+	//	binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
+	//
 	//	storageReceipts := []*types.ReceiptForStorage{}
 	//	if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
 	//		return err
@@ -1885,7 +1868,7 @@ func logIndex(chaindata string) error {
 	//}
 	//
 	//check(tx.CommitAndBegin(context.Background()))
-
+	//
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs))
 	//check(tx.CommitAndBegin(context.Background()))
 	//extractFunc2 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
@@ -1893,6 +1876,10 @@ func logIndex(chaindata string) error {
 	//	blockNum64Bytes := k[:len(k)-32]
 	//	blockHash := common.BytesToHash(blockHashBytes)
 	//	blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
+	//	canonicalHash := rawdb.ReadCanonicalHash(tx, blockNum)
+	//	if !bytes.Equal(blockHashBytes, canonicalHash[:]) {
+	//		return nil
+	//	}
 	//	binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
 	//
 	//	// Convert the receipts from their storage form to their internal representation
@@ -1901,22 +1888,15 @@ func logIndex(chaindata string) error {
 	//		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
 	//		return nil
 	//	}
-	//	receipts := make(types.Receipts, len(storageReceipts))
-	//	for i, storageReceipt := range storageReceipts {
-	//		receipts[i] = (*types.Receipt)(storageReceipt)
+	//	receipts = receipts[:0]
+	//	for _, storageReceipt := range storageReceipts {
+	//		receipts = append(receipts, (*types.Receipt)(storageReceipt))
 	//	}
 	//
-	//	body := rawdb.ReadBody(tx, blockHash, blockNum)
-	//	if body == nil {
-	//		log.Error("Missing body but have receipt", "hash", blockHash, "number", blockNum)
-	//		return nil
-	//	}
-	//
-	//	if err := receipts.DeriveFields(blockHash, blockNum, body.Transactions); err != nil {
+	//	if err := receipts.DeriveFieldsNoTxHash(blockHash, blockNum); err != nil {
 	//		log.Error("Failed to derive block receipts fields", "hash", blockHash, "number", blockNum, "err", err)
 	//		return nil
 	//	}
-	//
 	//
 	//	for _, storageReceipt := range storageReceipts {
 	//		for _, log := range storageReceipt.Logs {
@@ -1952,15 +1932,84 @@ func logIndex(chaindata string) error {
 	//); err != nil {
 	//	return err
 	//}
+	//
+	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs2))
+	//check(tx.CommitAndBegin(context.Background()))
+	//
+	//extractFuncLog2 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
+	//	blockHashBytes := k[len(k)-32:]
+	//	blockNum64Bytes := k[:len(k)-32]
+	//	//blockHash := common.BytesToHash(blockHashBytes)
+	//	blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
+	//	canonicalHash := rawdb.ReadCanonicalHash(tx, blockNum)
+	//	if !bytes.Equal(blockHashBytes, canonicalHash[:]) {
+	//		return nil
+	//	}
+	//
+	//	binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
+	//
+	//	// Convert the receipts from their storage form to their internal representation
+	//	storageReceipts := []*types.ReceiptForStorage{}
+	//	if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
+	//		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
+	//		return nil
+	//	}
+	//	receipts = receipts[:0]
+	//	for _, storageReceipt := range storageReceipts {
+	//		receipts = append(receipts, (*types.Receipt)(storageReceipt))
+	//	}
+	//
+	//	for txIdx, storageReceipt := range storageReceipts {
+	//		var logs = make([][]byte, 0, len(storageReceipt.Logs))
+	//		binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
+	//
+	//		for logIdx, log := range storageReceipt.Logs {
+	//			logs[logIdx] = log.Data
+	//		}
+	//
+	//		newK := append(common.CopyBytes(blockNumBytes), txIndex...)
+	//
+	//		encoder.MustEncode(logs)
+	//
+	//		if err := next(k, newK, common.CopyBytes(buf.Bytes())); err != nil {
+	//			return err
+	//		}
+	//		buf.Reset()
+	//	}
+	//
+	//	return nil
+	//}
+	//
+	//if err := etl.Transform(
+	//	tx,
+	//	dbutils.BlockReceiptsPrefix,
+	//	dbutils.Logs2,
+	//	datadir,
+	//	extractFuncLog2,
+	//	etl.IdentityLoadFunc,
+	//	etl.TransformArgs{
+	//		BufferSize: int(2 * datasize.GB),
+	//	},
+	//); err != nil {
+	//	return err
+	//}
+	//
+	//check(tx.CommitAndBegin(context.Background()))
 
-	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs2))
+	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs3))
 	check(tx.CommitAndBegin(context.Background()))
 
-	extractFuncLog2 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
+	extractFuncLog3 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
 		blockHashBytes := k[len(k)-32:]
 		blockNum64Bytes := k[:len(k)-32]
-		blockHash := common.BytesToHash(blockHashBytes)
+		//blockHash := common.BytesToHash(blockHashBytes)
 		blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
+		canonicalHash := rawdb.ReadCanonicalHash(tx, blockNum)
+		if !bytes.Equal(blockHashBytes, canonicalHash[:]) {
+			return nil
+		}
+
+		binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
 
 		// Convert the receipts from their storage form to their internal representation
 		storageReceipts := []*types.ReceiptForStorage{}
@@ -1968,40 +2017,24 @@ func logIndex(chaindata string) error {
 			log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
 			return nil
 		}
-		receipts := make(types.Receipts, len(storageReceipts))
-		for i, storageReceipt := range storageReceipts {
-			receipts[i] = (*types.Receipt)(storageReceipt)
-		}
 
-		body := rawdb.ReadBody(tx, blockHash, blockNum)
-		if body == nil {
-			log.Error("Missing body but have receipt", "hash", blockHash, "number", blockNum)
-			return nil
-		}
-
-		if err := receipts.DeriveFields(blockHash, blockNum, body.Transactions); err != nil {
-			log.Error("Failed to derive block receipts fields", "hash", blockHash, "number", blockNum, "err", err)
-			return nil
-		}
-
-		binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
+		receipts = receipts[:0]
 		for _, storageReceipt := range storageReceipts {
-			var logs = make([][]byte, 0, len(storageReceipt.Logs))
+			receipts = append(receipts, (*types.Receipt)(storageReceipt))
+		}
 
-			for _, log := range storageReceipt.Logs {
-				if len(log.Data) == 0 {
-					continue
-				}
-				binary.BigEndian.PutUint32(txIndex, uint32(log.TxIndex))
+		logs = logs[:0]
+		for _, storageReceipt := range storageReceipts {
+			txLogs := make([][]byte, len(storageReceipt.Logs))
 
-				logs = append(logs, log.Data)
+			for logIdx, log := range storageReceipt.Logs {
+				txLogs[logIdx] = log.Data
 			}
 
-			newK := common.CopyBytes(blockNumBytes)
-			newK = append(newK, txIndex...)
-
+			logs = append(logs, txLogs)
 			encoder.MustEncode(logs)
 
+			newK := common.CopyBytes(blockNumBytes)
 			if err := next(k, newK, common.CopyBytes(buf.Bytes())); err != nil {
 				return err
 			}
@@ -2014,9 +2047,9 @@ func logIndex(chaindata string) error {
 	if err := etl.Transform(
 		tx,
 		dbutils.BlockReceiptsPrefix,
-		dbutils.Logs2,
+		dbutils.Logs3,
 		datadir,
-		extractFuncLog2,
+		extractFuncLog3,
 		etl.IdentityLoadFunc,
 		etl.TransformArgs{
 			BufferSize: int(2 * datasize.GB),
@@ -2031,9 +2064,15 @@ func logIndex(chaindata string) error {
 	check(tx.CommitAndBegin(context.Background()))
 
 	extractFuncTxHash2 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
-		//blockHash := k[len(k)-32:]
-		blockNum := k[:len(k)-32]
-		binary.BigEndian.PutUint32(blockNumBytes, uint32(binary.BigEndian.Uint64(blockNum)))
+		blockHashBytes := k[len(k)-32:]
+		blockNum64Bytes := k[:len(k)-32]
+		//blockHash := common.BytesToHash(blockHashBytes)
+		blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
+		binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
+		canonicalHash := rawdb.ReadCanonicalHash(tx, blockNum)
+		if !bytes.Equal(blockHashBytes, canonicalHash[:]) {
+			return nil
+		}
 
 		body := new(types.Body)
 		if err := rlp.Decode(bytes.NewReader(v), body); err != nil {
@@ -2061,6 +2100,53 @@ func logIndex(chaindata string) error {
 		extractFuncTxHash2,
 		etl.IdentityLoadFunc,
 		etl.TransformArgs{
+			BufferSize: int(2 * datasize.GB),
+		},
+	); err != nil {
+		return err
+	}
+
+	check(tx.CommitAndBegin(context.Background()))
+
+	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.TxHash))
+	check(tx.CommitAndBegin(context.Background()))
+	extractFunc4 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
+		blockHashBytes := k[len(k)-32:]
+		blockNum64Bytes := k[:len(k)-32]
+		//blockHash := common.BytesToHash(blockHashBytes)
+		blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
+		binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
+		canonicalHash := rawdb.ReadCanonicalHash(tx, blockNum)
+		if !bytes.Equal(blockHashBytes, canonicalHash[:]) {
+			return nil
+		}
+
+		body := new(types.Body)
+		if err := rlp.Decode(bytes.NewReader(v), body); err != nil {
+			log.Error("Invalid block body RLP", "hash", hash, "err", err)
+			return nil
+		}
+
+		for txIdx, tx := range body.Transactions {
+			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
+
+			txHash := tx.Hash()
+			if err := next(k, common.CopyBytes(blockNumBytes), append(txIndex, txHash[:]...)); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if err := etl.Transform(
+		tx,
+		dbutils.BlockBodyPrefix,
+		dbutils.TxHash,
+		datadir,
+		extractFunc4,
+		etl.IdentityLoadFunc,
+		etl.TransformArgs{
+			Comparator: comparator,
 			BufferSize: int(2 * datasize.GB),
 		},
 	); err != nil {
