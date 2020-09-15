@@ -2116,8 +2116,7 @@ func logIndex(chaindata string) error {
 
 		encoder.MustEncode(logs)
 
-		newK := common.CopyBytes(blockNumBytes)
-		if err := next(k, newK, buf.Bytes()); err != nil {
+		if err := next(k, blockNumBytes, buf.Bytes()); err != nil {
 			return err
 		}
 		buf.Reset()
@@ -2211,7 +2210,7 @@ func logIndex(chaindata string) error {
 			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
 
 			txHash := tx.Hash()
-			if err := next(k, common.CopyBytes(blockNumBytes), append(txIndex, txHash[:]...)); err != nil {
+			if err := next(k, blockNumBytes, append(txIndex, txHash[:]...)); err != nil {
 				return err
 			}
 		}
