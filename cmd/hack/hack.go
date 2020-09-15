@@ -1706,23 +1706,7 @@ func logIndex(chaindata string) error {
 			receipts = append(receipts, (*types.Receipt)(storageReceipt))
 		}
 
-		// dbutils.Logs
-		for txIdx, receipt := range receipts {
-			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
-
-			for logIdx, log := range receipt.Logs {
-				binary.BigEndian.PutUint16(logIndex, uint16(logIdx))
-
-				newK := common.CopyBytes(blockNumBytes)
-				newK = append(newK, logIndex...)
-				if err := tx.Put(dbutils.Logs, newK, common.CopyBytes(log.Data)); err != nil {
-					return false, err
-				}
-			}
-		}
-
 		// Index Index2 Index4
-
 		logIdx := uint32(1) // logIdx - indexed IN THE BLOCK and starting from 1.
 		for txIdx, storageReceipt := range receipts {
 			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
@@ -1730,11 +1714,18 @@ func logIndex(chaindata string) error {
 				binary.BigEndian.PutUint32(logIndex, logIdx)
 				logIdx++
 
+				{ // dbutils.Logs
+					newK := append(common.CopyBytes(blockNumBytes), logIndex...)
+					if err := tx.Put(dbutils.Logs, newK, common.CopyBytes(log.Data)); err != nil {
+						return false, err
+					}
+				}
+
 				var topicsToStore = make([]byte, 0, 32*len(log.Topics))
 				for _, topic := range log.Topics {
 					topicsToStore = append(topicsToStore, topic[:]...)
 
-					{
+					{ // dbutils.ReceiptsIndex3
 						newK := append(common.CopyBytes(log.Address[:]), topic[31])
 
 						newV := make([]byte, 0, 4+4+4)
@@ -1746,7 +1737,7 @@ func logIndex(chaindata string) error {
 						}
 					}
 
-					{
+					{ // dbutils.ReceiptsIndex4
 						newK := append(common.CopyBytes(blockNumBytes), topic[31])
 
 						newV := make([]byte, 0, 20+4+4)
