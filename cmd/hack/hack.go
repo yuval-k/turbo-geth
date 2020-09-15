@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
+	rawdb2 "github.com/ledgerwatch/turbo-geth/core/rawdb"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -2125,8 +2126,12 @@ func logIndex(chaindata string) error {
 			log.Info("progress", "blockNum", blockNum)
 		}
 
+		bodyRlp, err := rawdb2.DecompressBlockBody(v)
+		if err != nil {
+			return false, err
+		}
 		body := new(types.Body)
-		if err := rlp.Decode(bytes.NewReader(v), body); err != nil {
+		if err := rlp.Decode(bytes.NewReader(bodyRlp), body); err != nil {
 			return false, fmt.Errorf("invalid receipt array RLP: %w, hash=%x", err, hash)
 		}
 
@@ -2161,8 +2166,12 @@ func logIndex(chaindata string) error {
 			log.Info("progress", "blockNum", blockNum)
 		}
 
+		bodyRlp, err := rawdb2.DecompressBlockBody(v)
+		if err != nil {
+			return false, err
+		}
 		body := new(types.Body)
-		if err := rlp.Decode(bytes.NewReader(v), body); err != nil {
+		if err := rlp.Decode(bytes.NewReader(bodyRlp), body); err != nil {
 			return false, fmt.Errorf("invalid receipt array RLP: %w, hash=%x", err, hash)
 		}
 
