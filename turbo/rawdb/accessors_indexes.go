@@ -141,11 +141,11 @@ func TransactionHash(db DatabaseReader, blockNumber uint32, txIndex uint32) (com
 	return common.BytesToHash(txHash), nil
 }
 
-func LogData(db DatabaseReader, blockNumber uint32, txIndex uint32, logIndex uint32) ([]byte, error) {
+func LogData(db DatabaseReader, blockNumber uint32, txIndex uint32, logIndex uint16) ([]byte, error) {
 	key := make([]byte, 12)
 	binary.BigEndian.PutUint32(key, blockNumber)
 	binary.BigEndian.PutUint32(key[4:], txIndex)
-	binary.BigEndian.PutUint32(key[8:], logIndex)
+	binary.BigEndian.PutUint16(key[8:], logIndex)
 
 	data, err := db.Get(dbutils.Logs, key)
 	if err != nil {

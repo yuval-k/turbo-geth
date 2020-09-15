@@ -115,10 +115,13 @@ var (
 	BlockReceiptsPrefix = "r" // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
 
 	BlockReceiptsPrefix2 = "r2"  // same as BlockReceiptsPrefix, but no logs
-	ReceiptsIndex2       = "ri2" // blockN -> addr + txIdx + logIdx + topics - this block must be bigger than ReceiptsIndex+Logs buckets
 	ReceiptsIndex        = "ri"  // addr -> blockN + txIdx + logIdx + topics
-	Logs                 = "rd"  // blockN + txIdx + logIdx -> logData
-	TxHash               = "txh" // blockN -> txIdx + txHash
+	ReceiptsIndex2       = "ri2" // blockN -> addr + txIdx + logIdx + topics - this block must be bigger than ReceiptsIndex+Logs buckets
+	ReceiptsIndex3       = "ri3" // addr + lastByte(topic) -> blockN + txIdx + logIdx
+	ReceiptsIndex4       = "ri4" // blockN + lastByte(topic) -> addr + txIdx + logIdx
+
+	Logs   = "rd"  // blockN + txIdx + logIdx -> logData
+	TxHash = "txh" // blockN -> txIdx + txHash
 
 	Test1 = "test_1" // addr -> blockN
 	Test2 = "test_2" // blockN -> addr
@@ -145,7 +148,8 @@ var (
 	InodesBucket = "inodes"
 
 	// Transaction senders - stored separately from the block bodies
-	Senders = "txSenders"
+	Senders  = "txSenders"
+	Senders2 = "txSenders2"
 
 	// fastTrieProgressKey tracks the number of trie entries imported during fast sync.
 	FastTrieProgressKey = "TrieSync"
@@ -226,6 +230,9 @@ var Buckets = []string{
 	Migrations,
 	TxHash,
 	BlockReceiptsPrefix2,
+	ReceiptsIndex3,
+	ReceiptsIndex4,
+	Senders2,
 }
 
 // DeprecatedBuckets - list of buckets which can be programmatically deleted - for example after migration
@@ -301,7 +308,16 @@ var BucketsConfigs = BucketsCfg{
 	ReceiptsIndex2: {
 		Flags: lmdb.DupSort,
 	},
+	ReceiptsIndex3: {
+		Flags: lmdb.DupSort | lmdb.DupFixed,
+	},
+	ReceiptsIndex4: {
+		Flags: lmdb.DupSort | lmdb.DupFixed,
+	},
 	TxHash: {
+		Flags: lmdb.DupSort | lmdb.DupFixed,
+	},
+	Senders2: {
 		Flags: lmdb.DupSort | lmdb.DupFixed,
 	},
 	Test1: {
