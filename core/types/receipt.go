@@ -324,3 +324,30 @@ func (r Receipts) DeriveFields(hash common.Hash, number uint64, txs Transactions
 	}
 	return nil
 }
+
+func (r Receipts) DeriveFieldsNoTxHash(hash common.Hash, number uint64) error {
+	logIndex := uint(0)
+	for i := 0; i < len(r); i++ {
+		// block location fields
+		r[i].BlockHash = hash
+		r[i].BlockNumber = new(big.Int).SetUint64(number)
+		r[i].TransactionIndex = uint(i)
+
+		// The used gas can be calculated based on previous r
+		if i == 0 {
+			r[i].GasUsed = r[i].CumulativeGasUsed
+		} else {
+			r[i].GasUsed = r[i].CumulativeGasUsed - r[i-1].CumulativeGasUsed
+		}
+		// The derived log fields can simply be set from the block and transaction
+		for j := 0; j < len(r[i].Logs); j++ {
+			r[i].Logs[j].BlockNumber = number
+			r[i].Logs[j].BlockHash = hash
+			r[i].Logs[j].TxHash = r[i].TxHash
+			r[i].Logs[j].TxIndex = uint(i)
+			r[i].Logs[j].Index = logIndex
+			logIndex++
+		}
+	}
+	return nil
+}
