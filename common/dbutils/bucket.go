@@ -114,13 +114,11 @@ var (
 	BlockBodyPrefix     = "b" // blockBodyPrefix + num (uint64 big endian) + hash -> block body
 	BlockReceiptsPrefix = "r" // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
 
-	BlockReceiptsPrefix2 = "r2"   // same as blockReceiptsPrefix, but no logs
-	ReceiptsIndex        = "ri"   // addr -> blockN + txIdx + logIdx + topics
-	ReceiptsIndex2       = "ri2"  // blockN -> addr + txIdx + logIdx + topics - this block must be bigger than ReceiptsIndex+Logs buckets
-	Logs                 = "rd"   // blockN + txIdx + logIdx -> logData
-	Logs3                = "rd3"  // blockN -> cbor([][]logData)
-	TxHash               = "txh"  // blockN -> txIdx + txHash
-	TxHash2              = "txh2" // blockN -> []txHash
+	BlockReceiptsPrefix2 = "r2"  // same as BlockReceiptsPrefix, but no logs
+	ReceiptsIndex2       = "ri2" // blockN -> addr + txIdx + logIdx + topics - this block must be bigger than ReceiptsIndex+Logs buckets
+	ReceiptsIndex        = "ri"  // addr -> blockN + txIdx + logIdx + topics
+	Logs                 = "rd"  // blockN + txIdx + logIdx -> logData
+	TxHash               = "txh" // blockN -> txIdx + txHash
 
 	Test1 = "test_1" // addr -> blockN
 	Test2 = "test_2" // blockN -> addr
@@ -228,8 +226,6 @@ var Buckets = []string{
 	Migrations,
 	TxHash,
 	BlockReceiptsPrefix2,
-	TxHash2,
-	Logs3,
 }
 
 // DeprecatedBuckets - list of buckets which can be programmatically deleted - for example after migration
