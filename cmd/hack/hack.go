@@ -1795,15 +1795,6 @@ func logIndex(chaindata string) error {
 					return false, err
 				}
 
-				newK3 := append(common.CopyBytes(blockNumBytes), log.Address[:]...)
-
-				newV3 := make([]byte, 0, 4+4+len(topicsToStore))
-				newV3 = append(newV3, txIndex...)
-				newV3 = append(newV3, logIndex...)
-				newV3 = append(newV3, topicsToStore...)
-				if err := tx.Put(dbutils.ReceiptsIndex4, newK3, newV3); err != nil {
-					return false, err
-				}
 			}
 		}
 

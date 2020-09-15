@@ -117,7 +117,6 @@ var (
 	BlockReceiptsPrefix2 = "r2"   // same as blockReceiptsPrefix, but no logs
 	ReceiptsIndex        = "ri"   // addr -> blockN + txIdx + logIdx + topics
 	ReceiptsIndex2       = "ri2"  // blockN -> addr + txIdx + logIdx + topics - this block must be bigger than ReceiptsIndex+Logs buckets
-	ReceiptsIndex4       = "ri4"  // blockN + addr -> txIdx + logIdx + topics - This one can simplify code
 	Logs                 = "rd"   // blockN + txIdx + logIdx -> logData
 	Logs2                = "rd2"  // blockN + txIdx -> cbor([]logData)
 	Logs3                = "rd3"  // blockN -> cbor([][]logData)
@@ -204,7 +203,6 @@ var Buckets = []string{
 	BlockReceiptsPrefix,
 	ReceiptsIndex,
 	ReceiptsIndex2,
-	ReceiptsIndex4,
 	Test1,
 	Test2,
 	Logs,
@@ -307,9 +305,6 @@ var BucketsConfigs = BucketsCfg{
 		Flags: lmdb.DupSort,
 	},
 	ReceiptsIndex2: {
-		Flags: lmdb.DupSort,
-	},
-	ReceiptsIndex4: {
 		Flags: lmdb.DupSort,
 	},
 	TxHash: {
