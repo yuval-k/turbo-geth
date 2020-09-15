@@ -1707,36 +1707,21 @@ func logIndex(chaindata string) error {
 
 			for logIdx, log := range storageReceipt.Logs {
 				if log.Removed {
-					continue
+					fmt.Printf("Removed log...\n")
 				}
 
 				binary.BigEndian.PutUint32(logIndex, uint32(logIdx))
 
-				var topicsToStore = make([]byte, 0, 32*len(log.Topics))
-				duplicatedTopics := map[common.Hash]struct{}{}
-				for _, topic := range log.Topics {
-					if _, ok := duplicatedTopics[topic]; ok { // skip topics duplicates
-						continue
-					}
-					duplicatedTopics[topic] = struct{}{}
-
-					topicsToStore = append(topicsToStore, topic[:]...)
-				}
-
-				newV := make([]byte, 0, 20+4+4+len(topicsToStore))
-				newV = append(newV, log.Address[:]...)
-				newV = append(newV, txIndex...)
-				newV = append(newV, logIndex...)
-				newV = append(newV, topicsToStore...)
-				if err := tx.Put(dbutils.Logs, common.CopyBytes(blockNumBytes), newV); err != nil {
+				newK := common.CopyBytes(blockNumBytes)
+				newK = append(newK, txIndex...)
+				newK = append(newK, logIndex...)
+				if err := tx.Put(dbutils.Logs, newK, common.CopyBytes(log.Data)); err != nil {
 					return false, err
 				}
 
-				newV2 := make([]byte, 0, 4+4+len(topicsToStore))
-				newV2 = append(newV2, txIndex...)
-				newV2 = append(newV2, logIndex...)
-				newV2 = append(newV2, topicsToStore...)
-				if err := tx.Put(dbutils.Logs2, append(common.CopyBytes(blockNumBytes), log.Address[:]...), newV2); err != nil {
+				newK2 := common.CopyBytes(blockNumBytes)
+				newK2 = append(newK2, txIndex...)
+				if err := tx.Put(dbutils.Logs2, newK2, append(common.CopyBytes(txIndex), log.Data...)); err != nil {
 					return false, err
 				}
 			}

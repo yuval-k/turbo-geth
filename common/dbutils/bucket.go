@@ -120,7 +120,7 @@ var (
 	ReceiptsIndex4       = "ri4"  // blockN + addr -> txIdx + logIdx + topics - This one can simplify code
 	Logs                 = "rd"   // blockN + txIdx + logIdx -> logData
 	Logs2                = "rd2"  // blockN + txIdx -> cbor([]logData)
-	Logs3                = "rd2"  // blockN -> cbor([][]logData)
+	Logs3                = "rd3"  // blockN -> cbor([][]logData)
 	TxHash               = "txh"  // blockN -> txIdx + txHash
 	TxHash2              = "txh2" // blockN -> []txHash
 
