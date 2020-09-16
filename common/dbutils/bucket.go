@@ -120,7 +120,7 @@ var (
 	ReceiptsIndex3       = "ri3" // blockN -> last2Bytes(topic) + txIdx + logIdx + topics
 	ReceiptsIndex4       = "ri4" // blockN -> last2Bytes(topic) + addr + txIdx + logIdx + topics
 	ReceiptsIndex5       = "ri5" // addr -> last2Bytes(topic) + blockN + txIdx + logIdx + topics
-	ReceiptsIndex6       = "ri6" // topic -> bitmap(BlockN)
+	Topics               = "ri6" // topic -> bitmap(BlockN)
 
 	Logs   = "rd"  // blockN + txIdx + logIdx -> logData
 	Logs2  = "rd2" // blockN + txIdx + logIdx + addr + topics -> logData
@@ -236,7 +236,7 @@ var Buckets = []string{
 	ReceiptsIndex3,
 	ReceiptsIndex4,
 	ReceiptsIndex5,
-	ReceiptsIndex6,
+	Topics,
 	Logs2,
 	Senders2,
 }

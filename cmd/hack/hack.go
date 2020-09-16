@@ -1959,7 +1959,7 @@ func logIndex(chaindata string) error {
 		if err := b.Write(newV); err != nil {
 			panic(err)
 		}
-		if err := tx.Put(dbutils.ReceiptsIndex6, common.CopyBytes(topic.Bytes()), newV); err != nil {
+		if err := tx.Put(dbutils.Topics, common.CopyBytes(topic.Bytes()), newV); err != nil {
 			panic(err)
 		}
 	}
