@@ -1715,6 +1715,7 @@ func logIndex(chaindata string) error {
 			//common.HexToHash("0000000000000000000000009c4ea8d25d6150a8ed2848fc745158aad926bf8d"):  true,
 			//common.HexToHash("dbccb92686efceafb9bb7e0394df7f58f71b954061b81afb57109bf247d3d75a"):  true,
 			//common.HexToHash("95c567a11896e793a41e067198ab5c4a4bdc7b3cf1182571fe911ec7e1426853"):  true,
+			//common.HexToHash("23919512b2162ddc59b67a65e3b03c419d4105366f7d4a632f5d3c3bee9b1cff"):  true,
 		}
 
 		select {
