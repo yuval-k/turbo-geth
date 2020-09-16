@@ -470,7 +470,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 	unfiltered := []*types.Log{}
 	uniqueTracker := map[uint32]map[uint32]bool{} // allows add log to 'unfiltered' list only once - because bucket stores 1 row for each topic
 
-	c := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.ReceiptsIndex8).Prefetch(10).(ethdb.CursorDupSort)
+	c := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.ReceiptsIndex5).Prefetch(10).(ethdb.CursorDupSort)
 	for _, addrToMatch := range crit.Addresses {
 		for _, topicToMatch := range allTopics {
 			key2 := make([]byte, 1+4)

@@ -117,16 +117,12 @@ var (
 	BlockReceiptsPrefix2 = "r2"  // same as BlockReceiptsPrefix, but no logs
 	ReceiptsIndex        = "ri"  // addr -> blockN + txIdx + logIdx + topics
 	ReceiptsIndex2       = "ri2" // blockN -> addr + txIdx + logIdx + topics - this block must be bigger than ReceiptsIndex+Logs buckets
-	ReceiptsIndex3       = "ri3" // addr + lastByte(topic) -> blockN + txIdx + logIdx
-	ReceiptsIndex4       = "ri4" // blockN -> lastByte(topic) + addr + txIdx + logIdx
-	ReceiptsIndex5       = "ri5" // blockN -> last2Bytes(topic) + txIdx + logIdx + topics
-	ReceiptsIndex6       = "ri5" // blockN -> last2Bytes(topic) + addr + txIdx + logIdx + topics
-	ReceiptsIndex7       = "ri7" // addr -> topics + blockN + txIdx + logIdx
-	ReceiptsIndex8       = "ri8" // addr -> last2Bytes(topic) + blockN + txIdx + logIdx + topics
+	ReceiptsIndex3       = "ri3" // blockN -> last2Bytes(topic) + txIdx + logIdx + topics
+	ReceiptsIndex4       = "ri4" // blockN -> last2Bytes(topic) + addr + txIdx + logIdx + topics
+	ReceiptsIndex5       = "ri5" // addr -> last2Bytes(topic) + blockN + txIdx + logIdx + topics
+	ReceiptsIndex6       = "ri6" // topic -> bitmap(BlockN)
 
 	Logs   = "rd"  // blockN + txIdx + logIdx -> logData
-	Logs2  = "rd2" // blockN + txIdx + logIdx -> logData
-	Logs3  = "rd3" // blockN + txIdx + logIdx -> logData
 	TxHash = "txh" // blockN -> txIdx + txHash
 
 	Test1 = "test_1" // addr -> blockN
@@ -240,8 +236,6 @@ var Buckets = []string{
 	ReceiptsIndex4,
 	ReceiptsIndex5,
 	ReceiptsIndex6,
-	ReceiptsIndex7,
-	ReceiptsIndex8,
 	Senders2,
 }
 
@@ -252,7 +246,6 @@ var DeprecatedBuckets = []string{
 	CurrentStateBucketOld1,
 	PlainStateBucketOld1,
 	IntermediateTrieHashBucketOld1,
-	Logs2, Logs3,
 }
 
 type CustomComparator string
@@ -320,21 +313,12 @@ var BucketsConfigs = BucketsCfg{
 		Flags: lmdb.DupSort,
 	},
 	ReceiptsIndex3: {
-		Flags: lmdb.DupSort | lmdb.DupFixed,
-	},
-	ReceiptsIndex4: {
-		Flags: lmdb.DupSort | lmdb.DupFixed,
-	},
-	ReceiptsIndex5: {
-		Flags: lmdb.DupSort | lmdb.DupFixed,
-	},
-	ReceiptsIndex6: {
-		Flags: lmdb.DupSort | lmdb.DupFixed,
-	},
-	ReceiptsIndex7: {
 		Flags: lmdb.DupSort,
 	},
-	ReceiptsIndex8: {
+	ReceiptsIndex4: {
+		Flags: lmdb.DupSort,
+	},
+	ReceiptsIndex5: {
 		Flags: lmdb.DupSort,
 	},
 	TxHash: {
