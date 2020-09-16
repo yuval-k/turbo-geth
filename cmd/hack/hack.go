@@ -1752,7 +1752,9 @@ func logIndex(chaindata string) error {
 			}
 			fmt.Printf("%x\n", largestTopic)
 			log.Info("largest bitmap", "normal", common.StorageSize(max), "frozen", common.StorageSize(maxFrozen))
-			log.Info("avg bitmap", "normal", common.StorageSize(total/len(topicsBitmap)), "frozen", common.StorageSize(totalFrozen/len(topicsBitmap)))
+			if len(topicsBitmap) > 0 {
+				log.Info("avg bitmap", "normal", common.StorageSize(total/len(topicsBitmap)), "frozen", common.StorageSize(totalFrozen/len(topicsBitmap)))
+			}
 			log.Info("total bitmap", "normal", common.StorageSize(total), "frozen", common.StorageSize(totalFrozen))
 		}
 
