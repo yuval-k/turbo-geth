@@ -237,6 +237,7 @@ var Buckets = []string{
 	ReceiptsIndex4,
 	ReceiptsIndex5,
 	ReceiptsIndex6,
+	Logs2,
 	Senders2,
 }
 
