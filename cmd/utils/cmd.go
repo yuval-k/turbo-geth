@@ -19,7 +19,6 @@ package utils
 
 import (
 	"compress/gzip"
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -328,24 +327,4 @@ func StopDebug() {
 
 func SetupUrfave(ctx *cli.Context) error {
 	return debug.Setup(ctx)
-}
-
-func RootContext() context.Context {
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		defer cancel()
-
-		ch := make(chan os.Signal, 1)
-		defer close(ch)
-
-		signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
-		defer signal.Stop(ch)
-
-		select {
-		case <-ch:
-			log.Info("Got interrupt, shutting down...")
-		case <-ctx.Done():
-		}
-	}()
-	return ctx
 }
