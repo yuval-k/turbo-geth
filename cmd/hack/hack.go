@@ -1723,7 +1723,7 @@ func logIndex(chaindata string) error {
 				}
 			}
 			log.Info("largest bitmap", "normal", common.StorageSize(max), "frozen", common.StorageSize(maxFrozen))
-			log.Info("avg bitmap", "normal", common.StorageSize(total), "frozen", common.StorageSize(totalFrozen))
+			log.Info("avg bitmap", "normal", common.StorageSize(total/len(topicsBitmap)), "frozen", common.StorageSize(totalFrozen/len(topicsBitmap)))
 		}
 
 		binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
