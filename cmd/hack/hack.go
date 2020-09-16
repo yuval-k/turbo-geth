@@ -1644,13 +1644,13 @@ func logIndex(chaindata string) error {
 	//
 	//	if leadingZeros < len(v) {
 	//		trailingZeroes := 0
-	//		for i := len(v); i > 0; i-- {
+	//		for i := len(v) - 1; i > 0; i-- {
 	//			if v[i] != 0 {
 	//				break
 	//			}
 	//			trailingZeroes++
 	//		}
-	//		total2+= trailingZeroes
+	//		total2 += trailingZeroes
 	//	}
 	//	select {
 	//	default:
@@ -1664,6 +1664,7 @@ func logIndex(chaindata string) error {
 	//}
 	//fmt.Printf("%d %d\n", total, count)
 	//fmt.Printf("avg: %.2f\n", float64(total)/float64(count))
+	//fmt.Printf("avg: %.2f\n", float64(total2)/float64(count))
 	//return nil
 
 	var buf bytes.Buffer
@@ -1675,12 +1676,12 @@ func logIndex(chaindata string) error {
 
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix2))
 	//check(tx.CommitAndBegin(context.Background()))
-	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs))
+	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs, dbutils.Logs2))
 	check(tx.CommitAndBegin(context.Background()))
 	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex, dbutils.ReceiptsIndex2, dbutils.ReceiptsIndex3, dbutils.ReceiptsIndex4, dbutils.ReceiptsIndex5))
 	check(tx.CommitAndBegin(context.Background()))
 
-	topicsBitmap := map[string]*gocroaring.Bitmap{}
+	topicsBitmap := map[common.Hash]*gocroaring.Bitmap{}
 
 	check(tx.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
 		blockHashBytes := k[len(k)-32:]
@@ -1698,25 +1699,31 @@ func logIndex(chaindata string) error {
 			log.Info("progress1", "blockNum", blockNum)
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.BlockReceiptsPrefix2)
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.Logs)
+			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.Logs2)
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.ReceiptsIndex)
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.ReceiptsIndex2)
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.ReceiptsIndex3)
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.ReceiptsIndex4)
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.ReceiptsIndex5)
 
+			total := 0
+			totalFrozen := 0
 			max := 0
 			maxFrozen := 0
 			for _, b := range topicsBitmap {
 				l := b.SerializedSizeInBytes()
+				total += l
 				if max < l {
 					max = l
 				}
 				l = b.FrozenSizeInBytes()
+				totalFrozen += l
 				if maxFrozen < l {
 					maxFrozen = l
 				}
 			}
 			log.Info("largest bitmap", "normal", common.StorageSize(max), "frozen", common.StorageSize(maxFrozen))
+			log.Info("avg bitmap", "normal", common.StorageSize(total), "frozen", common.StorageSize(totalFrozen))
 		}
 
 		binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
@@ -1740,37 +1747,14 @@ func logIndex(chaindata string) error {
 				binary.BigEndian.PutUint32(logIndex, logIdx)
 				logIdx++
 
-				{ // dbutils.Logs
-					newK := append(common.CopyBytes(blockNumBytes), logIndex...)
-					leadingZeros := uint8(0)
-					for i := 0; i < len(log.Data); i++ {
-						if log.Data[i] != 0 || leadingZeros == 255 {
-							break
-						}
-						leadingZeros++
-					}
-					var logData []byte
-					if leadingZeros > 0 {
-						logData = common.CopyBytes(log.Data)
-						logData[leadingZeros-1] = leadingZeros
-						logData = logData[leadingZeros-1:]
-					} else {
-						logData = append([]byte{0}, log.Data...)
-					}
-
-					if err := tx.Put(dbutils.Logs, newK, logData); err != nil {
-						return false, err
-					}
-				}
-
 				var topicsToStore = make([]byte, 0, 32*len(log.Topics))
 				for _, topic := range log.Topics {
 					t := topic[:]
 					topicsToStore = append(topicsToStore, t...)
-					if m, ok := topicsBitmap[string(t)]; ok {
+					if m, ok := topicsBitmap[topic]; ok {
 						m.Add(uint32(blockNum))
 					} else {
-						topicsBitmap[string(t)] = gocroaring.New()
+						topicsBitmap[topic] = gocroaring.New()
 					}
 
 					//{ // dbutils.ReceiptsIndex4
@@ -1800,6 +1784,57 @@ func logIndex(chaindata string) error {
 					//}
 				}
 
+				//{ // dbutils.Logs
+				//	newK := append(common.CopyBytes(blockNumBytes), logIndex...)
+				//	leadingZeros := uint8(0)
+				//	for i := 0; i < len(log.Data); i++ {
+				//		if log.Data[i] != 0 || leadingZeros == 255 {
+				//			break
+				//		}
+				//		leadingZeros++
+				//	}
+				//	var logData []byte
+				//	if leadingZeros > 0 {
+				//		logData = common.CopyBytes(log.Data)
+				//		logData[leadingZeros-1] = leadingZeros
+				//		logData = logData[leadingZeros-1:]
+				//	} else {
+				//		logData = append([]byte{0}, log.Data...)
+				//	}
+				//
+				//	if err := tx.Put(dbutils.Logs, newK, logData); err != nil {
+				//		return false, err
+				//	}
+				//}
+
+				{ // dbutils.Logs2
+					newK := append(common.CopyBytes(blockNumBytes), txIndex...)
+					newK = append(newK, logIndex...)
+					newK = append(newK, logIndex...)
+					newK = append(newK, log.Address[:]...)
+					newK = append(newK, topicsToStore...)
+
+					leadingZeros := uint8(0)
+					for i := 0; i < len(log.Data); i++ {
+						if log.Data[i] != 0 || leadingZeros == 255 {
+							break
+						}
+						leadingZeros++
+					}
+					var logData []byte
+					if leadingZeros > 0 {
+						logData = common.CopyBytes(log.Data)
+						logData[leadingZeros-1] = leadingZeros
+						logData = logData[leadingZeros-1:]
+					} else {
+						logData = append([]byte{0}, log.Data...)
+					}
+
+					if err := tx.Put(dbutils.Logs2, newK, logData); err != nil {
+						return false, err
+					}
+				}
+
 				// dbutils.ReceiptsIndex
 				newK := common.CopyBytes(log.Address[:])
 
@@ -1812,17 +1847,17 @@ func logIndex(chaindata string) error {
 					return false, err
 				}
 
-				// dbutils.ReceiptsIndex2
-				newK2 := common.CopyBytes(blockNumBytes)
-
-				newV2 := make([]byte, 0, 20+4+4+len(topicsToStore))
-				newV2 = append(newV2, log.Address[:]...)
-				newV2 = append(newV2, txIndex...)
-				newV2 = append(newV2, logIndex...)
-				newV2 = append(newV2, topicsToStore...)
-				if err := tx.Put(dbutils.ReceiptsIndex2, newK2, newV2); err != nil {
-					return false, err
-				}
+				//// dbutils.ReceiptsIndex2
+				//newK2 := common.CopyBytes(blockNumBytes)
+				//
+				//newV2 := make([]byte, 0, 20+4+4+len(topicsToStore))
+				//newV2 = append(newV2, log.Address[:]...)
+				//newV2 = append(newV2, txIndex...)
+				//newV2 = append(newV2, logIndex...)
+				//newV2 = append(newV2, topicsToStore...)
+				//if err := tx.Put(dbutils.ReceiptsIndex2, newK2, newV2); err != nil {
+				//	return false, err
+				//}
 
 				for i := 0; i < len(topicsToStore)/32; i++ {
 					ii := i * 32
@@ -1895,10 +1930,9 @@ func logIndex(chaindata string) error {
 		if err := b.Write(newV); err != nil {
 			panic(err)
 		}
-		if err := tx.Put(dbutils.ReceiptsIndex6, common.CopyBytes([]byte(topic)), newV); err != nil {
+		if err := tx.Put(dbutils.ReceiptsIndex6, common.CopyBytes(topic.Bytes()), newV); err != nil {
 			panic(err)
 		}
-
 	}
 
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.TxHash))

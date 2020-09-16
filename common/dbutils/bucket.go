@@ -123,6 +123,7 @@ var (
 	ReceiptsIndex6       = "ri6" // topic -> bitmap(BlockN)
 
 	Logs   = "rd"  // blockN + txIdx + logIdx -> logData
+	Logs2  = "rd2" // blockN + txIdx + logIdx + addr + topics -> logData
 	TxHash = "txh" // blockN -> txIdx + txHash
 
 	Test1 = "test_1" // addr -> blockN
