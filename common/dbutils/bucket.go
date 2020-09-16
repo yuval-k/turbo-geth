@@ -120,6 +120,9 @@ var (
 	ReceiptsIndex3       = "ri3" // addr + lastByte(topic) -> blockN + txIdx + logIdx
 	ReceiptsIndex4       = "ri4" // blockN -> lastByte(topic) + addr + txIdx + logIdx
 	ReceiptsIndex5       = "ri5" // blockN -> lastByte(topic) + txIdx + logIdx
+	ReceiptsIndex6       = "ri6" // addr -> lastByte(topic) + blockN + txIdx + logIdx
+	ReceiptsIndex7       = "ri7" // addr -> topics + blockN + txIdx + logIdx
+	ReceiptsIndex8       = "ri8" // addr -> lastByte(topic) + blockN + txIdx + logIdx + topics
 
 	Logs   = "rd"  // blockN + txIdx + logIdx -> logData
 	Logs2  = "rd2" // blockN + txIdx + logIdx -> logData
@@ -235,6 +238,10 @@ var Buckets = []string{
 	BlockReceiptsPrefix2,
 	ReceiptsIndex3,
 	ReceiptsIndex4,
+	ReceiptsIndex5,
+	ReceiptsIndex6,
+	ReceiptsIndex7,
+	ReceiptsIndex8,
 	Senders2,
 }
 
@@ -317,6 +324,18 @@ var BucketsConfigs = BucketsCfg{
 	},
 	ReceiptsIndex4: {
 		Flags: lmdb.DupSort | lmdb.DupFixed,
+	},
+	ReceiptsIndex5: {
+		Flags: lmdb.DupSort | lmdb.DupFixed,
+	},
+	ReceiptsIndex6: {
+		Flags: lmdb.DupSort | lmdb.DupFixed,
+	},
+	ReceiptsIndex7: {
+		Flags: lmdb.DupSort,
+	},
+	ReceiptsIndex8: {
+		Flags: lmdb.DupSort,
 	},
 	TxHash: {
 		Flags: lmdb.DupSort | lmdb.DupFixed,

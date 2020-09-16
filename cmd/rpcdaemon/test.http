@@ -114,6 +114,7 @@ Content-Type: application/json
   "method": "eth_getLogs",
   "params": [
     {
+      "address": "0x6090a6e47849629b7245dfa1ca21d94cd15878ef",
       "fromBlock": "0x3c0e4c",
       "toBlock": "0x3cfe56",
       "topics": [

@@ -141,11 +141,11 @@ func TransactionHash(db DatabaseReader, blockNumber uint32, txIndex uint32) (com
 	return common.BytesToHash(txHash), nil
 }
 
-func LogData(db DatabaseReader, blockNumber uint32, txIndex uint32, logIndex uint16) ([]byte, error) {
+func LogData(db DatabaseReader, blockNumber uint32, txIndex uint32, logIndex uint32) ([]byte, error) {
 	key := make([]byte, 12)
 	binary.BigEndian.PutUint32(key, blockNumber)
 	binary.BigEndian.PutUint32(key[4:], txIndex)
-	binary.BigEndian.PutUint16(key[8:], logIndex)
+	binary.BigEndian.PutUint32(key[8:], logIndex)
 
 	data, err := db.Get(dbutils.Logs, key)
 	if err != nil {
@@ -155,5 +155,18 @@ func LogData(db DatabaseReader, blockNumber uint32, txIndex uint32, logIndex uin
 		return nil, fmt.Errorf("log data: %w: blockNumber=%d, txIndex=%d", err, blockNumber, txIndex)
 	}
 
-	return data, nil
+	// 1st byte stores amount of leading zeroes - it's db-level detail, don't return it to user
+
+	if data[0] == 0 {
+		return data[1:], nil
+	}
+
+	if data[0] == 1 {
+		data[0] = 0
+		return data, nil
+	}
+
+	withLeadingZeroes := make([]byte, int(data[0])+len(data)-1)
+	copy(withLeadingZeroes[int(data[0]):], data[1:])
+	return withLeadingZeroes, nil
 }
