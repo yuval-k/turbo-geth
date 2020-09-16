@@ -1625,7 +1625,7 @@ func logIndex(chaindata string) error {
 	txIndex := make([]byte, 4)
 	logIndex := make([]byte, 4)
 
-	logEvery := time.NewTicker(10 * time.Second)
+	logEvery := time.NewTicker(30 * time.Second)
 	defer logEvery.Stop()
 
 	//total := 0
@@ -1682,6 +1682,7 @@ func logIndex(chaindata string) error {
 	check(tx.CommitAndBegin(context.Background()))
 
 	topicsBitmap := map[common.Hash]*gocroaring.Bitmap{}
+	topicsBitmap2 := map[common.Address]map[common.Hash]*gocroaring.Bitmap{}
 
 	check(tx.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
 		blockHashBytes := k[len(k)-32:]
@@ -1752,6 +1753,7 @@ func logIndex(chaindata string) error {
 			fmt.Printf("%x\n", largestTopic)
 			log.Info("largest bitmap", "normal", common.StorageSize(max), "frozen", common.StorageSize(maxFrozen))
 			log.Info("avg bitmap", "normal", common.StorageSize(total/len(topicsBitmap)), "frozen", common.StorageSize(totalFrozen/len(topicsBitmap)))
+			log.Info("total bitmap", "normal", common.StorageSize(total), "frozen", common.StorageSize(totalFrozen))
 		}
 
 		binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
@@ -1784,6 +1786,18 @@ func logIndex(chaindata string) error {
 							m.Add(uint32(blockNum))
 						} else {
 							topicsBitmap[topic] = gocroaring.New()
+						}
+					}
+
+					if _, ok := lowSelectivityTopics[topic]; !ok {
+						if m, ok := topicsBitmap2[log.Address]; !ok {
+							topicsBitmap2[log.Address] = map[common.Hash]*gocroaring.Bitmap{}
+						} else {
+							if mm, ok := m[topic]; !ok {
+								m[topic] = gocroaring.New()
+							} else {
+								mm.Add(uint32(blockNum))
+							}
 						}
 					}
 
@@ -1873,7 +1887,7 @@ func logIndex(chaindata string) error {
 				newV = append(newV, txIndex...)
 				newV = append(newV, logIndex...)
 				newV = append(newV, topicsToStore...)
-				if err := tx.Put(dbutils.ReceiptsIndex, newK, newV); err != nil {
+				if err := tx.Append(dbutils.ReceiptsIndex, newK, newV); err != nil {
 					return false, err
 				}
 
@@ -1962,6 +1976,18 @@ func logIndex(chaindata string) error {
 		}
 		if err := tx.Put(dbutils.Topics, common.CopyBytes(topic.Bytes()), newV); err != nil {
 			panic(err)
+		}
+	}
+
+	for addr, m := range topicsBitmap2 {
+		for topic, b := range m {
+			newV := make([]byte, b.SerializedSizeInBytes())
+			if err := b.Write(newV); err != nil {
+				panic(err)
+			}
+			if err := tx.Put(dbutils.Topics2, append(addr.Bytes(), topic.Bytes()...), newV); err != nil {
+				panic(err)
+			}
 		}
 	}
 

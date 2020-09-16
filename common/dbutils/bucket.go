@@ -114,13 +114,14 @@ var (
 	BlockBodyPrefix     = "b" // blockBodyPrefix + num (uint64 big endian) + hash -> block body
 	BlockReceiptsPrefix = "r" // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
 
-	BlockReceiptsPrefix2 = "r2"  // same as BlockReceiptsPrefix, but no logs
-	ReceiptsIndex        = "ri"  // addr -> blockN + txIdx + logIdx + topics
-	ReceiptsIndex2       = "ri2" // blockN -> addr + txIdx + logIdx + topics - this block must be bigger than ReceiptsIndex+Logs buckets
-	ReceiptsIndex3       = "ri3" // blockN -> last2Bytes(topic) + txIdx + logIdx + topics
-	ReceiptsIndex4       = "ri4" // blockN -> last2Bytes(topic) + addr + txIdx + logIdx + topics
-	ReceiptsIndex5       = "ri5" // addr -> last2Bytes(topic) + blockN + txIdx + logIdx + topics
-	Topics               = "ri6" // topic -> bitmap(BlockN)
+	BlockReceiptsPrefix2 = "r2"     // same as BlockReceiptsPrefix, but no logs
+	ReceiptsIndex        = "ri"     // addr -> blockN + txIdx + logIdx + topics
+	ReceiptsIndex2       = "ri2"    // blockN -> addr + txIdx + logIdx + topics - this block must be bigger than ReceiptsIndex+Logs buckets
+	ReceiptsIndex3       = "ri3"    // blockN -> last2Bytes(topic) + txIdx + logIdx + topics
+	ReceiptsIndex4       = "ri4"    // blockN -> last2Bytes(topic) + addr + txIdx + logIdx + topics
+	ReceiptsIndex5       = "ri5"    // addr -> last2Bytes(topic) + blockN + txIdx + logIdx + topics
+	Topics               = "topic"  // topic -> bitmap(BlockN)
+	Topics2              = "topic2" // addr + topic -> bitmap(BlockN)
 
 	Logs   = "rd"  // blockN + txIdx + logIdx -> logData
 	Logs2  = "rd2" // blockN + txIdx + logIdx + addr + topics -> logData
@@ -239,6 +240,7 @@ var Buckets = []string{
 	Topics,
 	Logs2,
 	Senders2,
+	Topics2,
 }
 
 // DeprecatedBuckets - list of buckets which can be programmatically deleted - for example after migration
