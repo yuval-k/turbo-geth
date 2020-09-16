@@ -1850,7 +1850,7 @@ func logIndex(chaindata string) error {
 						}
 					}
 
-					{ // dbutils.ReceiptsIndex5
+					{ // dbutils.ReceiptsIndex6
 						newK := common.CopyBytes(blockNumBytes)
 
 						newV := make([]byte, 0, 2+20+4+4+len(topicsToStore))
@@ -1859,7 +1859,7 @@ func logIndex(chaindata string) error {
 						newV = append(newV, txIndex...)
 						newV = append(newV, logIndex...)
 						newV = append(newV, topicsToStore...)
-						if err := tx.Put(dbutils.ReceiptsIndex5, newK, newV); err != nil {
+						if err := tx.Put(dbutils.ReceiptsIndex6, newK, newV); err != nil {
 							return false, err
 						}
 					}
