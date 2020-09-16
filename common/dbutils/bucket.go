@@ -118,9 +118,12 @@ var (
 	ReceiptsIndex        = "ri"  // addr -> blockN + txIdx + logIdx + topics
 	ReceiptsIndex2       = "ri2" // blockN -> addr + txIdx + logIdx + topics - this block must be bigger than ReceiptsIndex+Logs buckets
 	ReceiptsIndex3       = "ri3" // addr + lastByte(topic) -> blockN + txIdx + logIdx
-	ReceiptsIndex4       = "ri4" // blockN + lastByte(topic) -> addr + txIdx + logIdx
+	ReceiptsIndex4       = "ri4" // blockN -> lastByte(topic) + addr + txIdx + logIdx
+	ReceiptsIndex5       = "ri5" // blockN -> lastByte(topic) + txIdx + logIdx
 
 	Logs   = "rd"  // blockN + txIdx + logIdx -> logData
+	Logs2  = "rd2" // blockN + txIdx + logIdx -> logData
+	Logs3  = "rd3" // blockN + txIdx + logIdx -> logData
 	TxHash = "txh" // blockN -> txIdx + txHash
 
 	Test1 = "test_1" // addr -> blockN
@@ -242,6 +245,7 @@ var DeprecatedBuckets = []string{
 	CurrentStateBucketOld1,
 	PlainStateBucketOld1,
 	IntermediateTrieHashBucketOld1,
+	Logs2, Logs3,
 }
 
 type CustomComparator string

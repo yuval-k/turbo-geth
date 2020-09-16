@@ -1664,12 +1664,16 @@ func logIndex(chaindata string) error {
 	logEvery := time.NewTicker(30 * time.Second)
 	defer logEvery.Stop()
 
+	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs2, dbutils.Logs3))
+	check(tx.CommitAndBegin(context.Background()))
+
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix2))
 	//check(tx.CommitAndBegin(context.Background()))
-	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs))
+	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs))
+	//check(tx.CommitAndBegin(context.Background()))
+	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex, dbutils.ReceiptsIndex2, dbutils.ReceiptsIndex3, dbutils.ReceiptsIndex4, dbutils.ReceiptsIndex5))
 	check(tx.CommitAndBegin(context.Background()))
-	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex, dbutils.ReceiptsIndex2, dbutils.ReceiptsIndex3, dbutils.ReceiptsIndex4))
-	check(tx.CommitAndBegin(context.Background()))
+
 	//
 	check(tx.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
 		blockHashBytes := k[len(k)-32:]
@@ -1714,12 +1718,12 @@ func logIndex(chaindata string) error {
 				binary.BigEndian.PutUint32(logIndex, logIdx)
 				logIdx++
 
-				{ // dbutils.Logs
-					newK := append(common.CopyBytes(blockNumBytes), logIndex...)
-					if err := tx.Put(dbutils.Logs, newK, common.CopyBytes(log.Data)); err != nil {
-						return false, err
-					}
-				}
+				//{ // dbutils.Logs
+				//	newK := append(common.CopyBytes(blockNumBytes), logIndex...)
+				//	if err := tx.Put(dbutils.Logs, newK, common.CopyBytes(log.Data)); err != nil {
+				//		return false, err
+				//	}
+				//}
 
 				var topicsToStore = make([]byte, 0, 32*len(log.Topics))
 				for _, topic := range log.Topics {
@@ -1738,10 +1742,23 @@ func logIndex(chaindata string) error {
 					}
 
 					{ // dbutils.ReceiptsIndex4
+						newK := common.CopyBytes(blockNumBytes)
+
+						newV := make([]byte, 0, 1+20+4+4)
+						newV = append(newV, topic[31])
+						newV = append(newV, log.Address[:]...)
+						newV = append(newV, txIndex...)
+						newV = append(newV, logIndex...)
+						if err := tx.Put(dbutils.ReceiptsIndex4, newK, newV); err != nil {
+							return false, err
+						}
+					}
+
+					{ // dbutils.ReceiptsIndex5
 						newK := append(common.CopyBytes(blockNumBytes), topic[31])
 
-						newV := make([]byte, 0, 20+4+4)
-						newV = append(newV, log.Address[:]...)
+						newV := make([]byte, 0, 1+4+4)
+						newV = append(newV, topic[31])
 						newV = append(newV, txIndex...)
 						newV = append(newV, logIndex...)
 						if err := tx.Put(dbutils.ReceiptsIndex4, newK, newV); err != nil {
