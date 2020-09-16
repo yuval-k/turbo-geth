@@ -1846,7 +1846,7 @@ func logIndex(chaindata string) error {
 						logData = append([]byte{0}, log.Data...)
 					}
 
-					if err := tx.Append(dbutils.Logs, newK, logData); err != nil {
+					if err := tx.Put(dbutils.Logs, newK, logData); err != nil {
 						return false, err
 					}
 				}
@@ -1887,7 +1887,7 @@ func logIndex(chaindata string) error {
 				newV = append(newV, txIndex...)
 				newV = append(newV, logIndex...)
 				newV = append(newV, topicsToStore...)
-				if err := tx.Append(dbutils.ReceiptsIndex, newK, newV); err != nil {
+				if err := tx.Put(dbutils.ReceiptsIndex, newK, newV); err != nil {
 					return false, err
 				}
 
