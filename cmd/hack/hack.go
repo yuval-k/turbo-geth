@@ -1692,6 +1692,7 @@ func logIndex(chaindata string) error {
 	//check(tx.CommitAndBegin(context.Background()))
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs, dbutils.Logs2))
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Topics))
+	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Topics))
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Topics, dbutils.Topics3))
 	//check(tx.CommitAndBegin(context.Background()))
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex, dbutils.ReceiptsIndex2, dbutils.ReceiptsIndex3, dbutils.ReceiptsIndex4, dbutils.ReceiptsIndex5))
@@ -1931,22 +1932,22 @@ func logIndex(chaindata string) error {
 			return false, err
 		}
 
-		if len(topicsBitmap) > 10_000 {
+		if len(topicsBitmap) > 20_000 {
 			flushBitmaps(topicsCursor, topicsBitmap)
 			topicsBitmap = map[string]*roaring.Bitmap{}
 		}
 
-		if len(topicsBitmap3) > 10_000 {
+		if len(topicsBitmap3) > 20_000 {
 			flushBitmaps(topicsCursor3, topicsBitmap3)
 			topicsBitmap3 = map[string]*roaring.Bitmap{}
 		}
 
-		if len(topicsBitmap4) > 10_000 {
+		if len(topicsBitmap4) > 20_000 {
 			flushBitmaps64(topicsCursor4, topicsBitmap4)
 			topicsBitmap4 = map[string]*roaring64.Bitmap{}
 		}
 
-		if len(topicsBitmap5) > 10_000 {
+		if len(topicsBitmap5) > 20_000 {
 			flushBitmaps64(topicsCursor5, topicsBitmap5)
 			topicsBitmap5 = map[string]*roaring64.Bitmap{}
 		}
@@ -2067,6 +2068,7 @@ func logIndex(chaindata string) error {
 }
 
 func flushBitmaps64(c ethdb.Cursor, inMem map[string]*roaring64.Bitmap) {
+	defer func(t time.Time) { fmt.Printf("flushBitmaps64: %s\n", time.Since(t)) }(time.Now())
 	for k, b := range inMem {
 		v, err := c.SeekExact([]byte(k))
 		if err != nil {
@@ -2083,20 +2085,32 @@ func flushBitmaps64(c ethdb.Cursor, inMem map[string]*roaring64.Bitmap) {
 			b.Or(exisintg)
 		}
 
-		bufBytes, err := c.Reserve([]byte(k), int(b.GetSizeInBytes()))
-		if err != nil {
-			panic(err)
-		}
+		bufBytes := make([]byte, 0, b.GetSizeInBytes())
 
 		buf := bytes.NewBuffer(bufBytes[:0])
 		_, err = b.WriteTo(buf)
 		if err != nil {
 			panic(err)
 		}
+		err = c.Put([]byte(k), buf.Bytes())
+		if err != nil {
+			panic(err)
+		}
+		//bufBytes, err := c.Reserve([]byte(k), int(b.GetSizeInBytes()))
+		//if err != nil {
+		//	panic(err)
+		//}
+		//
+		//buf := bytes.NewBuffer(bufBytes[:0])
+		//_, err = b.WriteTo(buf)
+		//if err != nil {
+		//	panic(err)
+		//}
 	}
 }
 
 func flushBitmaps(c ethdb.Cursor, inMem map[string]*roaring.Bitmap) {
+	defer func(t time.Time) { fmt.Printf("flushBitmaps: %s\n", time.Since(t)) }(time.Now())
 	for k, b := range inMem {
 		v, err := c.SeekExact([]byte(k))
 		if err != nil {
@@ -2113,13 +2127,14 @@ func flushBitmaps(c ethdb.Cursor, inMem map[string]*roaring.Bitmap) {
 			b.Or(exisintg)
 		}
 
-		bufBytes, err := c.Reserve([]byte(k), int(b.GetSizeInBytes()))
-		if err != nil {
-			panic(err)
-		}
+		bufBytes := make([]byte, 0, b.GetSizeInBytes())
 
 		buf := bytes.NewBuffer(bufBytes[:0])
 		_, err = b.WriteTo(buf)
+		if err != nil {
+			panic(err)
+		}
+		err = c.Put([]byte(k), buf.Bytes())
 		if err != nil {
 			panic(err)
 		}
