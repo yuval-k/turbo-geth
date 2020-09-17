@@ -1658,12 +1658,11 @@ func logIndex(chaindata string) error {
 	receipts := make(types.Receipts, 0, 256)
 	logs := make([][][]byte, 0, 256)
 
-	topicsBitmap := map[common.Hash]*roaring.Bitmap{}
-	topicsBitmap2 := map[common.Address]map[common.Hash]*roaring.Bitmap{}
-	topicsBitmap3 := map[common.Address]*roaring.Bitmap{}
+	topicsBitmap := map[string]*roaring.Bitmap{}  // topic ->
+	topicsBitmap3 := map[string]*roaring.Bitmap{} // addr ->
 
-	topicsBitmap4 := map[common.Hash]*roaring64.Bitmap{}
-	topicsBitmap5 := map[common.Address]*roaring64.Bitmap{}
+	topicsBitmap4 := map[string]*roaring64.Bitmap{} // topic ->
+	topicsBitmap5 := map[string]*roaring64.Bitmap{} // addr ->
 
 	lowSelectivityTopics := map[common.Hash]bool{
 		//common.HexToHash("0000000000000000000000000000000000000000000000000000000000000000"):  true,
@@ -1698,6 +1697,11 @@ func logIndex(chaindata string) error {
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex, dbutils.ReceiptsIndex2, dbutils.ReceiptsIndex3, dbutils.ReceiptsIndex4, dbutils.ReceiptsIndex5))
 	//check(tx.CommitAndBegin(context.Background()))
 
+	topicsCursor := tx.(ethdb.HasTx).Tx().Cursor(dbutils.Topics)
+	topicsCursor3 := tx.(ethdb.HasTx).Tx().Cursor(dbutils.Topics3)
+	topicsCursor4 := tx.(ethdb.HasTx).Tx().Cursor(dbutils.Topics4)
+	topicsCursor5 := tx.(ethdb.HasTx).Tx().Cursor(dbutils.Topics5)
+
 	check(tx.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
 		blockHashBytes := k[len(k)-32:]
 		blockNum64Bytes := k[:len(k)-32]
@@ -1715,6 +1719,7 @@ func logIndex(chaindata string) error {
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.BlockReceiptsPrefix2)
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.Logs)
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.Logs2)
+			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.Logs3)
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.ReceiptsIndex)
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.ReceiptsIndex2)
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.ReceiptsIndex3)
@@ -1728,7 +1733,7 @@ func logIndex(chaindata string) error {
 
 			total := 0
 			max := 0
-			var largestTopic common.Hash
+			var largestTopic string
 			for topic, b := range topicsBitmap {
 				l := int(b.GetSerializedSizeInBytes())
 				total += l
@@ -1770,51 +1775,42 @@ func logIndex(chaindata string) error {
 					t := topic[:]
 					topicsToStore = append(topicsToStore, t...)
 					if _, ok := lowSelectivityTopics[topic]; !ok {
-						if m, ok := topicsBitmap[topic]; ok {
+						if m, ok := topicsBitmap[string(topic.Bytes())]; ok {
 							m.Add(uint32(blockNum))
 						} else {
-							topicsBitmap[topic] = roaring.New()
+							topicsBitmap[string(topic.Bytes())] = roaring.New()
 						}
 					}
 
 					if _, ok := lowSelectivityTopics[topic]; !ok {
-						if m, ok := topicsBitmap4[topic]; ok {
+						if m, ok := topicsBitmap4[string(topic.Bytes())]; ok {
 							m.Add(uint64(logIdx)<<32 | blockNum)
 						} else {
-							topicsBitmap4[topic] = roaring64.New()
+							topicsBitmap4[string(topic.Bytes())] = roaring64.New()
 						}
 					}
 
-					if _, ok := lowSelectivityTopics[topic]; !ok {
-						if m, ok := topicsBitmap[topic]; ok {
-							m.Add(uint32(blockNum))
-						} else {
-							topicsBitmap[topic] = roaring.New()
-						}
+					//if _, ok := lowSelectivityTopics[topic]; !ok {
+					//	if m, ok := topicsBitmap2[log.Address]; !ok {
+					//		topicsBitmap2[log.Address] = map[common.Hash]*roaring.Bitmap{}
+					//	} else {
+					//		if mm, ok := m[topic]; !ok {
+					//			m[topic] = roaring.New()
+					//		} else {
+					//			mm.Add(uint32(blockNum))
+					//		}
+					//	}
+					//}
 
-					}
-
-					if _, ok := lowSelectivityTopics[topic]; !ok {
-						if m, ok := topicsBitmap2[log.Address]; !ok {
-							topicsBitmap2[log.Address] = map[common.Hash]*roaring.Bitmap{}
-						} else {
-							if mm, ok := m[topic]; !ok {
-								m[topic] = roaring.New()
-							} else {
-								mm.Add(uint32(blockNum))
-							}
-						}
-					}
-
-					if m, ok := topicsBitmap5[log.Address]; ok {
+					if m, ok := topicsBitmap5[string(log.Address.Bytes())]; ok {
 						m.Add(uint64(logIdx)<<32 | blockNum)
 					} else {
-						topicsBitmap5[log.Address] = roaring64.New()
+						topicsBitmap5[string(log.Address.Bytes())] = roaring64.New()
 					}
 				}
 
-				if m, ok := topicsBitmap3[log.Address]; !ok {
-					topicsBitmap3[log.Address] = roaring.New()
+				if m, ok := topicsBitmap3[string(log.Address.Bytes())]; !ok {
+					topicsBitmap3[string(log.Address.Bytes())] = roaring.New()
 				} else {
 					m.Add(uint32(blockNum))
 				}
@@ -1935,82 +1931,42 @@ func logIndex(chaindata string) error {
 			return false, err
 		}
 
+		if len(topicsBitmap) > 100_000 {
+			flushBitmaps(topicsCursor, topicsBitmap)
+			topicsBitmap = map[string]*roaring.Bitmap{}
+		}
+
+		if len(topicsBitmap3) > 100_000 {
+			flushBitmaps(topicsCursor3, topicsBitmap3)
+			topicsBitmap3 = map[string]*roaring.Bitmap{}
+		}
+
+		if len(topicsBitmap4) > 100_000 {
+			flushBitmaps64(topicsCursor4, topicsBitmap4)
+			topicsBitmap4 = map[string]*roaring64.Bitmap{}
+		}
+
+		if len(topicsBitmap5) > 100_000 {
+			flushBitmaps64(topicsCursor5, topicsBitmap5)
+			topicsBitmap5 = map[string]*roaring64.Bitmap{}
+		}
+
 		return true, nil
 	}))
 
+	flushBitmaps(topicsCursor, topicsBitmap)
+	topicsBitmap = map[string]*roaring.Bitmap{}
+
+	flushBitmaps(topicsCursor3, topicsBitmap3)
+	topicsBitmap3 = map[string]*roaring.Bitmap{}
+
+	flushBitmaps64(topicsCursor4, topicsBitmap4)
+	topicsBitmap4 = map[string]*roaring64.Bitmap{}
+
+	flushBitmaps64(topicsCursor5, topicsBitmap5)
+	topicsBitmap5 = map[string]*roaring64.Bitmap{}
+
 	check(tx.CommitAndBegin(context.Background()))
-
-	c := tx.(ethdb.HasTx).Tx().Cursor(dbutils.Topics)
-	for topic, b := range topicsBitmap {
-		bufBytes, err := c.Reserve(topic.Bytes(), int(b.GetSizeInBytes()))
-		if err != nil {
-			panic(err)
-		}
-
-		buf := bytes.NewBuffer(bufBytes[:0])
-		_, err = b.WriteTo(buf)
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	c = tx.(ethdb.HasTx).Tx().Cursor(dbutils.Topics2)
-	for addr, m := range topicsBitmap2 {
-		for topic, b := range m {
-			bufBytes, err := c.Reserve(append(addr.Bytes(), topic.Bytes()...), int(b.GetSizeInBytes()))
-			if err != nil {
-				panic(err)
-			}
-
-			buf := bytes.NewBuffer(bufBytes[:0])
-			_, err = b.WriteTo(buf)
-			if err != nil {
-				panic(err)
-			}
-		}
-	}
-
-	c = tx.(ethdb.HasTx).Tx().Cursor(dbutils.Topics3)
-	for addr, b := range topicsBitmap3 {
-		bufBytes, err := c.Reserve(addr.Bytes(), int(b.GetSizeInBytes()))
-		if err != nil {
-			panic(err)
-		}
-
-		buf := bytes.NewBuffer(bufBytes[:0])
-		_, err = b.WriteTo(buf)
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	c = tx.(ethdb.HasTx).Tx().Cursor(dbutils.Topics4)
-	for topic, b := range topicsBitmap4 {
-		bufBytes, err := c.Reserve(topic.Bytes(), int(b.GetSizeInBytes()))
-		if err != nil {
-			panic(err)
-		}
-
-		buf := bytes.NewBuffer(bufBytes[:0])
-		_, err = b.WriteTo(buf)
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	c = tx.(ethdb.HasTx).Tx().Cursor(dbutils.Topics5)
-	for addr, b := range topicsBitmap5 {
-		bufBytes, err := c.Reserve(addr.Bytes(), int(b.GetSizeInBytes()))
-		if err != nil {
-			panic(err)
-		}
-
-		buf := bytes.NewBuffer(bufBytes[:0])
-		_, err = b.WriteTo(buf)
-		if err != nil {
-			panic(err)
-		}
-	}
 
 	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.TxHash))
 	check(tx.CommitAndBegin(context.Background()))
@@ -2101,7 +2057,6 @@ func logIndex(chaindata string) error {
 	_ = logs
 	_ = datadir
 	_ = topicsBitmap
-	_ = topicsBitmap2
 	_ = topicsBitmap3
 	_ = topicsBitmap4
 	_ = topicsBitmap5
@@ -2109,6 +2064,66 @@ func logIndex(chaindata string) error {
 	_ = blockNumBytes
 
 	return nil
+}
+
+func flushBitmaps64(c ethdb.Cursor, inMem map[string]*roaring64.Bitmap) {
+	for k, b := range inMem {
+		v, err := c.SeekExact([]byte(k))
+		if err != nil {
+			panic(err)
+		}
+
+		if v != nil {
+			exisintg := roaring64.New()
+			_, err = exisintg.ReadFrom(bytes.NewReader(v))
+			if err != nil {
+				panic(err)
+			}
+
+			b.Or(exisintg)
+		}
+
+		bufBytes, err := c.Reserve([]byte(k), int(b.GetSizeInBytes()))
+		if err != nil {
+			panic(err)
+		}
+
+		buf := bytes.NewBuffer(bufBytes[:0])
+		_, err = b.WriteTo(buf)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func flushBitmaps(c ethdb.Cursor, inMem map[string]*roaring.Bitmap) {
+	for k, b := range inMem {
+		v, err := c.SeekExact([]byte(k))
+		if err != nil {
+			panic(err)
+		}
+
+		if v != nil {
+			exisintg := roaring.New()
+			_, err = exisintg.ReadFrom(bytes.NewReader(v))
+			if err != nil {
+				panic(err)
+			}
+
+			b.Or(exisintg)
+		}
+
+		bufBytes, err := c.Reserve([]byte(k), int(b.GetSizeInBytes()))
+		if err != nil {
+			panic(err)
+		}
+
+		buf := bytes.NewBuffer(bufBytes[:0])
+		_, err = b.WriteTo(buf)
+		if err != nil {
+			panic(err)
+		}
+	}
 }
 
 func printBucketSize(tx ethdb.Tx, bucket string) {
