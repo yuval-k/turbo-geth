@@ -868,6 +868,7 @@ func (api *APIImpl) GetLogs4(ctx context.Context, crit filters.FilterCriteria) (
 			if err != nil {
 				return nil, err
 			}
+			fmt.Printf("topic: %x %d %d\n", topic, m.GetCardinality(), len(bitmapBytes))
 			if bitmapForORing == nil {
 				bitmapForORing = m
 			} else {
@@ -935,6 +936,9 @@ func (api *APIImpl) GetLogs4(ctx context.Context, crit filters.FilterCriteria) (
 
 		binary.BigEndian.PutUint32(blockNToMatchBytes, blockNToMatch)
 
+		binary.BigEndian.PutUint32(blockNAndLogIdxBytes, blockNToMatch)
+		binary.BigEndian.PutUint32(blockNAndLogIdxBytes[4:], logIdxToMatch)
+
 		k, v, err := c.Seek(blockNAndLogIdxBytes)
 		if err != nil {
 			return returnLogs(logs), err
@@ -945,18 +949,23 @@ func (api *APIImpl) GetLogs4(ctx context.Context, crit filters.FilterCriteria) (
 			blockNByts    = k[:4]
 			logIndexBytes = k[4:8]
 			txIndexBytes  = k[8:12]
-			addr          = k[12:22]
-			topicsBytes   = k[22:]
+			addr          = k[12:32]
+			topicsBytes   = k[32:]
 			logData       = v
 			blockNumber   = binary.BigEndian.Uint32(blockNByts)
 		)
 
+		var logIndex = binary.BigEndian.Uint32(logIndexBytes)
+
 		//fmt.Printf("blockNBytes: %x \n", blockNBytes)
+		fmt.Printf("00: %d  %d\n", blockNumber, blockNToMatch)
+		fmt.Printf("11: %d %d\n", logIndex, logIdxToMatch)
 
 		if blockNumber != blockNToMatch {
 			continue
 		}
-		if logIdxToMatch != binary.BigEndian.Uint32(logIndexBytes) {
+
+		if logIdxToMatch != logIndex {
 			continue
 		}
 		//for _, addrToMatch := range crit.Addresses {
@@ -965,15 +974,12 @@ func (api *APIImpl) GetLogs4(ctx context.Context, crit filters.FilterCriteria) (
 		//		continue
 		//	}
 		//}
-
+		fmt.Printf("22: %x %x\n", topicsBytes, crit.Topics)
 		if !matchTopics(topicsBytes, crit.Topics) {
 			continue
 		}
 
-		var (
-			txIndex  = binary.BigEndian.Uint32(txIndexBytes)
-			logIndex = binary.BigEndian.Uint32(logIndexBytes)
-		)
+		var txIndex = binary.BigEndian.Uint32(txIndexBytes)
 
 		topicsInLog := make([]common.Hash, 0, len(topicsBytes)/32)
 		for i := 0; i < len(topicsBytes); i += 32 {

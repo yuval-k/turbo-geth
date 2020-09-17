@@ -1710,7 +1710,7 @@ func logIndex(chaindata string) error {
 	//check(tx.CommitAndBegin(context.Background()))
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs, dbutils.Logs2))
 	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Topics4, dbutils.Topics5))
-	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex3, dbutils.ReceiptsIndex4, dbutils.ReceiptsIndex5))
+	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex3, dbutils.ReceiptsIndex4, dbutils.ReceiptsIndex5))
 	check(tx.CommitAndBegin(context.Background()))
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex, dbutils.ReceiptsIndex2, dbutils.ReceiptsIndex3, dbutils.ReceiptsIndex4, dbutils.ReceiptsIndex5))
 	//check(tx.CommitAndBegin(context.Background()))
@@ -1938,29 +1938,29 @@ func logIndex(chaindata string) error {
 				//	return false, err
 				//}
 
-				{
-					// dbutils.ReceiptsIndex3
-					newK2 := common.CopyBytes(blockNumBytes)
-
-					newV2 := make([]byte, 0, 4+4+len(topicsToStore))
-					newV2 = append(newV2, logIndex...)
-					newV2 = append(newV2, topicsToStore...)
-					if err := tx.Put(dbutils.ReceiptsIndex3, newK2, newV2); err != nil {
-						return false, err
-					}
-				}
-
-				{
-					// dbutils.ReceiptsIndex4
-					newK2 := common.CopyBytes(logIndex)
-
-					newV2 := make([]byte, 0, 4+4+len(topicsToStore))
-					newV2 = append(newV2, blockNumBytes...)
-					newV2 = append(newV2, topicsToStore...)
-					if err := tx.Put(dbutils.ReceiptsIndex4, newK2, newV2); err != nil {
-						return false, err
-					}
-				}
+				//{
+				//	// dbutils.ReceiptsIndex3
+				//	newK2 := common.CopyBytes(blockNumBytes)
+				//
+				//	newV2 := make([]byte, 0, 4+4+len(topicsToStore))
+				//	newV2 = append(newV2, logIndex...)
+				//	newV2 = append(newV2, topicsToStore...)
+				//	if err := tx.Put(dbutils.ReceiptsIndex3, newK2, newV2); err != nil {
+				//		return false, err
+				//	}
+				//}
+				//
+				//{
+				//	// dbutils.ReceiptsIndex4
+				//	newK2 := common.CopyBytes(logIndex)
+				//
+				//	newV2 := make([]byte, 0, 4+4+len(topicsToStore))
+				//	newV2 = append(newV2, blockNumBytes...)
+				//	newV2 = append(newV2, topicsToStore...)
+				//	if err := tx.Put(dbutils.ReceiptsIndex4, newK2, newV2); err != nil {
+				//		return false, err
+				//	}
+				//}
 
 				logIdx++
 			}
@@ -2018,21 +2018,23 @@ func logIndex(chaindata string) error {
 	//}
 
 	for topic, b := range topicsBitmap4 {
-		newV := make([]byte, b.GetSizeInBytes())
-		if _, err := b.WriteTo(bytes.NewBuffer(newV)); err != nil {
+		buf := bytes.NewBuffer(make([]byte, 0, b.GetSizeInBytes()))
+		_, err := b.WriteTo(buf)
+		if err != nil {
 			panic(err)
 		}
-		if err := tx.Put(dbutils.Topics4, common.CopyBytes(topic.Bytes()), newV); err != nil {
+		if err := tx.Put(dbutils.Topics4, topic.Bytes(), buf.Bytes()); err != nil {
 			panic(err)
 		}
 	}
 
 	for addr, b := range topicsBitmap5 {
-		b, err := b.ToBytes()
+		buf := bytes.NewBuffer(make([]byte, 0, b.GetSizeInBytes()))
+		_, err := b.WriteTo(buf)
 		if err != nil {
 			panic(err)
 		}
-		if err := tx.Put(dbutils.Topics5, addr[:], b); err != nil {
+		if err := tx.Put(dbutils.Topics5, addr[:], buf.Bytes()); err != nil {
 			panic(err)
 		}
 	}

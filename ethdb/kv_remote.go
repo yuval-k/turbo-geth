@@ -105,7 +105,7 @@ func (opts remoteOpts) Open(certFile string) (KV, Backend, error) {
 				Backoff: backoff.DefaultConfig,
 			}),
 			grpc.WithInsecure(),
-			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(int(10 * datasize.MB))),
+			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(int(5 * datasize.MB))),
 		}
 	} else {
 		creds, err := credentials.NewClientTLSFromFile(certFile, "")
@@ -117,7 +117,7 @@ func (opts remoteOpts) Open(certFile string) (KV, Backend, error) {
 		dialOpts = []grpc.DialOption{
 			grpc.WithConnectParams(grpc.ConnectParams{Backoff: backoff.DefaultConfig}),
 			grpc.WithTransportCredentials(creds),
-			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(int(10 * datasize.MB))),
+			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(int(5 * datasize.MB))),
 		}
 	}
 
