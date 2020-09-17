@@ -1759,7 +1759,7 @@ func logIndex(chaindata string) error {
 		}
 
 		// Index Index2 Index4
-		logIdx := uint32(1) // logIdx - indexed IN THE BLOCK and starting from 1.
+		logIdx := uint32(0) // logIdx - indexed IN THE BLOCK and starting from 0.
 		for txIdx, storageReceipt := range receipts {
 			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
 			for _, log := range storageReceipt.Logs {
