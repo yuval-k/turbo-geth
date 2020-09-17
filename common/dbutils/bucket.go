@@ -117,15 +117,18 @@ var (
 	BlockReceiptsPrefix2 = "r2"     // same as BlockReceiptsPrefix, but no logs
 	ReceiptsIndex        = "ri"     // addr -> blockN + txIdx + logIdx + topics
 	ReceiptsIndex2       = "ri2"    // blockN -> addr + txIdx + logIdx + topics - this block must be bigger than ReceiptsIndex+Logs buckets
-	ReceiptsIndex3       = "ri3"    // blockN -> last2Bytes(topic) + txIdx + logIdx + topics
-	ReceiptsIndex4       = "ri4"    // blockN -> last2Bytes(topic) + addr + txIdx + logIdx + topics
+	ReceiptsIndex3       = "ri3"    // blockN -> logIdx + topics
+	ReceiptsIndex4       = "ri4"    // logIdx -> blockN + topics
 	ReceiptsIndex5       = "ri5"    // addr -> last2Bytes(topic) + blockN + txIdx + logIdx + topics
 	Topics               = "topic"  // topic -> bitmap(BlockN)
 	Topics2              = "topic2" // addr + topic -> bitmap(BlockN)
 	Topics3              = "topic3" // addr -> bitmap(BlockN)
+	Topics4              = "topic4" // topic -> bitmap(blockN << 32 | logIdx)
+	Topics5              = "topic5" // addr -> bitmap(blockN << 32 | logIdx)
 
 	Logs   = "rd"  // blockN + txIdx + logIdx -> logData
 	Logs2  = "rd2" // blockN + txIdx + logIdx + addr + topics -> logData
+	Logs3  = "rd3" // blockN + logIdx + txIdx + addr + topics -> logData
 	TxHash = "txh" // blockN -> txIdx + txHash
 
 	Test1 = "test_1" // addr -> blockN
@@ -240,9 +243,12 @@ var Buckets = []string{
 	ReceiptsIndex5,
 	Topics,
 	Logs2,
+	Logs3,
 	Senders2,
 	Topics2,
 	Topics3,
+	Topics4,
+	Topics5,
 }
 
 // DeprecatedBuckets - list of buckets which can be programmatically deleted - for example after migration

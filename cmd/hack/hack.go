@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
-	"github.com/RoaringBitmap/roaring"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -20,9 +19,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ledgerwatch/turbo-geth/ethdb/codecpool"
-	"github.com/wcharczuk/go-chart"
-
+	"github.com/RoaringBitmap/roaring"
+	"github.com/RoaringBitmap/roaring/roaring64"
 	"github.com/holiman/uint256"
 	"github.com/ledgerwatch/lmdb-go/lmdb"
 	"github.com/ledgerwatch/turbo-geth/common"
@@ -37,12 +35,14 @@ import (
 	"github.com/ledgerwatch/turbo-geth/core/vm"
 	"github.com/ledgerwatch/turbo-geth/crypto"
 	"github.com/ledgerwatch/turbo-geth/ethdb"
+	"github.com/ledgerwatch/turbo-geth/ethdb/codecpool"
 	"github.com/ledgerwatch/turbo-geth/log"
 	"github.com/ledgerwatch/turbo-geth/node"
 	"github.com/ledgerwatch/turbo-geth/params"
 	"github.com/ledgerwatch/turbo-geth/rlp"
 	"github.com/ledgerwatch/turbo-geth/turbo/rawdb"
 	"github.com/ledgerwatch/turbo-geth/turbo/trie"
+	"github.com/wcharczuk/go-chart"
 	"github.com/wcharczuk/go-chart/util"
 )
 
@@ -1678,6 +1678,9 @@ func logIndex(chaindata string) error {
 	topicsBitmap2 := map[common.Address]map[common.Hash]*roaring.Bitmap{}
 	topicsBitmap3 := map[common.Address]*roaring.Bitmap{}
 
+	topicsBitmap4 := map[common.Hash]*roaring64.Bitmap{}
+	topicsBitmap5 := map[common.Address]*roaring64.Bitmap{}
+
 	lowSelectivityTopics := map[common.Hash]bool{
 		//common.HexToHash("cc4942847335b76f0235b8a507abc67ce930b369dac12b8a45e49510ccee0abe5"): true,
 		//common.HexToHash("0000000000000000000000000000000000000000000000000000000000000000"):  true,
@@ -1706,7 +1709,9 @@ func logIndex(chaindata string) error {
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix2))
 	//check(tx.CommitAndBegin(context.Background()))
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs, dbutils.Logs2))
-	//check(tx.CommitAndBegin(context.Background()))
+	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Topics4, dbutils.Topics5))
+	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex3, dbutils.ReceiptsIndex4, dbutils.ReceiptsIndex5))
+	check(tx.CommitAndBegin(context.Background()))
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex, dbutils.ReceiptsIndex2, dbutils.ReceiptsIndex3, dbutils.ReceiptsIndex4, dbutils.ReceiptsIndex5))
 	//check(tx.CommitAndBegin(context.Background()))
 
@@ -1735,6 +1740,8 @@ func logIndex(chaindata string) error {
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.Topics)
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.Topics2)
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.Topics3)
+			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.Topics4)
+			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.Topics5)
 
 			total := 0
 			max := 0
@@ -1774,7 +1781,6 @@ func logIndex(chaindata string) error {
 			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
 			for _, log := range storageReceipt.Logs {
 				binary.BigEndian.PutUint32(logIndex, logIdx)
-				logIdx++
 
 				var topicsToStore = make([]byte, 0, 32*len(log.Topics))
 				for _, topic := range log.Topics {
@@ -1789,148 +1795,244 @@ func logIndex(chaindata string) error {
 					}
 
 					if _, ok := lowSelectivityTopics[topic]; !ok {
-						if m, ok := topicsBitmap2[log.Address]; !ok {
-							topicsBitmap2[log.Address] = map[common.Hash]*roaring.Bitmap{}
+						if m, ok := topicsBitmap4[topic]; ok {
+							m.Add(uint64(logIdx)<<32 | blockNum)
 						} else {
-							if mm, ok := m[topic]; !ok {
-								m[topic] = roaring.New()
-							} else {
-								mm.Add(uint32(blockNum))
-							}
+							topicsBitmap4[topic] = roaring64.New()
 						}
-					}
-				}
 
-				if m, ok := topicsBitmap3[log.Address]; !ok {
-					topicsBitmap3[log.Address] = roaring.New()
-				} else {
-					m.Add(uint32(blockNum))
-				}
-
-				{ // dbutils.Logs
-					newK := append(common.CopyBytes(blockNumBytes), logIndex...)
-					leadingZeros := uint8(0)
-					for i := 0; i < len(log.Data); i++ {
-						if log.Data[i] != 0 || leadingZeros == 255 {
-							break
-						}
-						leadingZeros++
 					}
-					var logData []byte
-					if leadingZeros > 0 {
-						logData = common.CopyBytes(log.Data)
-						logData[leadingZeros-1] = leadingZeros
-						logData = logData[leadingZeros-1:]
+
+					if _, ok := lowSelectivityTopics[topic]; !ok {
+						//if m, ok := topicsBitmap[topic]; ok {
+						//	m.Add(uint32(blockNum))
+						//} else {
+						//	topicsBitmap[topic] = roaring.New()
+						//}
+
+					}
+
+					//if _, ok := lowSelectivityTopics[topic]; !ok {
+					//	if m, ok := topicsBitmap2[log.Address]; !ok {
+					//		topicsBitmap2[log.Address] = map[common.Hash]*roaring.Bitmap{}
+					//	} else {
+					//		if mm, ok := m[topic]; !ok {
+					//			m[topic] = roaring.New()
+					//		} else {
+					//			mm.Add(uint32(blockNum))
+					//		}
+					//	}
+					//}
+
+					if m, ok := topicsBitmap5[log.Address]; ok {
+						m.Add(uint64(logIdx)<<32 | blockNum)
 					} else {
-						logData = append([]byte{0}, log.Data...)
-					}
-
-					if err := tx.Put(dbutils.Logs, newK, logData); err != nil {
-						return false, err
+						topicsBitmap5[log.Address] = roaring64.New()
 					}
 				}
 
-				{ // dbutils.Logs2
-					newK := append(common.CopyBytes(blockNumBytes), txIndex...)
-					newK = append(newK, logIndex...)
-					newK = append(newK, logIndex...)
-					newK = append(newK, log.Address[:]...)
-					newK = append(newK, topicsToStore...)
+				//if m, ok := topicsBitmap3[log.Address]; !ok {
+				//	topicsBitmap3[log.Address] = roaring.New()
+				//} else {
+				//	m.Add(uint32(blockNum))
+				//}
 
-					leadingZeros := uint8(0)
-					for i := 0; i < len(log.Data); i++ {
-						if log.Data[i] != 0 || leadingZeros == 255 {
-							break
-						}
-						leadingZeros++
-					}
-					var logData []byte
-					if leadingZeros > 0 {
-						logData = common.CopyBytes(log.Data)
-						logData[leadingZeros-1] = leadingZeros
-						logData = logData[leadingZeros-1:]
-					} else {
-						logData = append([]byte{0}, log.Data...)
-					}
+				//{ // dbutils.Logs
+				//	newK := append(common.CopyBytes(blockNumBytes), logIndex...)
+				//	leadingZeros := uint8(0)
+				//	for i := 0; i < len(log.Data); i++ {
+				//		if log.Data[i] != 0 || leadingZeros == 255 {
+				//			break
+				//		}
+				//		leadingZeros++
+				//	}
+				//	var logData []byte
+				//	if leadingZeros > 0 {
+				//		logData = common.CopyBytes(log.Data)
+				//		logData[leadingZeros-1] = leadingZeros
+				//		logData = logData[leadingZeros-1:]
+				//	} else {
+				//		logData = append([]byte{0}, log.Data...)
+				//	}
+				//
+				//	if err := tx.Put(dbutils.Logs, newK, logData); err != nil {
+				//		return false, err
+				//	}
+				//}
 
-					if err := tx.Put(dbutils.Logs2, newK, logData); err != nil {
-						return false, err
-					}
-				}
+				//{ // dbutils.Logs2
+				//	newK := append(common.CopyBytes(blockNumBytes), txIndex...)
+				//	newK = append(newK, logIndex...)
+				//	newK = append(newK, log.Address[:]...)
+				//	newK = append(newK, topicsToStore...)
+				//
+				//	leadingZeros := uint8(0)
+				//	for i := 0; i < len(log.Data); i++ {
+				//		if log.Data[i] != 0 || leadingZeros == 255 {
+				//			break
+				//		}
+				//		leadingZeros++
+				//	}
+				//	var logData []byte
+				//	if leadingZeros > 0 {
+				//		logData = common.CopyBytes(log.Data)
+				//		logData[leadingZeros-1] = leadingZeros
+				//		logData = logData[leadingZeros-1:]
+				//	} else {
+				//		logData = append([]byte{0}, log.Data...)
+				//	}
+				//
+				//	if err := tx.Put(dbutils.Logs2, newK, logData); err != nil {
+				//		return false, err
+				//	}
+				//}
+
+				//{ // dbutils.Logs3
+				//	newK := append(common.CopyBytes(blockNumBytes), logIndex...)
+				//	newK = append(newK, txIndex...)
+				//	newK = append(newK, log.Address[:]...)
+				//	newK = append(newK, topicsToStore...)
+				//
+				//	leadingZeros := uint8(0)
+				//	for i := 0; i < len(log.Data); i++ {
+				//		if log.Data[i] != 0 || leadingZeros == 255 {
+				//			break
+				//		}
+				//		leadingZeros++
+				//	}
+				//	var logData []byte
+				//	if leadingZeros > 0 {
+				//		logData = common.CopyBytes(log.Data)
+				//		logData[leadingZeros-1] = leadingZeros
+				//		logData = logData[leadingZeros-1:]
+				//	} else {
+				//		logData = append([]byte{0}, log.Data...)
+				//	}
+				//
+				//	if err := tx.Put(dbutils.Logs3, newK, logData); err != nil {
+				//		return false, err
+				//	}
+				//}
 
 				//dbutils.ReceiptsIndex
-				newK := common.CopyBytes(log.Address[:])
-
-				newV := make([]byte, 0, 4+4+4+len(topicsToStore))
-				newV = append(newV, blockNumBytes...)
-				newV = append(newV, txIndex...)
-				newV = append(newV, logIndex...)
-				newV = append(newV, topicsToStore...)
-				if err := tx.Put(dbutils.ReceiptsIndex, newK, newV); err != nil {
-					return false, err
-				}
+				//newK := common.CopyBytes(log.Address[:])
+				//
+				//newV := make([]byte, 0, 4+4+4+len(topicsToStore))
+				//newV = append(newV, blockNumBytes...)
+				//newV = append(newV, txIndex...)
+				//newV = append(newV, logIndex...)
+				//newV = append(newV, topicsToStore...)
+				//if err := tx.Put(dbutils.ReceiptsIndex, newK, newV); err != nil {
+				//	return false, err
+				//}
 
 				// dbutils.ReceiptsIndex2
-				newK2 := common.CopyBytes(blockNumBytes)
+				//newK2 := common.CopyBytes(blockNumBytes)
+				//
+				//newV2 := make([]byte, 0, 20+4+4+len(topicsToStore))
+				//newV2 = append(newV2, log.Address[:]...)
+				//newV2 = append(newV2, txIndex...)
+				//newV2 = append(newV2, logIndex...)
+				//newV2 = append(newV2, topicsToStore...)
+				//if err := tx.Put(dbutils.ReceiptsIndex2, newK2, newV2); err != nil {
+				//	return false, err
+				//}
 
-				newV2 := make([]byte, 0, 20+4+4+len(topicsToStore))
-				newV2 = append(newV2, log.Address[:]...)
-				newV2 = append(newV2, txIndex...)
-				newV2 = append(newV2, logIndex...)
-				newV2 = append(newV2, topicsToStore...)
-				if err := tx.Put(dbutils.ReceiptsIndex2, newK2, newV2); err != nil {
-					return false, err
+				{
+					// dbutils.ReceiptsIndex3
+					newK2 := common.CopyBytes(blockNumBytes)
+
+					newV2 := make([]byte, 0, 4+4+len(topicsToStore))
+					newV2 = append(newV2, logIndex...)
+					newV2 = append(newV2, topicsToStore...)
+					if err := tx.Put(dbutils.ReceiptsIndex3, newK2, newV2); err != nil {
+						return false, err
+					}
 				}
+
+				{
+					// dbutils.ReceiptsIndex4
+					newK2 := common.CopyBytes(logIndex)
+
+					newV2 := make([]byte, 0, 4+4+len(topicsToStore))
+					newV2 = append(newV2, blockNumBytes...)
+					newV2 = append(newV2, topicsToStore...)
+					if err := tx.Put(dbutils.ReceiptsIndex4, newK2, newV2); err != nil {
+						return false, err
+					}
+				}
+
+				logIdx++
 			}
 		}
 
 		//dbutils.BlockReceiptsPrefix2
-		for i := range storageReceipts {
-			storageReceipts[i].Logs = nil
-		}
-
-		var bytes []byte
-		if bytes, err = rlp.EncodeToBytes(storageReceipts); err != nil {
-			return false, fmt.Errorf("encode block receipts for block %w", err)
-		}
-
-		if err := tx.Put(dbutils.BlockReceiptsPrefix2, common.CopyBytes(k[4:8]), common.CopyBytes(bytes)); err != nil {
-			return false, err
-		}
+		//for i := range storageReceipts {
+		//	storageReceipts[i].Logs = nil
+		//}
+		//
+		//var bytes []byte
+		//if bytes, err = rlp.EncodeToBytes(storageReceipts); err != nil {
+		//	return false, fmt.Errorf("encode block receipts for block %w", err)
+		//}
+		//
+		//if err := tx.Put(dbutils.BlockReceiptsPrefix2, common.CopyBytes(k[4:8]), common.CopyBytes(bytes)); err != nil {
+		//	return false, err
+		//}
 
 		return true, nil
 	}))
 
 	check(tx.CommitAndBegin(context.Background()))
 
-	for topic, b := range topicsBitmap {
+	//for topic, b := range topicsBitmap {
+	//	newV := make([]byte, b.GetSizeInBytes())
+	//	if _, err := b.WriteTo(bytes.NewBuffer(newV)); err != nil {
+	//		panic(err)
+	//	}
+	//	if err := tx.Put(dbutils.Topics, common.CopyBytes(topic.Bytes()), newV); err != nil {
+	//		panic(err)
+	//	}
+	//}
+
+	//for addr, m := range topicsBitmap2 {
+	//	for topic, b := range m {
+	//		newV := make([]byte, b.GetSizeInBytes())
+	//		if _, err := b.WriteTo(bytes.NewBuffer(newV)); err != nil {
+	//			panic(err)
+	//		}
+	//		if err := tx.Put(dbutils.Topics2, append(addr.Bytes(), topic.Bytes()...), newV); err != nil {
+	//			panic(err)
+	//		}
+	//	}
+	//}
+	//
+	//for addr, b := range topicsBitmap3 {
+	//	b, err := b.ToBytes()
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//	if err := tx.Put(dbutils.Topics3, addr[:], b); err != nil {
+	//		panic(err)
+	//	}
+	//}
+
+	for topic, b := range topicsBitmap4 {
 		newV := make([]byte, b.GetSizeInBytes())
 		if _, err := b.WriteTo(bytes.NewBuffer(newV)); err != nil {
 			panic(err)
 		}
-		if err := tx.Put(dbutils.Topics, common.CopyBytes(topic.Bytes()), newV); err != nil {
+		if err := tx.Put(dbutils.Topics4, common.CopyBytes(topic.Bytes()), newV); err != nil {
 			panic(err)
 		}
 	}
 
-	for addr, m := range topicsBitmap2 {
-		for topic, b := range m {
-			newV := make([]byte, b.GetSizeInBytes())
-			if _, err := b.WriteTo(bytes.NewBuffer(newV)); err != nil {
-				panic(err)
-			}
-			if err := tx.Put(dbutils.Topics2, append(addr.Bytes(), topic.Bytes()...), newV); err != nil {
-				panic(err)
-			}
-		}
-	}
-
-	for addr, b := range topicsBitmap3 {
+	for addr, b := range topicsBitmap5 {
 		b, err := b.ToBytes()
 		if err != nil {
 			panic(err)
 		}
-		if err := tx.Put(dbutils.Topics3, addr[:], b); err != nil {
+		if err := tx.Put(dbutils.Topics5, addr[:], b); err != nil {
 			panic(err)
 		}
 	}
@@ -1981,7 +2083,7 @@ func logIndex(chaindata string) error {
 
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Senders2))
 	//check(tx.CommitAndBegin(context.Background()))
-	//
+
 	//senders2Cursor := tx.(ethdb.HasTx).Tx().CursorDupFixed(dbutils.Senders2)
 	//
 	//check(tx.Walk(dbutils.Senders, nil, 0, func(k, v []byte) (bool, error) {
@@ -1989,21 +2091,22 @@ func logIndex(chaindata string) error {
 	//	//blockHash := common.BytesToHash(blockHashBytes)
 	//	blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
 	//
-	//	count := len(v)/common.AddressLength
-	//	const stride = common.AddressLength+2
+	//	count := len(v) / common.AddressLength
+	//	const stride = common.AddressLength + 4
 	//	page := make([]byte, 0, stride*count)
 	//
 	//	for i := 0; i < count; i++ {
-	//		i0 := i*stride
-	//		j0 := (i)*common.AddressLength
-	//		j1 := (i+1)*common.AddressLength
+	//		i0 := i * stride
+	//		j0 := (i) * common.AddressLength
+	//		j1 := (i + 1) * common.AddressLength
 	//
 	//		binary.BigEndian.PutUint32(page[i0:], uint32(i))
-	//		copy(page[i0+2:], v[j0:j1])
+	//		copy(page[i0+4:], v[j0:j1])
 	//	}
 	//
-	//	senders2Cursor.PutMulti(k, )
-	//	page
+	//	if err := senders2Cursor.PutMulti(k, page, stride); err != nil {
+	//		return false, err
+	//	}
 	//
 	//	select {
 	//	default:

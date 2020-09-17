@@ -5,20 +5,19 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ledgerwatch/turbo-geth/eth"
-	"github.com/ledgerwatch/turbo-geth/eth/filters"
-	"github.com/ledgerwatch/turbo-geth/turbo/adapter"
-	"github.com/ledgerwatch/turbo-geth/turbo/rpchelper"
-
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/hexutil"
 	"github.com/ledgerwatch/turbo-geth/core"
 	"github.com/ledgerwatch/turbo-geth/core/rawdb"
 	"github.com/ledgerwatch/turbo-geth/core/types"
+	"github.com/ledgerwatch/turbo-geth/eth"
+	"github.com/ledgerwatch/turbo-geth/eth/filters"
 	"github.com/ledgerwatch/turbo-geth/eth/stagedsync/stages"
 	"github.com/ledgerwatch/turbo-geth/ethdb"
 	"github.com/ledgerwatch/turbo-geth/internal/ethapi"
 	"github.com/ledgerwatch/turbo-geth/rpc"
+	"github.com/ledgerwatch/turbo-geth/turbo/adapter"
+	"github.com/ledgerwatch/turbo-geth/turbo/rpchelper"
 )
 
 // EthAPI is a collection of functions that are exposed in the
@@ -35,6 +34,7 @@ type EthAPI interface {
 	GetLogs(ctx context.Context, crit filters.FilterCriteria) ([]*types.Log, error)
 	GetLogs2(ctx context.Context, crit filters.FilterCriteria) ([]*types.Log, error)
 	GetLogs3(ctx context.Context, crit filters.FilterCriteria) ([]*types.Log, error)
+	GetLogs4(ctx context.Context, crit filters.FilterCriteria) ([]*types.Log, error)
 	Call(ctx context.Context, args ethapi.CallArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *map[common.Address]ethapi.Account) (hexutil.Bytes, error)
 	EstimateGas(ctx context.Context, args ethapi.CallArgs) (hexutil.Uint64, error)
 	SendRawTransaction(ctx context.Context, encodedTx hexutil.Bytes) (common.Hash, error)

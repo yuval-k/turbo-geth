@@ -6,10 +6,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/RoaringBitmap/roaring"
 	"math/big"
 	"time"
 
+	"github.com/RoaringBitmap/roaring"
+	"github.com/RoaringBitmap/roaring/roaring64"
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/common/hexutil"
@@ -671,24 +672,11 @@ func (api *APIImpl) GetLogs3(ctx context.Context, crit filters.FilterCriteria) (
 		}
 	}
 
-	t := time.Now()
-
 	bitmapForANDing := roaring.New()
 	bitmapForANDing.AddRange(uint64(begin), uint64(end))
-	fmt.Printf("1: %s\n", time.Since(t))
 
 	blockNBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(blockNBytes, begin)
-
-	//
-	//var bitmapForANDing *gocroaring.Bitmap
-	//bitmapForANDing = gocroaring.New()
-	//for i := begin; i <= end; i++ {
-	//	bitmapForANDing.Add(i)
-	//}
-	//fmt.Printf("2: %s\n", time.Since(t))
-
-	//fmt.Printf("beginning cardinality %d\n", bitmapForANDing.Cardinality())
 
 	for _, sub := range crit.Topics {
 		var bitmapForORing *roaring.Bitmap
@@ -716,103 +704,306 @@ func (api *APIImpl) GetLogs3(ctx context.Context, crit filters.FilterCriteria) (
 		}
 	}
 
-	fmt.Printf("get_receipts.go:674: %s\n", time.Since(t))
-	fmt.Printf("cardinality %d\n", bitmapForANDing.GetCardinality())
+	var addrBitmap *roaring.Bitmap
+	for _, addr := range crit.Addresses {
+		bitmapBytes, err := tx.Get(dbutils.Topics3, addr[:])
+		if err != nil {
+			return nil, err
+		}
+		m := roaring.New()
+		_, err = m.ReadFrom(bytes.NewReader(bitmapBytes))
+		if err != nil {
+			return nil, err
+		}
+		if addrBitmap == nil {
+			addrBitmap = m
+		} else {
+			addrBitmap.Or(m)
+		}
+	}
 
-	//t := time.Now()
-	//unfiltered := []*types.Log{}
-	//uniqueTracker := map[uint32]map[uint32]bool{} // allows add log to 'unfiltered' list only once - because bucket stores 1 row for each topic
-	//c := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.).Prefetch(10).(ethdb.CursorDupSort)
-	//for _, addrToMatch := range crit.Addresses {
-	//	for _, topicToMatch := range allTopics {
-	//		key2 := make([]byte, 1+4)
-	//		copy(key2, topicToMatch[32:])
-	//		copy(key2[1:], blockNBytes)
-	//
-	//		for k, v, err := c.SeekBothRange(addrToMatch[:], key2); k != nil; k, v, err = c.Next() {
-	//			if err != nil {
-	//				return returnLogs(logs), err
-	//			}
-	//
-	//			var (
-	//				addr             = k[:20]
-	//				topicsBytes      = v[:32]
-	//				blockNumberBytes = v[32:36]
-	//				txIndexBytes     = v[36:40]
-	//				logIndexBytes    = v[40:44]
-	//				blockNumber      = binary.BigEndian.Uint32(blockNumberBytes)
-	//			)
-	//
-	//			i++
-	//			if blockNumber > end {
-	//				break
-	//			}
-	//
-	//			if !bytes.Equal(addrToMatch[:], addr) {
-	//				break
-	//			}
-	//
-	//			var (
-	//				txIndex  = binary.BigEndian.Uint32(txIndexBytes)
-	//				logIndex = binary.BigEndian.Uint32(logIndexBytes)
-	//			)
-	//
-	//			if byLogIndex, ok := uniqueTracker[blockNumber]; ok {
-	//				if _, ok := uniqueTracker[logIndex]; !ok {
-	//					byLogIndex[logIndex] = true
-	//
-	//					topicsInLog := make([]common.Hash, 0, len(topicsBytes)/32)
-	//					for i := 0; i < len(topicsBytes); i += 32 {
-	//						topicInLog := common.BytesToHash(topicsBytes[i : i+32])
-	//						topicsInLog = append(topicsInLog, topicInLog)
-	//					}
-	//
-	//					unfiltered = append(unfiltered, &types.Log{
-	//						Address:     addrToMatch,
-	//						BlockNumber: uint64(blockNumber),
-	//						//BlockHash:   hash,
-	//						//Data:        logData,
-	//						Topics:  topicsInLog,
-	//						TxIndex: uint(txIndex),
-	//						//TxHash:  txHash,
-	//						Index: uint(logIndex),
-	//					})
-	//				} else {
-	//					// nothing to do
-	//				}
-	//			} else {
-	//				uniqueTracker[blockNumber] = map[uint32]bool{}
-	//			}
-	//		}
-	//	}
-	//}
-	//
-	//filtered := []*types.Log{}
-	//for _, l := range unfiltered {
-	//	if !matchTopics2(l.Topics, crit.Topics) {
-	//		continue
-	//	}
-	//
-	//	logData, err := rawdb.LogData(tx, uint32(l.BlockNumber), uint32(l.TxIndex), uint32(l.Index))
-	//	if err != nil {
-	//		return returnLogs(logs), err
-	//	}
-	//
-	//	blockHash := rawdb.ReadCanonicalHash(tx, l.BlockNumber)
-	//	if blockHash == (common.Hash{}) {
-	//		return returnLogs(logs), fmt.Errorf("block not found %d", l.BlockNumber)
-	//	}
-	//
-	//	txHash, err := rawdb.TransactionHash(tx, uint32(l.BlockNumber), uint32(l.TxIndex))
-	//	if err != nil {
-	//		return returnLogs(logs), err
-	//	}
-	//
-	//	l.TxHash = txHash
-	//	l.BlockHash = blockHash
-	//	l.Data = logData
-	//	filtered = append(filtered, l)
-	//}
+	if bitmapForANDing == nil {
+		bitmapForANDing = addrBitmap
+	} else {
+		bitmapForANDing.And(addrBitmap)
+	}
+
+	c := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.Logs2).Prefetch(10).(ethdb.CursorDupSort)
+
+	var blockNToMatch uint32
+	blockNToMatchBytes := make([]byte, 4)
+
+	fmt.Printf("cardinality: %d\n", bitmapForANDing.GetCardinality())
+	t2 := time.Now()
+	blockNums := bitmapForANDing.Iterator()
+	for blockNums.HasNext() {
+		blockNToMatch = blockNums.Next()
+		binary.BigEndian.PutUint32(blockNToMatchBytes, blockNToMatch)
+
+		for k, v, err := c.Seek(blockNBytes); k != nil; k, v, err = c.Next() {
+			if err != nil {
+				return returnLogs(logs), err
+			}
+
+			// blockN + txIdx + logIdx + addr + topics -> logData
+			var (
+				blockNByts    = k[:4]
+				txIndexBytes  = k[4:8]
+				logIndexBytes = k[8:12]
+				addr          = k[12:32]
+				topicsBytes   = k[32:]
+				logData       = v
+				blockNumber   = binary.BigEndian.Uint32(blockNByts)
+			)
+
+			//fmt.Printf("blockNBytes: %x \n", blockNBytes)
+			//fmt.Printf("blockNumber != blockNToMatch: %d %d\n", blockNumber, blockNToMatch)
+
+			if blockNumber != blockNToMatch {
+				break
+			}
+
+			for _, addrToMatch := range crit.Addresses {
+				//fmt.Printf("addr, addrToMatch: %x %x\n", addr, addrToMatch)
+				if !bytes.Equal(addr, addrToMatch[:]) {
+					continue
+				}
+			}
+
+			if !matchTopics(topicsBytes, crit.Topics) {
+				continue
+			}
+
+			var (
+				txIndex  = binary.BigEndian.Uint32(txIndexBytes)
+				logIndex = binary.BigEndian.Uint32(logIndexBytes)
+			)
+
+			topicsInLog := make([]common.Hash, 0, len(topicsBytes)/32)
+			for i := 0; i < len(topicsBytes); i += 32 {
+				topicInLog := common.BytesToHash(topicsBytes[i : i+32])
+				topicsInLog = append(topicsInLog, topicInLog)
+			}
+
+			blockHash := rawdb.ReadCanonicalHash(tx, uint64(blockNumber))
+			if blockHash == (common.Hash{}) {
+				return returnLogs(logs), fmt.Errorf("block not found %d", uint64(blockNumber))
+			}
+
+			txHash, err := rawdb.TransactionHash(tx, blockNumber, logIndex)
+			if err != nil {
+				return returnLogs(logs), err
+			}
+
+			logs = append(logs, &types.Log{
+				Address:     common.BytesToAddress(addr),
+				BlockNumber: uint64(blockNumber),
+				BlockHash:   blockHash,
+				Data:        logData,
+				Topics:      topicsInLog,
+				TxIndex:     uint(txIndex),
+				TxHash:      txHash,
+				Index:       uint(logIndex),
+			})
+
+		}
+	}
+	_ = blockNToMatch
+	fmt.Printf("2: %s\n", time.Since(t2))
+
+	fmt.Printf("unfiltered: %d\n", len(returnLogs(logs)))
+
+	return returnLogs(logs), nil
+}
+
+// GetLogs returns logs matching the given argument that are stored within the state.
+func (api *APIImpl) GetLogs4(ctx context.Context, crit filters.FilterCriteria) ([]*types.Log, error) {
+	var begin, end uint32
+	var logs []*types.Log
+
+	tx, beginErr := api.dbReader.Begin(ctx)
+	if beginErr != nil {
+		return returnLogs(logs), beginErr
+	}
+	defer tx.Rollback()
+
+	if crit.BlockHash != nil {
+		number := rawdb.ReadHeaderNumber(tx, *crit.BlockHash)
+		if number == nil {
+			return nil, fmt.Errorf("block not found: %x", *crit.BlockHash)
+		}
+		begin = uint32(*number)
+		end = uint32(*number)
+	} else {
+		// Convert the RPC block numbers into internal representations
+		latest, err := getLatestBlockNumber(tx)
+		if err != nil {
+			return nil, err
+		}
+
+		begin = uint32(latest)
+		if crit.FromBlock != nil {
+			begin = uint32(crit.FromBlock.Uint64())
+		}
+		end = uint32(latest)
+		if crit.ToBlock != nil {
+			end = uint32(crit.ToBlock.Uint64())
+		}
+	}
+
+	var bitmapForANDing *roaring64.Bitmap
+
+	blockNBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(blockNBytes, begin)
+
+	for _, sub := range crit.Topics {
+		var bitmapForORing *roaring64.Bitmap
+		for _, topic := range sub {
+			bitmapBytes, err := tx.Get(dbutils.Topics4, topic[:])
+			if err != nil {
+				return nil, err
+			}
+			m := roaring64.New()
+			_, err = m.ReadFrom(bytes.NewReader(bitmapBytes))
+			if err != nil {
+				return nil, err
+			}
+			if bitmapForORing == nil {
+				bitmapForORing = m
+			} else {
+				bitmapForORing.Or(m)
+			}
+		}
+
+		if bitmapForANDing == nil {
+			bitmapForANDing = bitmapForORing
+		} else {
+			bitmapForANDing.And(bitmapForORing)
+		}
+	}
+
+	var addrBitmap *roaring64.Bitmap
+	for _, addr := range crit.Addresses {
+		bitmapBytes, err := tx.Get(dbutils.Topics5, addr[:])
+		if err != nil {
+			return nil, err
+		}
+		m := roaring64.New()
+		_, err = m.ReadFrom(bytes.NewReader(bitmapBytes))
+		if err != nil {
+			return nil, err
+		}
+		if addrBitmap == nil {
+			addrBitmap = m
+		} else {
+			addrBitmap.Or(m)
+		}
+	}
+
+	if bitmapForANDing == nil {
+		bitmapForANDing = addrBitmap
+	} else {
+		bitmapForANDing.And(addrBitmap)
+	}
+
+	var blockNToMatch uint32
+	blockNToMatchBytes := make([]byte, 4)
+	blockNAndLogIdxBytes := make([]byte, 8)
+	const maxLowBit = 0xFFFFFFFF
+
+	//const maxLowBit = 0xFFFFFFFF
+	//a := uint32(1)
+	//b := uint32(1)
+	//x := uint64(a) << 32 | uint64(b)
+	//fmt.Printf(" %d %x\n", x, x)
+	//highbits := uint32(x >> 32)
+	//lowbits := uint32(x & maxLowBit)
+	//fmt.Printf("%d %d\n", highbits, lowbits)
+
+	fmt.Printf("cardinality: %d\n", bitmapForANDing.GetCardinality())
+	t2 := time.Now()
+	c := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.Logs3).(ethdb.CursorDupSort)
+	blockNums := bitmapForANDing.Iterator()
+	for blockNums.HasNext() {
+		blockAndLogIdx := blockNums.Next()
+		logIdxToMatch := uint32(blockAndLogIdx >> 32)
+		blockNToMatch := uint32(blockAndLogIdx & maxLowBit)
+
+		if blockNToMatch < begin || blockNToMatch > end {
+			continue
+		}
+
+		binary.BigEndian.PutUint32(blockNToMatchBytes, blockNToMatch)
+
+		k, v, err := c.Seek(blockNAndLogIdxBytes)
+		if err != nil {
+			return returnLogs(logs), err
+		}
+
+		// blockN + logIdx + txIdx + addr + topics -> logData
+		var (
+			blockNByts    = k[:4]
+			logIndexBytes = k[4:8]
+			txIndexBytes  = k[8:12]
+			addr          = k[12:22]
+			topicsBytes   = k[22:]
+			logData       = v
+			blockNumber   = binary.BigEndian.Uint32(blockNByts)
+		)
+
+		//fmt.Printf("blockNBytes: %x \n", blockNBytes)
+
+		if blockNumber != blockNToMatch {
+			continue
+		}
+		if logIdxToMatch != binary.BigEndian.Uint32(logIndexBytes) {
+			continue
+		}
+		//for _, addrToMatch := range crit.Addresses {
+		//	fmt.Printf("addr, addrToMatch: %x %x\n", addr, addrToMatch)
+		//	if !bytes.Equal(addr, addrToMatch[:]) {
+		//		continue
+		//	}
+		//}
+
+		if !matchTopics(topicsBytes, crit.Topics) {
+			continue
+		}
+
+		var (
+			txIndex  = binary.BigEndian.Uint32(txIndexBytes)
+			logIndex = binary.BigEndian.Uint32(logIndexBytes)
+		)
+
+		topicsInLog := make([]common.Hash, 0, len(topicsBytes)/32)
+		for i := 0; i < len(topicsBytes); i += 32 {
+			topicInLog := common.BytesToHash(topicsBytes[i : i+32])
+			topicsInLog = append(topicsInLog, topicInLog)
+		}
+
+		blockHash := rawdb.ReadCanonicalHash(tx, uint64(blockNumber))
+		if blockHash == (common.Hash{}) {
+			return returnLogs(logs), fmt.Errorf("block not found %d", uint64(blockNumber))
+		}
+
+		txHash, err := rawdb.TransactionHash(tx, blockNumber, txIndex)
+		if err != nil {
+			return returnLogs(logs), err
+		}
+
+		logs = append(logs, &types.Log{
+			Address:     common.BytesToAddress(addr),
+			BlockNumber: uint64(blockNumber),
+			BlockHash:   blockHash,
+			Data:        logData,
+			Topics:      topicsInLog,
+			TxIndex:     uint(txIndex),
+			TxHash:      txHash,
+			Index:       uint(logIndex),
+		})
+	}
+	_ = blockNToMatch
+	fmt.Printf("2: %s\n", time.Since(t2))
 
 	return returnLogs(logs), nil
 }

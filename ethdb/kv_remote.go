@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/ledgerwatch/lmdb-go/lmdb"
 	"net"
 	"time"
 
+	"github.com/c2h5oh/datasize"
+	"github.com/ledgerwatch/lmdb-go/lmdb"
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/ethdb/remote"
@@ -100,8 +101,11 @@ func (opts remoteOpts) Open(certFile string) (KV, Backend, error) {
 	var dialOpts []grpc.DialOption
 	if certFile == "" {
 		dialOpts = []grpc.DialOption{
-			grpc.WithConnectParams(grpc.ConnectParams{Backoff: backoff.DefaultConfig}),
+			grpc.WithConnectParams(grpc.ConnectParams{
+				Backoff: backoff.DefaultConfig,
+			}),
 			grpc.WithInsecure(),
+			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(int(10 * datasize.MB))),
 		}
 	} else {
 		creds, err := credentials.NewClientTLSFromFile(certFile, "")
@@ -113,6 +117,7 @@ func (opts remoteOpts) Open(certFile string) (KV, Backend, error) {
 		dialOpts = []grpc.DialOption{
 			grpc.WithConnectParams(grpc.ConnectParams{Backoff: backoff.DefaultConfig}),
 			grpc.WithTransportCredentials(creds),
+			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(int(10 * datasize.MB))),
 		}
 	}
 
@@ -291,6 +296,7 @@ func (c *remoteCursor) Append(key []byte, value []byte) error         { panic("n
 func (c *remoteCursor) Delete(key []byte) error                       { panic("not supported") }
 func (c *remoteCursor) DeleteCurrent() error                          { panic("not supported") }
 func (c *remoteCursor) Count() (uint64, error)                        { panic("not supported") }
+func (c *remoteCursor) Reserve(k []byte, n int) ([]byte, error)       { panic("not supported") }
 
 func (c *remoteCursor) First() ([]byte, []byte, error) {
 	return c.Seek(c.prefix)
