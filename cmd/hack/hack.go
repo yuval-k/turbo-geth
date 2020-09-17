@@ -1931,22 +1931,22 @@ func logIndex(chaindata string) error {
 			return false, err
 		}
 
-		if len(topicsBitmap) > 100_000 {
+		if len(topicsBitmap) > 10_000 {
 			flushBitmaps(topicsCursor, topicsBitmap)
 			topicsBitmap = map[string]*roaring.Bitmap{}
 		}
 
-		if len(topicsBitmap3) > 100_000 {
+		if len(topicsBitmap3) > 10_000 {
 			flushBitmaps(topicsCursor3, topicsBitmap3)
 			topicsBitmap3 = map[string]*roaring.Bitmap{}
 		}
 
-		if len(topicsBitmap4) > 100_000 {
+		if len(topicsBitmap4) > 10_000 {
 			flushBitmaps64(topicsCursor4, topicsBitmap4)
 			topicsBitmap4 = map[string]*roaring64.Bitmap{}
 		}
 
-		if len(topicsBitmap5) > 100_000 {
+		if len(topicsBitmap5) > 10_000 {
 			flushBitmaps64(topicsCursor5, topicsBitmap5)
 			topicsBitmap5 = map[string]*roaring64.Bitmap{}
 		}
@@ -2073,7 +2073,7 @@ func flushBitmaps64(c ethdb.Cursor, inMem map[string]*roaring64.Bitmap) {
 			panic(err)
 		}
 
-		if v != nil {
+		if len(v) > 0 {
 			exisintg := roaring64.New()
 			_, err = exisintg.ReadFrom(bytes.NewReader(v))
 			if err != nil {
@@ -2103,7 +2103,7 @@ func flushBitmaps(c ethdb.Cursor, inMem map[string]*roaring.Bitmap) {
 			panic(err)
 		}
 
-		if v != nil {
+		if len(v) > 0 {
 			exisintg := roaring.New()
 			_, err = exisintg.ReadFrom(bytes.NewReader(v))
 			if err != nil {
