@@ -7,7 +7,7 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
-	"github.com/RoaringBitmap/gocroaring"
+	"github.com/RoaringBitmap/roaring"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -1674,15 +1674,41 @@ func logIndex(chaindata string) error {
 	receipts := make(types.Receipts, 0, 256)
 	logs := make([][][]byte, 0, 256)
 
+	topicsBitmap := map[common.Hash]*roaring.Bitmap{}
+	topicsBitmap2 := map[common.Address]map[common.Hash]*roaring.Bitmap{}
+	topicsBitmap3 := map[common.Address]*roaring.Bitmap{}
+
+	lowSelectivityTopics := map[common.Hash]bool{
+		//common.HexToHash("cc4942847335b76f0235b8a507abc67ce930b369dac12b8a45e49510ccee0abe5"): true,
+		//common.HexToHash("0000000000000000000000000000000000000000000000000000000000000000"):  true,
+		//common.HexToHash("ea0f544916910bb1ff33390cbe54a3f5d36d298328578399311cde3c9a750686"):  true,
+		//common.HexToHash("009f837f1feddc3de305fab200310a83d2871686078dab617c02b44360c9e236"):  true,
+		//common.HexToHash("00000000000000000000000048175da4c20313bcb6b62d74937d3ff985885701"):  true,
+		//common.HexToHash("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"):  true,
+		//common.HexToHash("0000000000000000000000000000000000000000000000000000000000000058"):  true,
+		//common.HexToHash("90890809c654f11d6e72a28fa60149770a0d11ec6c92319d6ceb2bb0a4ea1a15"):  true,
+		//common.HexToHash("cc494284735b76f0235b8a507abc67ce930b369dac12b8a45e49510ccee0abe5"):  true,
+		//common.HexToHash("f10cb5dcb691bb26c2685b3fd72f4ca4008c33eafd1ee88c27210ef1db722459"):  true,
+		//common.HexToHash("e1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c"):  true,
+		//common.HexToHash("5b59a4139d8c317549b49f57962d4733012f0e76915ab0828c22548892d71782"):  true,
+		//common.HexToHash("0000000000000000000000007fb3b877f2d85d92d4172764ea5cd68982cbe53e"):  true,
+		//common.HexToHash("000000000000000000000000490c0dd13bfea5865ca985297cf2bed3f77beb5d"):  true,
+		//common.HexToHash("000000000000000000000000b3089884fa970922e6c099e818a8164bd0d402d2"):  true,
+		//common.HexToHash("0000000000000000000000002a65aca4d5fc5b5c859090a6c34d164135398226"):  true,
+		//common.HexToHash("000000000000000000000000b5606469f317018d21f504b6e1518e54b23fa761"):  true,
+		//common.HexToHash("000000000000000000000000939292f2b41b74ccb7261a452de556ba2c45db86"):  true,
+		//common.HexToHash("0000000000000000000000009c4ea8d25d6150a8ed2848fc745158aad926bf8d"):  true,
+		//common.HexToHash("dbccb92686efceafb9bb7e0394df7f58f71b954061b81afb57109bf247d3d75a"):  true,
+		//common.HexToHash("95c567a11896e793a41e067198ab5c4a4bdc7b3cf1182571fe911ec7e1426853"):  true,
+		//common.HexToHash("23919512b2162ddc59b67a65e3b03c419d4105366f7d4a632f5d3c3bee9b1cff"):  true,
+	}
+
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix2))
 	//check(tx.CommitAndBegin(context.Background()))
-	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs, dbutils.Logs2))
-	check(tx.CommitAndBegin(context.Background()))
-	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex, dbutils.ReceiptsIndex2, dbutils.ReceiptsIndex3, dbutils.ReceiptsIndex4, dbutils.ReceiptsIndex5))
-	check(tx.CommitAndBegin(context.Background()))
-
-	topicsBitmap := map[common.Hash]*gocroaring.Bitmap{}
-	topicsBitmap2 := map[common.Address]map[common.Hash]*gocroaring.Bitmap{}
+	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs, dbutils.Logs2))
+	//check(tx.CommitAndBegin(context.Background()))
+	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex, dbutils.ReceiptsIndex2, dbutils.ReceiptsIndex3, dbutils.ReceiptsIndex4, dbutils.ReceiptsIndex5))
+	//check(tx.CommitAndBegin(context.Background()))
 
 	check(tx.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
 		blockHashBytes := k[len(k)-32:]
@@ -1692,31 +1718,6 @@ func logIndex(chaindata string) error {
 		canonicalHash := rawdb.ReadCanonicalHash(tx, blockNum)
 		if !bytes.Equal(blockHashBytes, canonicalHash[:]) {
 			return true, nil
-		}
-
-		lowSelectivityTopics := map[common.Hash]bool{
-			//common.HexToHash("cc4942847335b76f0235b8a507abc67ce930b369dac12b8a45e49510ccee0abe5"): true,
-			//common.HexToHash("0000000000000000000000000000000000000000000000000000000000000000"):  true,
-			//common.HexToHash("ea0f544916910bb1ff33390cbe54a3f5d36d298328578399311cde3c9a750686"):  true,
-			//common.HexToHash("009f837f1feddc3de305fab200310a83d2871686078dab617c02b44360c9e236"):  true,
-			//common.HexToHash("00000000000000000000000048175da4c20313bcb6b62d74937d3ff985885701"):  true,
-			//common.HexToHash("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"):  true,
-			//common.HexToHash("0000000000000000000000000000000000000000000000000000000000000058"):  true,
-			//common.HexToHash("90890809c654f11d6e72a28fa60149770a0d11ec6c92319d6ceb2bb0a4ea1a15"):  true,
-			//common.HexToHash("cc494284735b76f0235b8a507abc67ce930b369dac12b8a45e49510ccee0abe5"):  true,
-			//common.HexToHash("f10cb5dcb691bb26c2685b3fd72f4ca4008c33eafd1ee88c27210ef1db722459"):  true,
-			//common.HexToHash("e1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c"):  true,
-			//common.HexToHash("5b59a4139d8c317549b49f57962d4733012f0e76915ab0828c22548892d71782"):  true,
-			//common.HexToHash("0000000000000000000000007fb3b877f2d85d92d4172764ea5cd68982cbe53e"):  true,
-			//common.HexToHash("000000000000000000000000490c0dd13bfea5865ca985297cf2bed3f77beb5d"):  true,
-			//common.HexToHash("000000000000000000000000b3089884fa970922e6c099e818a8164bd0d402d2"):  true,
-			//common.HexToHash("0000000000000000000000002a65aca4d5fc5b5c859090a6c34d164135398226"):  true,
-			//common.HexToHash("000000000000000000000000b5606469f317018d21f504b6e1518e54b23fa761"):  true,
-			//common.HexToHash("000000000000000000000000939292f2b41b74ccb7261a452de556ba2c45db86"):  true,
-			//common.HexToHash("0000000000000000000000009c4ea8d25d6150a8ed2848fc745158aad926bf8d"):  true,
-			//common.HexToHash("dbccb92686efceafb9bb7e0394df7f58f71b954061b81afb57109bf247d3d75a"):  true,
-			//common.HexToHash("95c567a11896e793a41e067198ab5c4a4bdc7b3cf1182571fe911ec7e1426853"):  true,
-			//common.HexToHash("23919512b2162ddc59b67a65e3b03c419d4105366f7d4a632f5d3c3bee9b1cff"):  true,
 		}
 
 		select {
@@ -1731,31 +1732,27 @@ func logIndex(chaindata string) error {
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.ReceiptsIndex3)
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.ReceiptsIndex4)
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.ReceiptsIndex5)
+			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.Topics)
+			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.Topics2)
+			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.Topics3)
 
 			total := 0
-			totalFrozen := 0
 			max := 0
-			maxFrozen := 0
 			var largestTopic common.Hash
 			for topic, b := range topicsBitmap {
-				l := b.SerializedSizeInBytes()
+				l := int(b.GetSerializedSizeInBytes())
 				total += l
 				if max < l {
 					max = l
 					largestTopic = topic
 				}
-				l = b.FrozenSizeInBytes()
-				totalFrozen += l
-				if maxFrozen < l {
-					maxFrozen = l
-				}
 			}
 			fmt.Printf("%x\n", largestTopic)
-			log.Info("largest bitmap", "normal", common.StorageSize(max), "frozen", common.StorageSize(maxFrozen))
+			log.Info("largest bitmap", "normal", common.StorageSize(max))
 			if len(topicsBitmap) > 0 {
-				log.Info("avg bitmap", "normal", common.StorageSize(total/len(topicsBitmap)), "frozen", common.StorageSize(totalFrozen/len(topicsBitmap)))
+				log.Info("avg bitmap", "normal", common.StorageSize(total/len(topicsBitmap)))
 			}
-			log.Info("total bitmap", "normal", common.StorageSize(total), "frozen", common.StorageSize(totalFrozen))
+			log.Info("total bitmap", "normal", common.StorageSize(total))
 		}
 
 		binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
@@ -1787,47 +1784,27 @@ func logIndex(chaindata string) error {
 						if m, ok := topicsBitmap[topic]; ok {
 							m.Add(uint32(blockNum))
 						} else {
-							topicsBitmap[topic] = gocroaring.New()
+							topicsBitmap[topic] = roaring.New()
 						}
 					}
 
 					if _, ok := lowSelectivityTopics[topic]; !ok {
 						if m, ok := topicsBitmap2[log.Address]; !ok {
-							topicsBitmap2[log.Address] = map[common.Hash]*gocroaring.Bitmap{}
+							topicsBitmap2[log.Address] = map[common.Hash]*roaring.Bitmap{}
 						} else {
 							if mm, ok := m[topic]; !ok {
-								m[topic] = gocroaring.New()
+								m[topic] = roaring.New()
 							} else {
 								mm.Add(uint32(blockNum))
 							}
 						}
 					}
+				}
 
-					//{ // dbutils.ReceiptsIndex4
-					//	newK := common.CopyBytes(blockNumBytes)
-					//
-					//	newV := make([]byte, 0, 1+20+4+4)
-					//	newV = append(newV, topic[31])
-					//	newV = append(newV, log.Address[:]...)
-					//	newV = append(newV, txIndex...)
-					//	newV = append(newV, logIndex...)
-					//	if err := tx.Put(dbutils.ReceiptsIndex4, newK, newV); err != nil {
-					//		return false, err
-					//	}
-					//}
-
-					//{ // dbutils.ReceiptsIndex7
-					//	newK := common.CopyBytes(log.Address[:])
-					//
-					//	newV := make([]byte, 0, 32+4+4+4)
-					//	newV = append(newV, topic[:]...)
-					//	newV = append(newV, blockNumBytes...)
-					//	newV = append(newV, txIndex...)
-					//	newV = append(newV, logIndex...)
-					//	if err := tx.Put(dbutils.ReceiptsIndex7, newK, newV); err != nil {
-					//		return false, err
-					//	}
-					//}
+				if m, ok := topicsBitmap3[log.Address]; !ok {
+					topicsBitmap3[log.Address] = roaring.New()
+				} else {
+					m.Add(uint32(blockNum))
 				}
 
 				{ // dbutils.Logs
@@ -1853,35 +1830,35 @@ func logIndex(chaindata string) error {
 					}
 				}
 
-				//{ // dbutils.Logs2
-				//	newK := append(common.CopyBytes(blockNumBytes), txIndex...)
-				//	newK = append(newK, logIndex...)
-				//	newK = append(newK, logIndex...)
-				//	newK = append(newK, log.Address[:]...)
-				//	newK = append(newK, topicsToStore...)
-				//
-				//	leadingZeros := uint8(0)
-				//	for i := 0; i < len(log.Data); i++ {
-				//		if log.Data[i] != 0 || leadingZeros == 255 {
-				//			break
-				//		}
-				//		leadingZeros++
-				//	}
-				//	var logData []byte
-				//	if leadingZeros > 0 {
-				//		logData = common.CopyBytes(log.Data)
-				//		logData[leadingZeros-1] = leadingZeros
-				//		logData = logData[leadingZeros-1:]
-				//	} else {
-				//		logData = append([]byte{0}, log.Data...)
-				//	}
-				//
-				//	if err := tx.Put(dbutils.Logs2, newK, logData); err != nil {
-				//		return false, err
-				//	}
-				//}
+				{ // dbutils.Logs2
+					newK := append(common.CopyBytes(blockNumBytes), txIndex...)
+					newK = append(newK, logIndex...)
+					newK = append(newK, logIndex...)
+					newK = append(newK, log.Address[:]...)
+					newK = append(newK, topicsToStore...)
 
-				// dbutils.ReceiptsIndex
+					leadingZeros := uint8(0)
+					for i := 0; i < len(log.Data); i++ {
+						if log.Data[i] != 0 || leadingZeros == 255 {
+							break
+						}
+						leadingZeros++
+					}
+					var logData []byte
+					if leadingZeros > 0 {
+						logData = common.CopyBytes(log.Data)
+						logData[leadingZeros-1] = leadingZeros
+						logData = logData[leadingZeros-1:]
+					} else {
+						logData = append([]byte{0}, log.Data...)
+					}
+
+					if err := tx.Put(dbutils.Logs2, newK, logData); err != nil {
+						return false, err
+					}
+				}
+
+				//dbutils.ReceiptsIndex
 				newK := common.CopyBytes(log.Address[:])
 
 				newV := make([]byte, 0, 4+4+4+len(topicsToStore))
@@ -1893,78 +1870,33 @@ func logIndex(chaindata string) error {
 					return false, err
 				}
 
-				//// dbutils.ReceiptsIndex2
-				//newK2 := common.CopyBytes(blockNumBytes)
-				//
-				//newV2 := make([]byte, 0, 20+4+4+len(topicsToStore))
-				//newV2 = append(newV2, log.Address[:]...)
-				//newV2 = append(newV2, txIndex...)
-				//newV2 = append(newV2, logIndex...)
-				//newV2 = append(newV2, topicsToStore...)
-				//if err := tx.Put(dbutils.ReceiptsIndex2, newK2, newV2); err != nil {
-				//	return false, err
-				//}
+				// dbutils.ReceiptsIndex2
+				newK2 := common.CopyBytes(blockNumBytes)
 
-				for i := 0; i < len(topicsToStore)/32; i++ {
-					ii := i * 32
-
-					{
-						newK := common.CopyBytes(log.Address[:])
-
-						newV := make([]byte, 0, 2+4+4+4+len(topicsToStore))
-						newV = append(newV, topicsToStore[ii+31:ii+32]...)
-						newV = append(newV, blockNumBytes...)
-						newV = append(newV, txIndex...)
-						newV = append(newV, logIndex...)
-						newV = append(newV, topicsToStore...)
-						if err := tx.Put(dbutils.ReceiptsIndex5, newK, newV); err != nil {
-							return false, err
-						}
-					}
-
-					//{ // dbutils.ReceiptsIndex3
-					//	newK := common.CopyBytes(blockNumBytes)
-					//
-					//	newV := make([]byte, 0, 2+4+4+len(topicsToStore))
-					//	newV = append(newV, topicsToStore[ii+31:ii+32]...)
-					//	newV = append(newV, txIndex...)
-					//	newV = append(newV, logIndex...)
-					//	newV = append(newV, topicsToStore...)
-					//	if err := tx.Put(dbutils.ReceiptsIndex3, newK, newV); err != nil {
-					//		return false, err
-					//	}
-					//}
-					//
-					//{ // dbutils.ReceiptsIndex4
-					//	newK := common.CopyBytes(blockNumBytes)
-					//
-					//	newV := make([]byte, 0, 2+20+4+4+len(topicsToStore))
-					//	newV = append(newV, topicsToStore[ii+31:ii+32]...)
-					//	newV = append(newV, log.Address[:]...)
-					//	newV = append(newV, txIndex...)
-					//	newV = append(newV, logIndex...)
-					//	newV = append(newV, topicsToStore...)
-					//	if err := tx.Put(dbutils.ReceiptsIndex4, newK, newV); err != nil {
-					//		return false, err
-					//	}
-					//}
+				newV2 := make([]byte, 0, 20+4+4+len(topicsToStore))
+				newV2 = append(newV2, log.Address[:]...)
+				newV2 = append(newV2, txIndex...)
+				newV2 = append(newV2, logIndex...)
+				newV2 = append(newV2, topicsToStore...)
+				if err := tx.Put(dbutils.ReceiptsIndex2, newK2, newV2); err != nil {
+					return false, err
 				}
 			}
 		}
 
-		// dbutils.BlockReceiptsPrefix2
-		//for i := range storageReceipts {
-		//	storageReceipts[i].Logs = nil
-		//}
+		//dbutils.BlockReceiptsPrefix2
+		for i := range storageReceipts {
+			storageReceipts[i].Logs = nil
+		}
 
-		//var bytes []byte
-		//if bytes, err = rlp.EncodeToBytes(storageReceipts); err != nil {
-		//	return false, fmt.Errorf("encode block receipts for block %w", err)
-		//}
+		var bytes []byte
+		if bytes, err = rlp.EncodeToBytes(storageReceipts); err != nil {
+			return false, fmt.Errorf("encode block receipts for block %w", err)
+		}
 
-		//if err := tx.Put(dbutils.BlockReceiptsPrefix2, common.CopyBytes(k[4:8]), common.CopyBytes(bytes)); err != nil {
-		//	return false, err
-		//}
+		if err := tx.Put(dbutils.BlockReceiptsPrefix2, common.CopyBytes(k[4:8]), common.CopyBytes(bytes)); err != nil {
+			return false, err
+		}
 
 		return true, nil
 	}))
@@ -1972,8 +1904,8 @@ func logIndex(chaindata string) error {
 	check(tx.CommitAndBegin(context.Background()))
 
 	for topic, b := range topicsBitmap {
-		newV := make([]byte, b.SerializedSizeInBytes())
-		if err := b.Write(newV); err != nil {
+		newV := make([]byte, b.GetSizeInBytes())
+		if _, err := b.WriteTo(bytes.NewBuffer(newV)); err != nil {
 			panic(err)
 		}
 		if err := tx.Put(dbutils.Topics, common.CopyBytes(topic.Bytes()), newV); err != nil {
@@ -1983,13 +1915,23 @@ func logIndex(chaindata string) error {
 
 	for addr, m := range topicsBitmap2 {
 		for topic, b := range m {
-			newV := make([]byte, b.SerializedSizeInBytes())
-			if err := b.Write(newV); err != nil {
+			newV := make([]byte, b.GetSizeInBytes())
+			if _, err := b.WriteTo(bytes.NewBuffer(newV)); err != nil {
 				panic(err)
 			}
 			if err := tx.Put(dbutils.Topics2, append(addr.Bytes(), topic.Bytes()...), newV); err != nil {
 				panic(err)
 			}
+		}
+	}
+
+	for addr, b := range topicsBitmap3 {
+		b, err := b.ToBytes()
+		if err != nil {
+			panic(err)
+		}
+		if err := tx.Put(dbutils.Topics3, addr[:], b); err != nil {
+			panic(err)
 		}
 	}
 
@@ -2080,6 +2022,10 @@ func logIndex(chaindata string) error {
 	_ = receipts
 	_ = logs
 	_ = datadir
+	_ = topicsBitmap
+	_ = topicsBitmap2
+	_ = topicsBitmap3
+	_ = lowSelectivityTopics
 	_ = blockNumBytes
 
 	return nil

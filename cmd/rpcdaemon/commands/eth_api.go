@@ -34,6 +34,7 @@ type EthAPI interface {
 	GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error)
 	GetLogs(ctx context.Context, crit filters.FilterCriteria) ([]*types.Log, error)
 	GetLogs2(ctx context.Context, crit filters.FilterCriteria) ([]*types.Log, error)
+	GetLogs3(ctx context.Context, crit filters.FilterCriteria) ([]*types.Log, error)
 	Call(ctx context.Context, args ethapi.CallArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *map[common.Address]ethapi.Account) (hexutil.Bytes, error)
 	EstimateGas(ctx context.Context, args ethapi.CallArgs) (hexutil.Uint64, error)
 	SendRawTransaction(ctx context.Context, encodedTx hexutil.Bytes) (common.Hash, error)

@@ -122,6 +122,7 @@ var (
 	ReceiptsIndex5       = "ri5"    // addr -> last2Bytes(topic) + blockN + txIdx + logIdx + topics
 	Topics               = "topic"  // topic -> bitmap(BlockN)
 	Topics2              = "topic2" // addr + topic -> bitmap(BlockN)
+	Topics3              = "topic3" // addr -> bitmap(BlockN)
 
 	Logs   = "rd"  // blockN + txIdx + logIdx -> logData
 	Logs2  = "rd2" // blockN + txIdx + logIdx + addr + topics -> logData
@@ -241,6 +242,7 @@ var Buckets = []string{
 	Logs2,
 	Senders2,
 	Topics2,
+	Topics3,
 }
 
 // DeprecatedBuckets - list of buckets which can be programmatically deleted - for example after migration
