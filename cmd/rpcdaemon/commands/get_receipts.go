@@ -697,10 +697,12 @@ func (api *APIImpl) GetLogs3(ctx context.Context, crit filters.FilterCriteria) (
 			}
 		}
 
-		if bitmapForANDing == nil {
-			bitmapForANDing = bitmapForORing
-		} else {
-			bitmapForANDing.And(bitmapForORing)
+		if bitmapForORing != nil {
+			if bitmapForANDing == nil {
+				bitmapForANDing = bitmapForORing
+			} else {
+				bitmapForANDing.And(bitmapForORing)
+			}
 		}
 	}
 
@@ -722,13 +724,15 @@ func (api *APIImpl) GetLogs3(ctx context.Context, crit filters.FilterCriteria) (
 		}
 	}
 
-	if bitmapForANDing == nil {
-		bitmapForANDing = addrBitmap
-	} else {
-		bitmapForANDing.And(addrBitmap)
+	if addrBitmap != nil {
+		if bitmapForANDing == nil {
+			bitmapForANDing = addrBitmap
+		} else {
+			bitmapForANDing.And(addrBitmap)
+		}
 	}
 
-	c := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.Logs2).Prefetch(10).(ethdb.CursorDupSort)
+	c := tx.(ethdb.HasTx).Tx().Cursor(dbutils.Logs3).Prefetch(10).(ethdb.Cursor)
 
 	var blockNToMatch uint32
 	blockNToMatchBytes := make([]byte, 4)
@@ -740,16 +744,16 @@ func (api *APIImpl) GetLogs3(ctx context.Context, crit filters.FilterCriteria) (
 		blockNToMatch = blockNums.Next()
 		binary.BigEndian.PutUint32(blockNToMatchBytes, blockNToMatch)
 
-		for k, v, err := c.Seek(blockNBytes); k != nil; k, v, err = c.Next() {
+		for k, v, err := c.Seek(blockNToMatchBytes); k != nil; k, v, err = c.Next() {
 			if err != nil {
 				return returnLogs(logs), err
 			}
 
-			// blockN + txIdx + logIdx + addr + topics -> logData
+			// blockN + logIdx + txIdx + addr + topics -> logData
 			var (
 				blockNByts    = k[:4]
-				txIndexBytes  = k[4:8]
-				logIndexBytes = k[8:12]
+				logIndexBytes = k[4:8]
+				txIndexBytes  = k[8:12]
 				addr          = k[12:32]
 				topicsBytes   = k[32:]
 				logData       = v
@@ -757,18 +761,17 @@ func (api *APIImpl) GetLogs3(ctx context.Context, crit filters.FilterCriteria) (
 			)
 
 			//fmt.Printf("blockNBytes: %x \n", blockNBytes)
-			//fmt.Printf("blockNumber != blockNToMatch: %d %d\n", blockNumber, blockNToMatch)
 
 			if blockNumber != blockNToMatch {
 				break
 			}
 
-			for _, addrToMatch := range crit.Addresses {
-				//fmt.Printf("addr, addrToMatch: %x %x\n", addr, addrToMatch)
-				if !bytes.Equal(addr, addrToMatch[:]) {
-					continue
-				}
-			}
+			//for _, addrToMatch := range crit.Addresses {
+			//	//fmt.Printf("addr, addrToMatch: %x %x\n", addr, addrToMatch)
+			//	if !bytes.Equal(addr, addrToMatch[:]) {
+			//		continue
+			//	}
+			//}
 
 			if !matchTopics(topicsBytes, crit.Topics) {
 				continue
@@ -868,7 +871,6 @@ func (api *APIImpl) GetLogs4(ctx context.Context, crit filters.FilterCriteria) (
 			if err != nil {
 				return nil, err
 			}
-			fmt.Printf("topic: %x %d %d\n", topic, m.GetCardinality(), len(bitmapBytes))
 			if bitmapForORing == nil {
 				bitmapForORing = m
 			} else {
@@ -876,10 +878,12 @@ func (api *APIImpl) GetLogs4(ctx context.Context, crit filters.FilterCriteria) (
 			}
 		}
 
-		if bitmapForANDing == nil {
-			bitmapForANDing = bitmapForORing
-		} else {
-			bitmapForANDing.And(bitmapForORing)
+		if bitmapForORing != nil {
+			if bitmapForANDing == nil {
+				bitmapForANDing = bitmapForORing
+			} else {
+				bitmapForANDing.And(bitmapForORing)
+			}
 		}
 	}
 
@@ -901,10 +905,12 @@ func (api *APIImpl) GetLogs4(ctx context.Context, crit filters.FilterCriteria) (
 		}
 	}
 
-	if bitmapForANDing == nil {
-		bitmapForANDing = addrBitmap
-	} else {
-		bitmapForANDing.And(addrBitmap)
+	if addrBitmap != nil {
+		if bitmapForANDing == nil {
+			bitmapForANDing = addrBitmap
+		} else {
+			bitmapForANDing.And(addrBitmap)
+		}
 	}
 
 	var blockNToMatch uint32
@@ -923,7 +929,7 @@ func (api *APIImpl) GetLogs4(ctx context.Context, crit filters.FilterCriteria) (
 
 	fmt.Printf("cardinality: %d\n", bitmapForANDing.GetCardinality())
 	t2 := time.Now()
-	c := tx.(ethdb.HasTx).Tx().CursorDupSort(dbutils.Logs3).(ethdb.CursorDupSort)
+	c := tx.(ethdb.HasTx).Tx().Cursor(dbutils.Logs3)
 	blockNums := bitmapForANDing.Iterator()
 	for blockNums.HasNext() {
 		blockAndLogIdx := blockNums.Next()
@@ -958,8 +964,6 @@ func (api *APIImpl) GetLogs4(ctx context.Context, crit filters.FilterCriteria) (
 		var logIndex = binary.BigEndian.Uint32(logIndexBytes)
 
 		//fmt.Printf("blockNBytes: %x \n", blockNBytes)
-		fmt.Printf("00: %d  %d\n", blockNumber, blockNToMatch)
-		fmt.Printf("11: %d %d\n", logIndex, logIdxToMatch)
 
 		if blockNumber != blockNToMatch {
 			continue
@@ -974,7 +978,6 @@ func (api *APIImpl) GetLogs4(ctx context.Context, crit filters.FilterCriteria) (
 		//		continue
 		//	}
 		//}
-		fmt.Printf("22: %x %x\n", topicsBytes, crit.Topics)
 		if !matchTopics(topicsBytes, crit.Topics) {
 			continue
 		}
