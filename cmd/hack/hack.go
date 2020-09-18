@@ -1912,7 +1912,7 @@ func logIndex(chaindata string) error {
 		//	return false, err
 		//}
 
-		if len(topicsBitmap) > 1_000 {
+		if len(topicsBitmap) > 10_000 {
 			flushBitmaps(topicsCursor, topicsBitmap)
 			topicsBitmap = map[string][]uint32{}
 		}
@@ -1922,7 +1922,7 @@ func logIndex(chaindata string) error {
 			topicsBitmap3 = map[string][]uint32{}
 		}
 
-		if len(topicsBitmap4) > 1_000 {
+		if len(topicsBitmap4) > 10_000 {
 			flushBitmaps64(topicsCursor4, topicsBitmap4)
 			topicsBitmap4 = map[string][]uint64{}
 		}
