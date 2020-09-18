@@ -1838,29 +1838,29 @@ func logIndex(chaindata string) error {
 				//	}
 				//}
 
-				{ // dbutils.Logs3
-					newK := append(common.CopyBytes(blockNumBytes), logIndex...)
-
-					leadingZeros := uint8(0)
-					for i := 0; i < len(log.Data); i++ {
-						if log.Data[i] != 0 || leadingZeros == 255 {
-							break
-						}
-						leadingZeros++
-					}
-					var logData []byte
-					if leadingZeros > 0 {
-						logData = common.CopyBytes(log.Data)
-						logData[leadingZeros-1] = leadingZeros
-						logData = logData[leadingZeros-1:]
-					} else {
-						logData = append([]byte{0}, log.Data...)
-					}
-
-					if err := tx.Put(dbutils.Logs3, newK, logData); err != nil {
-						return false, err
-					}
-				}
+				//{ // dbutils.Logs3
+				//	newK := append(common.CopyBytes(blockNumBytes), logIndex...)
+				//
+				//	leadingZeros := uint8(0)
+				//	for i := 0; i < len(log.Data); i++ {
+				//		if log.Data[i] != 0 || leadingZeros == 255 {
+				//			break
+				//		}
+				//		leadingZeros++
+				//	}
+				//	var logData []byte
+				//	if leadingZeros > 0 {
+				//		logData = common.CopyBytes(log.Data)
+				//		logData[leadingZeros-1] = leadingZeros
+				//		logData = logData[leadingZeros-1:]
+				//	} else {
+				//		logData = append([]byte{0}, log.Data...)
+				//	}
+				//
+				//	if err := tx.Put(dbutils.Logs3, newK, logData); err != nil {
+				//		return false, err
+				//	}
+				//}
 
 				//dbutils.ReceiptsIndex
 				newK := common.CopyBytes(log.Address[:])
