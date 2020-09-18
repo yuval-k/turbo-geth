@@ -1844,29 +1844,29 @@ func logIndex(chaindata string) error {
 				//	}
 				//}
 
-				//dbutils.ReceiptsIndex
-				newK := common.CopyBytes(log.Address[:])
-
-				newV := make([]byte, 0, 4+4+4+len(topicsToStore))
-				newV = append(newV, blockNumBytes...)
-				newV = append(newV, txIndex...)
-				newV = append(newV, logIndex...)
-				newV = append(newV, topicsToStore...)
-				if err := tx.Put(dbutils.ReceiptsIndex, newK, newV); err != nil {
-					return false, err
-				}
-
-				//dbutils.ReceiptsIndex2
-				newK2 := common.CopyBytes(blockNumBytes)
-
-				newV2 := make([]byte, 0, 20+4+4+len(topicsToStore))
-				newV2 = append(newV2, log.Address[:]...)
-				newV2 = append(newV2, txIndex...)
-				newV2 = append(newV2, logIndex...)
-				newV2 = append(newV2, topicsToStore...)
-				if err := tx.Put(dbutils.ReceiptsIndex2, newK2, newV2); err != nil {
-					return false, err
-				}
+				////dbutils.ReceiptsIndex
+				//newK := common.CopyBytes(log.Address[:])
+				//
+				//newV := make([]byte, 0, 4+4+4+len(topicsToStore))
+				//newV = append(newV, blockNumBytes...)
+				//newV = append(newV, txIndex...)
+				//newV = append(newV, logIndex...)
+				//newV = append(newV, topicsToStore...)
+				//if err := tx.Put(dbutils.ReceiptsIndex, newK, newV); err != nil {
+				//	return false, err
+				//}
+				//
+				////dbutils.ReceiptsIndex2
+				//newK2 := common.CopyBytes(blockNumBytes)
+				//
+				//newV2 := make([]byte, 0, 20+4+4+len(topicsToStore))
+				//newV2 = append(newV2, log.Address[:]...)
+				//newV2 = append(newV2, txIndex...)
+				//newV2 = append(newV2, logIndex...)
+				//newV2 = append(newV2, topicsToStore...)
+				//if err := tx.Put(dbutils.ReceiptsIndex2, newK2, newV2); err != nil {
+				//	return false, err
+				//}
 
 				{
 					// dbutils.ReceiptsIndex3
@@ -1899,18 +1899,18 @@ func logIndex(chaindata string) error {
 		}
 
 		// dbutils.BlockReceiptsPrefix2
-		for i := range storageReceipts {
-			storageReceipts[i].Logs = nil
-		}
-
-		var bytes []byte
-		if bytes, err = rlp.EncodeToBytes(storageReceipts); err != nil {
-			return false, fmt.Errorf("encode block receipts for block %w", err)
-		}
-
-		if err := tx.Put(dbutils.BlockReceiptsPrefix2, common.CopyBytes(k[4:8]), bytes); err != nil {
-			return false, err
-		}
+		//for i := range storageReceipts {
+		//	storageReceipts[i].Logs = nil
+		//}
+		//
+		//var bytes []byte
+		//if bytes, err = rlp.EncodeToBytes(storageReceipts); err != nil {
+		//	return false, fmt.Errorf("encode block receipts for block %w", err)
+		//}
+		//
+		//if err := tx.Put(dbutils.BlockReceiptsPrefix2, common.CopyBytes(k[4:8]), bytes); err != nil {
+		//	return false, err
+		//}
 
 		if len(topicsBitmap) > 100_000 {
 			flushBitmaps(topicsCursor, topicsBitmap)
