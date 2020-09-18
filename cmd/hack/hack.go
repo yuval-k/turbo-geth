@@ -1783,18 +1783,18 @@ func logIndex(chaindata string) error {
 					//		}
 					//	}
 					//}
-
-					if m, ok := topicsBitmap5[string(log.Address.Bytes())]; ok {
-						topicsBitmap5[string(topic.Bytes())] = append(m, uint64(logIdx)<<32|blockNum)
-					} else {
-						topicsBitmap5[string(log.Address.Bytes())] = make([]uint64, 0, 1024)
-					}
 				}
 
 				if m, ok := topicsBitmap3[string(log.Address.Bytes())]; !ok {
 					topicsBitmap3[string(log.Address.Bytes())] = make([]uint32, 0, 1024)
 				} else {
 					topicsBitmap3[string(log.Address.Bytes())] = append(m, uint32(blockNum))
+				}
+
+				if m, ok := topicsBitmap5[string(log.Address.Bytes())]; ok {
+					topicsBitmap5[string(log.Address.Bytes())] = append(m, uint64(logIdx)<<32|blockNum)
+				} else {
+					topicsBitmap5[string(log.Address.Bytes())] = make([]uint64, 0, 1024)
 				}
 
 				//{ // dbutils.Logs
@@ -1868,31 +1868,31 @@ func logIndex(chaindata string) error {
 				//	return false, err
 				//}
 
-				{
-					// dbutils.ReceiptsIndex3
-					newK2 := common.CopyBytes(blockNumBytes)
-
-					newV2 := make([]byte, 0, 4+4+20+len(topicsToStore))
-					newV2 = append(newV2, logIndex...)
-					newV2 = append(newV2, log.Address[:]...)
-					newV2 = append(newV2, topicsToStore...)
-					if err := tx.Put(dbutils.ReceiptsIndex3, newK2, newV2); err != nil {
-						return false, err
-					}
-				}
-
-				{
-					// dbutils.ReceiptsIndex4
-					newK2 := common.CopyBytes(logIndex)
-
-					newV2 := make([]byte, 0, 4+20+len(topicsToStore))
-					newV2 = append(newV2, blockNumBytes...)
-					newV2 = append(newV2, log.Address[:]...)
-					newV2 = append(newV2, topicsToStore...)
-					if err := tx.Put(dbutils.ReceiptsIndex4, newK2, newV2); err != nil {
-						return false, err
-					}
-				}
+				//{
+				//	// dbutils.ReceiptsIndex3
+				//	newK2 := common.CopyBytes(blockNumBytes)
+				//
+				//	newV2 := make([]byte, 0, 4+4+20+len(topicsToStore))
+				//	newV2 = append(newV2, logIndex...)
+				//	newV2 = append(newV2, log.Address[:]...)
+				//	newV2 = append(newV2, topicsToStore...)
+				//	if err := tx.Put(dbutils.ReceiptsIndex3, newK2, newV2); err != nil {
+				//		return false, err
+				//	}
+				//}
+				//
+				//{
+				//	// dbutils.ReceiptsIndex4
+				//	newK2 := common.CopyBytes(logIndex)
+				//
+				//	newV2 := make([]byte, 0, 4+20+len(topicsToStore))
+				//	newV2 = append(newV2, blockNumBytes...)
+				//	newV2 = append(newV2, log.Address[:]...)
+				//	newV2 = append(newV2, topicsToStore...)
+				//	if err := tx.Put(dbutils.ReceiptsIndex4, newK2, newV2); err != nil {
+				//		return false, err
+				//	}
+				//}
 
 				logIdx++
 			}
@@ -1912,7 +1912,7 @@ func logIndex(chaindata string) error {
 		//	return false, err
 		//}
 
-		if len(topicsBitmap) > 100_000 {
+		if len(topicsBitmap) > 1_000 {
 			flushBitmaps(topicsCursor, topicsBitmap)
 			topicsBitmap = map[string][]uint32{}
 		}
@@ -1922,7 +1922,7 @@ func logIndex(chaindata string) error {
 			topicsBitmap3 = map[string][]uint32{}
 		}
 
-		if len(topicsBitmap4) > 100_000 {
+		if len(topicsBitmap4) > 1_000 {
 			flushBitmaps64(topicsCursor4, topicsBitmap4)
 			topicsBitmap4 = map[string][]uint64{}
 		}
@@ -1952,44 +1952,44 @@ func logIndex(chaindata string) error {
 	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.TxHash))
 	check(tx.CommitAndBegin(context.Background()))
 
-	check(tx.Walk(dbutils.BlockBodyPrefix, nil, 0, func(k, v []byte) (bool, error) {
-		blockHashBytes := k[len(k)-32:]
-		blockNum64Bytes := k[:len(k)-32]
-		//blockHash := common.BytesToHash(blockHashBytes)
-		blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
-		binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
-		canonicalHash := rawdb.ReadCanonicalHash(tx, blockNum)
-		if !bytes.Equal(blockHashBytes, canonicalHash[:]) {
-			return true, nil
-		}
-
-		select {
-		default:
-		case <-logEvery.C:
-			log.Info("progress", "blockNum", blockNum)
-			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.TxHash)
-		}
-
-		bodyRlp, err := rawdb.DecompressBlockBody(v)
-		if err != nil {
-			return false, err
-		}
-		body := new(types.Body)
-		if err := rlp.Decode(bytes.NewReader(bodyRlp), body); err != nil {
-			return false, fmt.Errorf("invalid receipt array RLP: %w, hash=%x", err, hash)
-		}
-
-		for txIdx, txn := range body.Transactions {
-			txHash := txn.Hash()
-
-			binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
-			if err := tx.Put(dbutils.TxHash, common.CopyBytes(blockNumBytes), append(common.CopyBytes(txIndex), txHash[:]...)); err != nil {
-				return false, err
-			}
-		}
-
-		return true, nil
-	}))
+	//check(tx.Walk(dbutils.BlockBodyPrefix, nil, 0, func(k, v []byte) (bool, error) {
+	//	blockHashBytes := k[len(k)-32:]
+	//	blockNum64Bytes := k[:len(k)-32]
+	//	//blockHash := common.BytesToHash(blockHashBytes)
+	//	blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
+	//	binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
+	//	canonicalHash := rawdb.ReadCanonicalHash(tx, blockNum)
+	//	if !bytes.Equal(blockHashBytes, canonicalHash[:]) {
+	//		return true, nil
+	//	}
+	//
+	//	select {
+	//	default:
+	//	case <-logEvery.C:
+	//		log.Info("progress", "blockNum", blockNum)
+	//		printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.TxHash)
+	//	}
+	//
+	//	bodyRlp, err := rawdb.DecompressBlockBody(v)
+	//	if err != nil {
+	//		return false, err
+	//	}
+	//	body := new(types.Body)
+	//	if err := rlp.Decode(bytes.NewReader(bodyRlp), body); err != nil {
+	//		return false, fmt.Errorf("invalid receipt array RLP: %w, hash=%x", err, hash)
+	//	}
+	//
+	//	for txIdx, txn := range body.Transactions {
+	//		txHash := txn.Hash()
+	//
+	//		binary.BigEndian.PutUint32(txIndex, uint32(txIdx))
+	//		if err := tx.Put(dbutils.TxHash, common.CopyBytes(blockNumBytes), append(common.CopyBytes(txIndex), txHash[:]...)); err != nil {
+	//			return false, err
+	//		}
+	//	}
+	//
+	//	return true, nil
+	//}))
 
 	check(tx.CommitAndBegin(context.Background()))
 
