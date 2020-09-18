@@ -117,8 +117,8 @@ var (
 	BlockReceiptsPrefix2 = "r2"     // same as BlockReceiptsPrefix, but no logs
 	ReceiptsIndex        = "ri"     // addr -> blockN + txIdx + logIdx + topics
 	ReceiptsIndex2       = "ri2"    // blockN -> addr + txIdx + logIdx + topics - this block must be bigger than ReceiptsIndex+Logs buckets
-	ReceiptsIndex3       = "ri3"    // blockN -> logIdx + topics
-	ReceiptsIndex4       = "ri4"    // logIdx -> blockN + topics
+	ReceiptsIndex3       = "ri3"    // blockN -> logIdx + address + topics
+	ReceiptsIndex4       = "ri4"    // logIdx -> blockN + address + topics
 	ReceiptsIndex5       = "ri5"    // addr -> last2Bytes(topic) + blockN + txIdx + logIdx + topics
 	Topics               = "topic"  // topic -> bitmap(BlockN)
 	Topics2              = "topic2" // addr + topic -> bitmap(BlockN)
@@ -128,7 +128,7 @@ var (
 
 	Logs   = "rd"  // blockN + txIdx + logIdx -> logData
 	Logs2  = "rd2" // blockN + txIdx + logIdx + addr + topics -> logData
-	Logs3  = "rd3" // blockN + logIdx + txIdx + addr + topics -> logData
+	Logs3  = "rd3" // blockN + logIdx -> logData
 	TxHash = "txh" // blockN -> txIdx + txHash
 
 	Test1 = "test_1" // addr -> blockN

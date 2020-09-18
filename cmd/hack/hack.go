@@ -1692,7 +1692,6 @@ func logIndex(chaindata string) error {
 	//check(tx.CommitAndBegin(context.Background()))
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Logs, dbutils.Logs2))
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Topics))
-	check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Topics))
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Topics, dbutils.Topics3))
 	//check(tx.CommitAndBegin(context.Background()))
 	//check(tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.ReceiptsIndex, dbutils.ReceiptsIndex2, dbutils.ReceiptsIndex3, dbutils.ReceiptsIndex4, dbutils.ReceiptsIndex5))
@@ -1841,9 +1840,6 @@ func logIndex(chaindata string) error {
 
 				{ // dbutils.Logs3
 					newK := append(common.CopyBytes(blockNumBytes), logIndex...)
-					newK = append(newK, txIndex...)
-					newK = append(newK, log.Address[:]...)
-					newK = append(newK, topicsToStore...)
 
 					leadingZeros := uint8(0)
 					for i := 0; i < len(log.Data); i++ {
@@ -1894,8 +1890,9 @@ func logIndex(chaindata string) error {
 					// dbutils.ReceiptsIndex3
 					newK2 := common.CopyBytes(blockNumBytes)
 
-					newV2 := make([]byte, 0, 4+4+len(topicsToStore))
+					newV2 := make([]byte, 0, 4+4+20+len(topicsToStore))
 					newV2 = append(newV2, logIndex...)
+					newV2 = append(newV2, log.Address[:]...)
 					newV2 = append(newV2, topicsToStore...)
 					if err := tx.Put(dbutils.ReceiptsIndex3, newK2, newV2); err != nil {
 						return false, err
@@ -1906,8 +1903,9 @@ func logIndex(chaindata string) error {
 					// dbutils.ReceiptsIndex4
 					newK2 := common.CopyBytes(logIndex)
 
-					newV2 := make([]byte, 0, 4+4+len(topicsToStore))
+					newV2 := make([]byte, 0, 4+20+len(topicsToStore))
 					newV2 = append(newV2, blockNumBytes...)
+					newV2 = append(newV2, log.Address[:]...)
 					newV2 = append(newV2, topicsToStore...)
 					if err := tx.Put(dbutils.ReceiptsIndex4, newK2, newV2); err != nil {
 						return false, err
