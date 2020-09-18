@@ -115,11 +115,11 @@ Content-Type: application/json
   "params": [
     {
       "address": "0x6090a6e47849629b7245dfa1ca21d94cd15878ef",
-      "fromBlock": "0x2c504c",
-      "toBlock": "0x3cfe56",
+      "fromBlock": "0x3d0000",
+      "toBlock": "0x3d0100",
       "topics": [
         null,
-        "0x0000000000000000000000000000000000000000000000000000000000000000"
+        "0x374f3a049e006f36f6cf91b02a3b0ee16c858af2f75858733eb0e927b5b7126c",
       ]
     }
   ],

@@ -690,6 +690,7 @@ func (api *APIImpl) GetLogs3(ctx context.Context, crit filters.FilterCriteria) (
 			if err != nil {
 				return nil, err
 			}
+			fmt.Printf("topic: %x %d\n", topic, m.GetCardinality())
 			if bitmapForORing == nil {
 				bitmapForORing = m
 			} else {
@@ -701,8 +702,10 @@ func (api *APIImpl) GetLogs3(ctx context.Context, crit filters.FilterCriteria) (
 			if bitmapForANDing == nil {
 				bitmapForANDing = bitmapForORing
 			} else {
+				fmt.Printf("do and: %d %d\n", bitmapForANDing.GetCardinality(), bitmapForORing.GetCardinality())
 				bitmapForANDing.And(bitmapForORing)
 			}
+			fmt.Printf("bitmapForANDing: %d\n", bitmapForANDing.GetCardinality())
 		}
 	}
 
@@ -717,6 +720,10 @@ func (api *APIImpl) GetLogs3(ctx context.Context, crit filters.FilterCriteria) (
 		if err != nil {
 			return nil, err
 		}
+		if len(bitmapBytes) > 0 && m.GetCardinality() == 0 {
+			panic("something wrong with addr bitmap")
+		}
+		fmt.Printf("addr: %x %d\n", addr, m.GetCardinality())
 		if addrBitmap == nil {
 			addrBitmap = m
 		} else {
@@ -728,16 +735,19 @@ func (api *APIImpl) GetLogs3(ctx context.Context, crit filters.FilterCriteria) (
 		if bitmapForANDing == nil {
 			bitmapForANDing = addrBitmap
 		} else {
+			fmt.Printf("intersect: %d %d\n", bitmapForANDing.GetCardinality(), addrBitmap.GetCardinality())
+
 			bitmapForANDing.And(addrBitmap)
 		}
 	}
+
+	fmt.Printf("cardinality: %d\n", bitmapForANDing.GetCardinality())
 
 	c := tx.(ethdb.HasTx).Tx().Cursor(dbutils.Logs3).Prefetch(10).(ethdb.Cursor)
 
 	var blockNToMatch uint32
 	blockNToMatchBytes := make([]byte, 4)
 
-	fmt.Printf("cardinality: %d\n", bitmapForANDing.GetCardinality())
 	t2 := time.Now()
 	blockNums := bitmapForANDing.Iterator()
 	for blockNums.HasNext() {
