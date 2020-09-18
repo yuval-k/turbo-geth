@@ -1912,8 +1912,7 @@ func logIndex(chaindata string) error {
 		//	return false, err
 		//}
 
-		if len(topicsBitmap) > 50_000 {
-			fmt.Printf("1\n")
+		if len(topicsBitmap) > 100_000 {
 			flushBitmaps(topicsCursor, topicsBitmap)
 			topicsBitmap = map[string]*roaring.Bitmap{}
 		}
