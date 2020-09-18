@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
+	"github.com/c2h5oh/datasize"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -1731,25 +1732,10 @@ func logIndex(chaindata string) error {
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.Topics4)
 			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.Topics5)
 
-			if len(topicsBitmap) > 100_000 {
-				flushBitmaps(topicsCursor, topicsBitmap)
-				topicsBitmap = map[string]*roaring.Bitmap{}
-			}
-
-			if len(topicsBitmap3) > 100_000 {
-				flushBitmaps(topicsCursor3, topicsBitmap3)
-				topicsBitmap3 = map[string]*roaring.Bitmap{}
-			}
-
-			if len(topicsBitmap4) > 100_000 {
-				flushBitmaps64(topicsCursor4, topicsBitmap4)
-				topicsBitmap4 = map[string]*roaring64.Bitmap{}
-			}
-
-			if len(topicsBitmap5) > 100_000 {
-				flushBitmaps64(topicsCursor5, topicsBitmap5)
-				topicsBitmap5 = map[string]*roaring64.Bitmap{}
-			}
+			topicsBitmap = flushBitmaps(topicsCursor, topicsBitmap, false)
+			topicsBitmap3 = flushBitmaps(topicsCursor3, topicsBitmap3, false)
+			topicsBitmap4 = flushBitmaps64(topicsCursor4, topicsBitmap4, false)
+			topicsBitmap5 = flushBitmaps64(topicsCursor5, topicsBitmap5, false)
 		}
 
 		binary.BigEndian.PutUint32(blockNumBytes, uint32(blockNum))
@@ -1932,17 +1918,10 @@ func logIndex(chaindata string) error {
 		return true, nil
 	}))
 
-	flushBitmaps(topicsCursor, topicsBitmap)
-	topicsBitmap = map[string]*roaring.Bitmap{}
-
-	flushBitmaps(topicsCursor3, topicsBitmap3)
-	topicsBitmap3 = map[string]*roaring.Bitmap{}
-
-	flushBitmaps64(topicsCursor4, topicsBitmap4)
-	topicsBitmap4 = map[string]*roaring64.Bitmap{}
-
-	flushBitmaps64(topicsCursor5, topicsBitmap5)
-	topicsBitmap5 = map[string]*roaring64.Bitmap{}
+	topicsBitmap = flushBitmaps(topicsCursor, topicsBitmap, true)
+	topicsBitmap3 = flushBitmaps(topicsCursor3, topicsBitmap3, true)
+	topicsBitmap4 = flushBitmaps64(topicsCursor4, topicsBitmap4, true)
+	topicsBitmap5 = flushBitmaps64(topicsCursor5, topicsBitmap5, true)
 
 	check(tx.CommitAndBegin(context.Background()))
 
@@ -2044,7 +2023,17 @@ func logIndex(chaindata string) error {
 	return nil
 }
 
-func flushBitmaps64(c ethdb.Cursor, inMem map[string]*roaring64.Bitmap) {
+func flushBitmaps64(c ethdb.Cursor, inMem map[string]*roaring64.Bitmap, force bool) map[string]*roaring64.Bitmap {
+	sz := uint64(0)
+	for _, m := range inMem {
+		sz += m.GetSizeInBytes()
+	}
+
+	doFlush := force || sz > uint64(500*datasize.MB) || len(inMem) > 10_000_000
+	if !doFlush {
+		return inMem
+	}
+	fmt.Printf("flushBitmaps64 size: %s, %d\n", common.StorageSize(sz), len(inMem))
 	defer func(t time.Time) { fmt.Printf("flushBitmaps64: %s\n", time.Since(t)) }(time.Now())
 	for k, b := range inMem {
 		v, err := c.SeekExact([]byte(k))
@@ -2084,9 +2073,22 @@ func flushBitmaps64(c ethdb.Cursor, inMem map[string]*roaring64.Bitmap) {
 		//	panic(err)
 		//}
 	}
+
+	return map[string]*roaring64.Bitmap{}
 }
 
-func flushBitmaps(c ethdb.Cursor, inMem map[string]*roaring.Bitmap) {
+func flushBitmaps(c ethdb.Cursor, inMem map[string]*roaring.Bitmap, force bool) map[string]*roaring.Bitmap {
+	sz := uint64(0)
+	for _, m := range inMem {
+		sz += m.GetSizeInBytes()
+	}
+
+	doFlush := force || sz > uint64(500*datasize.MB) || len(inMem) > 10_000_000
+	if !doFlush {
+		return inMem
+	}
+
+	fmt.Printf("flushBitmaps size: %s, %d\n", common.StorageSize(sz), len(inMem))
 	defer func(t time.Time) { fmt.Printf("flushBitmaps: %s\n", time.Since(t)) }(time.Now())
 	for k, b := range inMem {
 		v, err := c.SeekExact([]byte(k))
@@ -2115,6 +2117,8 @@ func flushBitmaps(c ethdb.Cursor, inMem map[string]*roaring.Bitmap) {
 			panic(err)
 		}
 	}
+
+	return map[string]*roaring.Bitmap{}
 }
 
 func printBucketSize(tx ethdb.Tx, bucket string) {
