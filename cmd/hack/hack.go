@@ -1685,6 +1685,7 @@ func bitmapsSquash(chaindata string) error {
 	//	fmt.Printf("MaxK: %x\n", maxk)
 	//	return nil
 
+	tx.(ethdb.BucketMigrator).ClearBucket(dbutils.LogIndex2)
 	c := tx.Cursor(dbutils.LogIndex)
 	c2 := tx.Cursor(dbutils.LogIndex2)
 	for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
@@ -1711,19 +1712,19 @@ func bitmapsSquash(chaindata string) error {
 		}
 		minVal := bm.Minimum()
 		t := time.Now()
-		roaring.AddOffset(bm, -minVal)
+		newBm := roaring.AddOffset(bm, -minVal)
 		s := time.Since(t)
 		if s > time.Millisecond {
-			fmt.Printf("%dK %s\n", bm.GetCardinality()/1000, s)
+			fmt.Printf("%dK %s\n", newBm.GetCardinality()/1000, s)
 		}
 
-		bufBytes, err := c2.Reserve(k, int(4+bm.GetSerializedSizeInBytes()))
+		bufBytes, err := c2.Reserve(k, int(4+newBm.GetSerializedSizeInBytes()))
 		if err != nil {
 			panic(err)
 		}
 		var bufForBaseBlockN, bufForBitmap = bufBytes[0:4], bufBytes[4:]
 		binary.BigEndian.PutUint32(bufForBaseBlockN, minVal)
-		_, err = bm.WriteTo(bytes.NewBuffer(bufForBitmap[:0]))
+		_, err = newBm.WriteTo(bytes.NewBuffer(bufForBitmap[:0]))
 		if err != nil {
 			return err
 		}
