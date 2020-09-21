@@ -94,7 +94,7 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 	logIndices := map[string]*roaring.Bitmap{}
 	logIndexCursor := tx.(ethdb.HasTx).Tx().Cursor(dbutils.LogIndex)
 	logIndicesFlush := func() error {
-		defer func(t time.Time) { fmt.Printf("stage_execute.go:97: %s\n", time.Since(t)) }(time.Now())
+		defer func(t time.Time, l int) { fmt.Printf("stage_execute.go:97: %s %d\n", time.Since(t), l) }(time.Now(), len(logIndices))
 		keys := make([]string, 0, len(logIndices))
 		for k := range logIndices {
 			keys = append(keys, k)
