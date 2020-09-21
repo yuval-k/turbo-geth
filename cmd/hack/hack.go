@@ -1704,6 +1704,10 @@ func bitmapsSquash(chaindata string) error {
 			panic(err)
 		}
 
+		if len(v) > 0 && bm.GetCardinality() == 0 {
+			fmt.Printf("shomething wrong\n")
+
+		}
 		minVal := bm.Minimum()
 		t := time.Now()
 		roaring.AddOffset(bm, -minVal)
