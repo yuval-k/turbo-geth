@@ -1694,7 +1694,7 @@ func bitmapsSquash(chaindata string) error {
 		select {
 		default:
 		case <-logEvery.C:
-			log.Info("progress1", "blockNum", string(k))
+			fmt.Printf("progress %x\n", k)
 			printBucketSize(tx, dbutils.LogIndex2)
 		}
 
