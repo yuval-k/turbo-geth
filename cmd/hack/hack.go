@@ -1648,7 +1648,7 @@ func bitmapsSquash(chaindata string) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
 
-	tx, _ := db.KV().Begin(context.Background(), nil, false)
+	tx, _ := db.KV().Begin(context.Background(), nil, true)
 	c := tx.Cursor(dbutils.LogIndex)
 	c2 := tx.Cursor(dbutils.LogIndex2)
 	for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
