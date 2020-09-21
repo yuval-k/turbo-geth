@@ -1705,7 +1705,12 @@ func bitmapsSquash(chaindata string) error {
 		}
 
 		minVal := bm.Minimum()
+		t := time.Now()
 		roaring.AddOffset(bm, -minVal)
+		s := time.Since(t)
+		if s > time.Millisecond {
+			fmt.Printf("%dK %s\n", bm.GetCardinality()/1000, s)
+		}
 
 		bufBytes, err := c2.Reserve(k, int(4+bm.GetSerializedSizeInBytes()))
 		if err != nil {
