@@ -19,6 +19,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/holiman/uint256"
 	"github.com/ledgerwatch/lmdb-go/lmdb"
 	"github.com/ledgerwatch/turbo-geth/common"
@@ -1643,6 +1644,43 @@ func iterateOverCode(chaindata string) error {
 	return nil
 }
 
+func bitmapsSquash(chaindata string) error {
+	db := ethdb.MustOpen(chaindata)
+	defer db.Close()
+
+	tx, _ := db.KV().Begin(context.Background(), nil, false)
+	c := tx.Cursor(dbutils.LogIndex)
+	c2 := tx.Cursor(dbutils.LogIndex2)
+	for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
+		if err != nil {
+			return err
+		}
+
+		bm := roaring.New()
+		_, err = bm.ReadFrom(bytes.NewReader(v))
+		if err != nil {
+			panic(err)
+		}
+
+		minVal := bm.Minimum()
+		roaring.AddOffset(bm, -minVal)
+
+		bufBytes, err := c2.Reserve(k, int(4+bm.GetSerializedSizeInBytes()))
+		if err != nil {
+			panic(err)
+		}
+		var bufForBaseBlockN, bufForBitmap = bufBytes[0:4], bufBytes[4:]
+		binary.BigEndian.PutUint32(bufForBaseBlockN, minVal)
+		_, err = bm.WriteTo(bytes.NewBuffer(bufForBitmap[:0]))
+		if err != nil {
+			return err
+		}
+	}
+
+	_ = tx.Commit(context.Background())
+	return nil
+}
+
 func mint(chaindata string, block uint64) error {
 	f, err := os.Create("mint.csv")
 	if err != nil {
@@ -1898,6 +1936,11 @@ func main() {
 	}
 	if *action == "iterateOverCode" {
 		if err := iterateOverCode(*chaindata); err != nil {
+			fmt.Printf("Error: %v\n", err)
+		}
+	}
+	if *action == "bitmapsSquash" {
+		if err := bitmapsSquash(*chaindata); err != nil {
 			fmt.Printf("Error: %v\n", err)
 		}
 	}
