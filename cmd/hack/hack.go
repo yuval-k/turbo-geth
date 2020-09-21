@@ -1688,6 +1688,10 @@ func bitmapsSquash(chaindata string) error {
 	tx.(ethdb.BucketMigrator).ClearBucket(dbutils.LogIndex2)
 	c := tx.Cursor(dbutils.LogIndex)
 	c2 := tx.Cursor(dbutils.LogIndex2)
+
+	var max, total time.Duration
+	count := 0
+
 	for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
 		if err != nil {
 			return err
@@ -1714,8 +1718,10 @@ func bitmapsSquash(chaindata string) error {
 		t := time.Now()
 		newBm := roaring.AddOffset(bm, -minVal)
 		s := time.Since(t)
-		if s > time.Millisecond {
-			fmt.Printf("%d %d %s\n", bm.GetCardinality(), newBm.GetCardinality(), s)
+		total += s
+		count++
+		if max < s {
+			max = s
 		}
 
 		bufBytes, err := c2.Reserve(k, int(4+newBm.GetSerializedSizeInBytes()))
@@ -1729,6 +1735,9 @@ func bitmapsSquash(chaindata string) error {
 			return err
 		}
 	}
+
+	fmt.Printf("avg: %.2f\n", float64(total)/float64(count))
+	fmt.Printf("Max: %s\n", max)
 
 	_ = tx.Commit(context.Background())
 	return nil
