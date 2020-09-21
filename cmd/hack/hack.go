@@ -1706,6 +1706,7 @@ func bitmapsSquash(chaindata string) error {
 
 		if len(v) > 0 && bm.GetCardinality() == 0 {
 			fmt.Printf("shomething wrong %d\n", len(v))
+			continue
 
 		}
 		minVal := bm.Minimum()
