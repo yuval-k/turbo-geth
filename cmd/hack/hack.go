@@ -1647,13 +1647,55 @@ func iterateOverCode(chaindata string) error {
 func bitmapsSquash(chaindata string) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
-
 	tx, _ := db.KV().Begin(context.Background(), nil, true)
+	defer tx.Rollback()
+	logEvery := time.NewTicker(30 * time.Second)
+	defer logEvery.Stop()
+
+	//ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+	//	tx.Cursor(dbutils.LogIndex2)
+	//	max := 0
+	//	maxk := []byte{}
+	//	total := 0
+	//	count := 0
+	//	c3 := tx.Cursor(dbutils.LogIndex2)
+	//	for k, v, err := c3.First(); k != nil; k, v, err = c3.Next() {
+	//		if err != nil {
+	//			return err
+	//		}
+	//		select {
+	//		default:
+	//
+	//		case <-logEvery.C:
+	//			log.Info("progress1", "blockNum", k)
+	//			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.LogIndex2)
+	//		}
+	//
+	//		count++
+	//		total += len(v)
+	//
+	//		if max < len(v) {
+	//			max = len(v)
+	//			maxk = k
+	//		}
+	//
+	//	}
+	//	fmt.Printf("avg: %.2f\n", float64(total)/float64(count))
+	//	fmt.Printf("Max: %.2f\n", float64(max))
+	//	fmt.Printf("MaxK: %x\n", maxk)
+	//	return nil
+
 	c := tx.Cursor(dbutils.LogIndex)
 	c2 := tx.Cursor(dbutils.LogIndex2)
 	for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
 		if err != nil {
 			return err
+		}
+		select {
+		default:
+		case <-logEvery.C:
+			log.Info("progress1", "blockNum", k)
+			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.LogIndex2)
 		}
 
 		bm := roaring.New()
@@ -1679,6 +1721,11 @@ func bitmapsSquash(chaindata string) error {
 
 	_ = tx.Commit(context.Background())
 	return nil
+}
+
+func printBucketSize(tx ethdb.Tx, bucket string) {
+	sz, _ := tx.BucketSize(bucket)
+	log.Info("size", bucket, common.StorageSize(sz))
 }
 
 func mint(chaindata string, block uint64) error {
