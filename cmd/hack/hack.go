@@ -1649,7 +1649,7 @@ func bitmapsSquash(chaindata string) error {
 	defer db.Close()
 	tx, _ := db.KV().Begin(context.Background(), nil, true)
 	defer tx.Rollback()
-	logEvery := time.NewTicker(30 * time.Second)
+	logEvery := time.NewTicker(10 * time.Second)
 	defer logEvery.Stop()
 
 	//ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
@@ -1694,8 +1694,8 @@ func bitmapsSquash(chaindata string) error {
 		select {
 		default:
 		case <-logEvery.C:
-			log.Info("progress1", "blockNum", k)
-			printBucketSize(tx.(ethdb.HasTx).Tx(), dbutils.LogIndex2)
+			log.Info("progress1", "blockNum", string(k))
+			printBucketSize(tx, dbutils.LogIndex2)
 		}
 
 		bm := roaring.New()
