@@ -123,7 +123,7 @@ func (m *mutation) BatchSize() int {
 
 // IdealBatchSize defines the size of the data batches should ideally add in one write.
 func (m *mutation) IdealBatchSize() int {
-	return int(512 * datasize.MB)
+	return int(1 * datasize.GB)
 }
 
 // WARNING: Merged mem/DB walk is not implemented
