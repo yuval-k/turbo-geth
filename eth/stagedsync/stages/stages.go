@@ -40,6 +40,7 @@ var (
 	HashState           SyncStage = []byte("HashState")           // Apply Keccak256 to all the keys in the state
 	AccountHistoryIndex SyncStage = []byte("AccountHistoryIndex") // Generating history index for accounts
 	StorageHistoryIndex SyncStage = []byte("StorageHistoryIndex") // Generating history index for storage
+	LogIndex            SyncStage = []byte("LogIndex")            // Generating logs index (from receipts)
 	TxLookup            SyncStage = []byte("TxLookup")            // Generating transactions lookup index
 	TxPool              SyncStage = []byte("TxPool")              // Starts Backend
 	Finish              SyncStage = []byte("Finish")              // Nominal stage after all other stages
@@ -55,6 +56,7 @@ var AllStages = []SyncStage{
 	HashState,
 	AccountHistoryIndex,
 	StorageHistoryIndex,
+	LogIndex,
 	TxLookup,
 	TxPool,
 	Finish,
