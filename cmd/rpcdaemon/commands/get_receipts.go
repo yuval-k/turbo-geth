@@ -157,7 +157,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 
 	var addrBitmap *roaring.Bitmap
 	for _, addr := range crit.Addresses {
-		m, err := bitmapdb.GetSharded2(c, addr[:])
+		m, err := bitmapdb.Get(c, addr[:])
 		if err != nil {
 			return nil, err
 		}
@@ -235,7 +235,7 @@ func getTopicsBitmap(c ethdb.Cursor, topics [][]common.Hash, maxBlockNum uint32)
 				continue
 			}
 
-			m, err := bitmapdb.GetSharded2(c, topic[:])
+			m, err := bitmapdb.Get(c, topic[:])
 			if err != nil {
 				return nil, err
 			}
