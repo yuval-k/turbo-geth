@@ -37,10 +37,6 @@ var receiptLeadingZeroes = Migration{
 		}
 		iBytes := make([]byte, 4)
 		if err := tx.Walk(dbutils.BlockReceiptsPrefixOld1, nil, 0, func(k, v []byte) (bool, error) {
-			if err != nil {
-				return false, err
-			}
-
 			blockHashBytes := k[len(k)-32:]
 			blockNum64Bytes := k[:len(k)-32]
 			blockNum := binary.BigEndian.Uint64(blockNum64Bytes)

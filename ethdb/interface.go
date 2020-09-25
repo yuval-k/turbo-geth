@@ -158,7 +158,7 @@ type DbWithPendingMutations interface {
 	// it allows internal caching and make sure that all callers will receive same pointer during transaction
 	//
 	//
-	// Use looks like:
+	// It's generic method - please write your own typed wrapper to use in app code. For example:
 	// ids, err := ethdb.Ids(tx)
 	// aggregates, err := ethdb.Aggregates(tx)
 	WithCounters(key []byte, counters Counters) (Counters, error)

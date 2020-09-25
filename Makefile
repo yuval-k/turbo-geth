@@ -121,7 +121,7 @@ lintci: semantics/z3/build/libz3.a
 
 lintci-deps:
 	rm -f ./build/bin/golangci-lint
-	curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b ./build/bin v1.29.0
+	curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b ./build/bin v1.31.0
 
 clean:
 	env GO111MODULE=on go clean -cache

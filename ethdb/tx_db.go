@@ -3,6 +3,7 @@ package ethdb
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/ledgerwatch/turbo-geth/metrics"
 	"time"
@@ -455,7 +456,7 @@ func (m *TxDb) WithCounters(key []byte, counters Counters) (Counters, error) {
 
 	v, err := m.Get(dbutils.Counters, key)
 	if err != nil {
-		if err == ErrKeyNotFound {
+		if errors.Is(err, ErrKeyNotFound) {
 			return counters, nil
 		}
 		return nil, err
