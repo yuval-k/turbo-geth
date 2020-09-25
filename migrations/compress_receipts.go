@@ -25,7 +25,7 @@ var receiptLeadingZeroes = Migration{
 			return OnLoadCommit(tx, nil, true)
 		}
 
-		if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix); err != nil {
+		if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix, dbutils.LogTopic2Id, dbutils.LogId2Topic); err != nil {
 			return err
 		}
 
