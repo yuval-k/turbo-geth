@@ -3,6 +3,7 @@ package migrations
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
@@ -62,17 +63,17 @@ var receiptLeadingZeroes = Migration{
 					storageReceipts[ri].Logs[li].TopicIds = make([]uint32, len(storageReceipts[ri].Logs[li].Topics))
 					for ti, topic := range l.Topics {
 						id, err := tx.Get(dbutils.LogTopic2Id, topic[:])
-						if err != nil {
+						if err != nil && !errors.Is(err, ethdb.ErrKeyNotFound) {
 							return false, err
 						}
-						if len(id) != 0 {
-							storageReceipts[ri].Logs[li].TopicIds[ti] = binary.BigEndian.Uint32(id)
-						} else {
+
+						// create topic if not exists with topicID++
+						if err != nil && errors.Is(err, ethdb.ErrKeyNotFound) {
 							ids.Topic++
 							binary.BigEndian.PutUint32(iBytes, ids.Topic)
 							storageReceipts[ri].Logs[li].TopicIds[ti] = ids.Topic
 
-							err := tx.Put(dbutils.LogId2Topic, topic[:], common.CopyBytes(iBytes))
+							err = tx.Put(dbutils.LogId2Topic, topic[:], common.CopyBytes(iBytes))
 							if err != nil {
 								return false, err
 							}
@@ -80,7 +81,10 @@ var receiptLeadingZeroes = Migration{
 							if err != nil {
 								return false, err
 							}
+							continue
 						}
+
+						storageReceipts[ri].Logs[li].TopicIds[ti] = binary.BigEndian.Uint32(id)
 					}
 				}
 			}
