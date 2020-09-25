@@ -73,11 +73,11 @@ var receiptLeadingZeroes = Migration{
 							binary.BigEndian.PutUint32(iBytes, ids.Topic)
 							storageReceipts[ri].Logs[li].TopicIds[ti] = ids.Topic
 
-							err = tx.Put(dbutils.LogId2Topic, topic[:], common.CopyBytes(iBytes))
+							err = tx.Put(dbutils.LogTopic2Id, topic[:], common.CopyBytes(iBytes))
 							if err != nil {
 								return false, err
 							}
-							err = tx.Put(dbutils.LogTopic2Id, common.CopyBytes(iBytes), topic[:])
+							err = tx.Append(dbutils.LogId2Topic, common.CopyBytes(iBytes), topic[:])
 							if err != nil {
 								return false, err
 							}

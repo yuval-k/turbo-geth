@@ -451,7 +451,7 @@ func ReadReceipts(db DatabaseReader, number uint64, config *params.ChainConfig) 
 				binary.BigEndian.PutUint32(idBytes, id)
 				topic, err := db.Get(dbutils.LogId2Topic, idBytes)
 				if err != nil {
-					log.Error("Missing topic for id", "id", id)
+					log.Error("Missing topic for id", "id", id, "err", err)
 					return nil
 				}
 				l.Topics[i].SetBytes(topic)
