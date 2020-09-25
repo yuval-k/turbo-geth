@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/ledgerwatch/turbo-geth/ethdb/bitmapdb"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -250,8 +251,22 @@ func UnwindExecutionStage(u *UnwindState, s *StageState, stateDB ethdb.Database,
 		return nil
 	}
 
+	var tx ethdb.DbWithPendingMutations
+	var useExternalTx bool
+	if hasTx, ok := stateDB.(ethdb.HasTx); ok && hasTx.Tx() != nil {
+		tx = stateDB.(ethdb.DbWithPendingMutations)
+		useExternalTx = true
+	} else {
+		var err error
+		tx, err = stateDB.Begin(context.Background())
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+	}
+
 	log.Info("Unwind Execution stage", "from", s.BlockNumber, "to", u.UnwindPoint)
-	batch := stateDB.NewBatch()
+	batch := tx.NewBatch()
 	defer batch.Rollback()
 
 	rewindFunc := ethdb.RewindDataPlain
@@ -313,7 +328,53 @@ func UnwindExecutionStage(u *UnwindState, s *StageState, stateDB ethdb.Database,
 		return fmt.Errorf("unwind Execution: walking storage changesets: %v", err)
 	}
 	if writeReceipts {
+		logIndexCursor := tx.(ethdb.HasTx).Tx().Cursor(dbutils.LogIndex)
+		ids, err := ethdb.Ids(tx)
+		if err != nil {
+			return err
+		}
+
+		idBytes := make([]byte, 4)
 		if err := stateDB.Walk(dbutils.BlockReceiptsPrefix, dbutils.EncodeBlockNumber(u.UnwindPoint+1), 0, func(k, v []byte) (bool, error) {
+			storageReceipts := []*types.ReceiptForStorage{}
+			if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
+				return false, fmt.Errorf("invalid receipt array RLP: %w, blockNum=%x", err, k)
+			}
+
+			// delete topicID if need
+			for _, receipt := range storageReceipts {
+				for _, l := range receipt.Logs {
+					l.TopicIds = make([]uint32, len(l.Topics))
+					for _, topicId := range l.TopicIds { // convert topics to topicIDs
+						binary.BigEndian.PutUint32(idBytes, topicId)
+						has, err := bitmapdb.Has(logIndexCursor, idBytes)
+						if err != nil {
+							return false, err
+						}
+						if has {
+							continue
+						}
+
+						topic, err := batch.Get(dbutils.LogId2Topic, idBytes)
+						if err != nil {
+							return false, err
+						}
+
+						err = batch.Delete(dbutils.LogId2Topic, idBytes)
+						if err != nil {
+							return false, err
+						}
+						err = batch.Delete(dbutils.LogTopic2Id, topic)
+						if err != nil {
+							return false, err
+						}
+
+						if ids.Topic >= topicId {
+							ids.Topic = topicId - 1
+						}
+					}
+				}
+			}
 			if err := batch.Delete(dbutils.BlockReceiptsPrefix, common.CopyBytes(k)); err != nil {
 				return false, fmt.Errorf("unwind Execution: delete receipts: %v", err)
 			}
@@ -331,6 +392,12 @@ func UnwindExecutionStage(u *UnwindState, s *StageState, stateDB ethdb.Database,
 	if err != nil {
 		return fmt.Errorf("unwind Execute: failed to write db commit: %v", err)
 	}
+	if !useExternalTx {
+		if _, err := tx.Commit(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

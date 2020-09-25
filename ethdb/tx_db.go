@@ -491,6 +491,9 @@ type CountersStorage interface {
 
 var keyIDsBytes = []byte(dbutils.KeyIDs)
 
+// Ids - returns ids of all last inserted entities to db,
+// !Important: increment before use.
+// to understand more about this method, see docs of DbWithPendingMutations.WithCounters
 func Ids(db CountersStorage) (*dbutils.IDs, error) {
 	v, err := db.WithCounters(keyIDsBytes, &dbutils.IDs{})
 	if err != nil {
@@ -501,6 +504,10 @@ func Ids(db CountersStorage) (*dbutils.IDs, error) {
 
 var keyAggregatesBytes = []byte(dbutils.KeyAggregates)
 
+// Aggregates - returns last state of all aggregated values in current database,
+// If you need store min/max or other single-value aggregated value about any data - store it here.
+//
+// to understand more about this method, see docs of DbWithPendingMutations.WithCounters
 func Aggregates(db CountersStorage) (*dbutils.Aggregates, error) {
 	v, err := db.WithCounters(keyAggregatesBytes, &dbutils.Aggregates{})
 	if err != nil {

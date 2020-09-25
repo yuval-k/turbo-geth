@@ -8,6 +8,7 @@ import (
 
 const KeyIDs = "ids"
 
+// Store id of last inserted entity to db - increment before use
 type IDs struct {
 	Topic uint32
 }
