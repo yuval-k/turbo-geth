@@ -130,23 +130,36 @@ func (l *LogForStorage) DecodeRLP(s *rlp.Stream) error {
 	}
 	var dec rlpStorageLog
 	err = rlp.DecodeBytes(blob, &dec)
+	*l = LogForStorage{
+		Address:  dec.Address,
+		TopicIds: dec.TopicIds,
+		Data:     dec.Data,
+	}
+
+	return err
+}
+
+// LogForStorage is a wrapper around a Log that flattens and parses the entire content of
+// a log including non-consensus fields.
+type DeprecatedLogForStorage1 Log
+
+// DecodeRLP implements rlp.Decoder.
+//
+// Note some redundant fields(e.g. block number, tx hash etc) will be assembled later.
+func (l *DeprecatedLogForStorage1) DecodeRLP(s *rlp.Stream) error {
+	blob, err := s.Raw()
+	if err != nil {
+		return err
+	}
+
+	// Try to decode log with previous definition.
+	var dec legacyRlpStorageLog
+	err = rlp.DecodeBytes(blob, &dec)
 	if err == nil {
-		*l = LogForStorage{
+		*l = DeprecatedLogForStorage1{
 			Address: dec.Address,
-			//Topics:  dec.Topics,
-			TopicIds: dec.TopicIds,
-			Data:     dec.Data,
-		}
-	} else {
-		// Try to decode log with previous definition.
-		var dec legacyRlpStorageLog
-		err = rlp.DecodeBytes(blob, &dec)
-		if err == nil {
-			*l = LogForStorage{
-				Address: dec.Address,
-				Topics:  dec.Topics,
-				Data:    dec.Data,
-			}
+			Topics:  dec.Topics,
+			Data:    dec.Data,
 		}
 	}
 

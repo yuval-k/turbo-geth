@@ -111,13 +111,12 @@ var (
 	HeaderHashSuffix   = []byte("n") // headerPrefix + num (uint64 big endian) + headerHashSuffix -> hash
 	HeaderNumberPrefix = "H"         // headerNumberPrefix + hash -> num (uint64 big endian)
 
-	BlockBodyPrefix     = "b"  // blockBodyPrefix + num (uint64 big endian) + hash -> block body
-	BlockReceiptsPrefix = "r2" // blockReceiptsPrefix + num (uint32 big endian) -> block receipts rlp
+	BlockBodyPrefix         = "b"  // blockBodyPrefix + num (uint64 big endian) + hash -> block body
+	BlockReceiptsPrefix     = "r2" // blockNum_u64 -> block receipts rlp
+	BlockReceiptsPrefixOld1 = "r"  // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
 
 	LogId2Topic = "log_id_topic" // num (uint32 big endian) -> 32 bytes topic
 	LogTopic2Id = "log_topic_id" // 32 bytes topic -> num (uint32 big endian)
-
-	BlockReceiptsPrefixOld1 = "r" // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
 
 	// Stores bitmap indices - in which block numbers saw logs of given 'address' or 'topic'
 	// [addr or topicId] + [2 bytes inverted shard number] -> bitmap(blockN)

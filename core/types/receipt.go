@@ -93,25 +93,11 @@ type storedReceiptRLP struct {
 	Logs              []*LogForStorage
 }
 
-// v4StoredReceiptRLP is the storage encoding of a receipt used in database version 4.
-type v4StoredReceiptRLP struct {
+// storedReceiptRLP is the storage encoding of a receipt.
+type deprecatedStoredReceiptRLP1 struct {
 	PostStateOrStatus []byte
 	CumulativeGasUsed uint64
-	TxHash            common.Hash
-	ContractAddress   common.Address
-	Logs              []*LogForStorage
-	GasUsed           uint64
-}
-
-// v3StoredReceiptRLP is the original storage encoding of a receipt including some unnecessary fields.
-type v3StoredReceiptRLP struct {
-	PostStateOrStatus []byte
-	CumulativeGasUsed uint64
-	//Bloom             Bloom
-	//TxHash            common.Hash
-	ContractAddress common.Address
-	Logs            []*LogForStorage
-	GasUsed         uint64
+	Logs              []*DeprecatedLogForStorage1
 }
 
 // NewReceipt creates a barebone transaction receipt, copying the init fields.
@@ -286,20 +272,6 @@ func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, num
 // DeprecatedReceiptForStorage1 - same as ReceiptForStorage but without leading zero compression
 type DeprecatedReceiptForStorage1 Receipt
 
-// EncodeRLP implements rlp.Encoder, and flattens all content fields of a receipt
-// into an RLP stream.
-func (r *DeprecatedReceiptForStorage1) EncodeRLP(w io.Writer) error {
-	enc := &storedReceiptRLP{
-		PostStateOrStatus: (*Receipt)(r).statusEncoding(),
-		CumulativeGasUsed: r.CumulativeGasUsed,
-		Logs:              make([]*LogForStorage, len(r.Logs)),
-	}
-	for i, log := range r.Logs {
-		enc.Logs[i] = (*LogForStorage)(log)
-	}
-	return rlp.Encode(w, enc)
-}
-
 // DecodeRLP implements rlp.Decoder, and loads both consensus and implementation
 // fields of a receipt from an RLP stream.
 func (r *DeprecatedReceiptForStorage1) DecodeRLP(s *rlp.Stream) error {
@@ -308,7 +280,7 @@ func (r *DeprecatedReceiptForStorage1) DecodeRLP(s *rlp.Stream) error {
 	if err != nil {
 		return err
 	}
-	var stored storedReceiptRLP
+	var stored deprecatedStoredReceiptRLP1
 	if err := rlp.DecodeBytes(blob, &stored); err != nil {
 		return err
 	}

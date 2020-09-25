@@ -94,10 +94,6 @@ var receiptLeadingZeroes = Migration{
 				log.Crit("Failed to encode block receipts", "err", err)
 			}
 
-			if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
-				return false, fmt.Errorf("invalid receipt array RLP: %w, blockNum=%d", err, blockNum)
-			}
-
 			if err := tx.Append(dbutils.BlockReceiptsPrefix, blockNum64Bytes, newV); err != nil {
 				return false, err
 			}
@@ -119,9 +115,9 @@ var receiptLeadingZeroes = Migration{
 			return err
 		}
 
-		if err := tx.(ethdb.BucketsMigrator).DropBuckets(dbutils.BlockReceiptsPrefixOld1); err != nil {
-			return err
-		}
+		//if err := tx.(ethdb.BucketsMigrator).DropBuckets(dbutils.BlockReceiptsPrefixOld1); err != nil {
+		//	return err
+		//}
 		return OnLoadCommit(tx, nil, true)
 	},
 }
