@@ -111,9 +111,13 @@ var (
 	HeaderHashSuffix   = []byte("n") // headerPrefix + num (uint64 big endian) + headerHashSuffix -> hash
 	HeaderNumberPrefix = "H"         // headerNumberPrefix + hash -> num (uint64 big endian)
 
-	BlockBodyPrefix         = "b"  // blockBodyPrefix + num (uint64 big endian) + hash -> block body
-	BlockReceiptsPrefix     = "r2" // blockReceiptsPrefix + num (uint32 big endian) -> block receipts rlp
-	BlockReceiptsPrefixOld1 = "r"  // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
+	BlockBodyPrefix     = "b"  // blockBodyPrefix + num (uint64 big endian) + hash -> block body
+	BlockReceiptsPrefix = "r2" // blockReceiptsPrefix + num (uint32 big endian) -> block receipts rlp
+
+	LogId2Topic = "log_id_topic" // num (uint32 big endian) -> 32 bytes topic
+	LogTopic2Id = "log_topic_id" // 32 bytes topic -> num (uint32 big endian)
+
+	BlockReceiptsPrefixOld1 = "r" // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
 
 	// Stores bitmap indices - in which block numbers saw logs of given 'address' or 'topic'
 	// [addr or topic] + [2 bytes inverted shard number] -> bitmap(blockN)
@@ -162,6 +166,8 @@ var (
 	// it stores stages progress to understand in which context was executed migration
 	// in case of bug-report developer can ask content of this bucket
 	Migrations = "migrations"
+
+	Counters = "counters"
 )
 
 // Keys
@@ -223,6 +229,9 @@ var Buckets = []string{
 	HeadFastBlockKey,
 	HeadHeaderKey,
 	Migrations,
+	LogId2Topic,
+	LogTopic2Id,
+	Counters,
 	LogIndex,
 }
 

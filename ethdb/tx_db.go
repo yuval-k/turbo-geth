@@ -23,6 +23,7 @@ type TxDb struct {
 	ParentTx Tx
 	cursors  map[string]Cursor
 	len      uint64
+	counters map[string]Counters
 }
 
 func (m *TxDb) Close() {
@@ -350,6 +351,9 @@ func (m *TxDb) Commit() (uint64, error) {
 	if m.tx == nil {
 		return 0, fmt.Errorf("second call .Commit() on same transaction")
 	}
+	if err := m.flushCounters(); err != nil {
+		return 0, err
+	}
 	if err := m.tx.Commit(context.Background()); err != nil {
 		return 0, err
 	}
@@ -366,6 +370,7 @@ func (m *TxDb) Rollback() {
 	}
 	m.tx.Rollback()
 	m.cursors = nil
+	m.counters = nil
 	m.tx = nil
 	m.ParentTx = nil
 	m.len = 0
@@ -435,4 +440,70 @@ func (m *TxDb) DropBuckets(buckets ...string) error {
 		}
 	}
 	return nil
+}
+
+func (m *TxDb) WithCounters(key []byte, counters Counters) (Counters, error) {
+	if m.counters == nil {
+		m.counters = make(map[string]Counters)
+	}
+	c, ok := m.counters[string(key)]
+	if ok {
+		return c, nil
+	}
+
+	m.counters[string(key)] = counters
+
+	v, err := m.Get(dbutils.Counters, key)
+	if err != nil {
+		if err == ErrKeyNotFound {
+			return counters, nil
+		}
+		return nil, err
+	}
+	err = counters.Unmarshal(v)
+	if err != nil {
+		return nil, err
+	}
+	return counters, nil
+}
+
+func (m *TxDb) flushCounters() error {
+	for k, obj := range m.counters {
+		newV, err := obj.Marshal()
+		if err != nil {
+			return err
+		}
+
+		err = m.Put(dbutils.Counters, []byte(k), newV)
+		if err != nil {
+			return err
+		}
+	}
+
+	m.counters = nil
+	return nil
+}
+
+type CountersStorage interface {
+	WithCounters(key []byte, counters Counters) (Counters, error)
+}
+
+var keyIDsBytes = []byte(dbutils.KeyIDs)
+
+func Ids(db CountersStorage) (*dbutils.IDs, error) {
+	v, err := db.WithCounters(keyIDsBytes, &dbutils.IDs{})
+	if err != nil {
+		return nil, err
+	}
+	return v.(*dbutils.IDs), nil
+}
+
+var keyAggregatesBytes = []byte(dbutils.KeyAggregates)
+
+func Aggregates(db CountersStorage) (*dbutils.Aggregates, error) {
+	v, err := db.WithCounters(keyIDsBytes, &dbutils.Aggregates{})
+	if err != nil {
+		return nil, err
+	}
+	return v.(*dbutils.Aggregates), nil
 }

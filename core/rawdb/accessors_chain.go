@@ -20,7 +20,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
@@ -440,6 +442,24 @@ func ReadReceipts(db DatabaseReader, number uint64, config *params.ChainConfig) 
 		log.Error("Missing body but have receipt", "hash", blockHash, "number", number)
 		return nil
 	}
+
+	t := time.Now()
+	idBytes := make([]byte, 4)
+	for _, r := range receipts {
+		for _, l := range r.Logs {
+			for i, id := range l.TopicIds {
+				binary.BigEndian.PutUint32(idBytes, id)
+				topic, err := db.Get(dbutils.LogId2Topic, idBytes)
+				if err != nil {
+					log.Error("Missing topic for id", "id", id)
+					return nil
+				}
+				l.Topics[i].SetBytes(topic)
+			}
+		}
+	}
+	fmt.Printf("aa: %s\n", time.Since(t))
+
 	if err := receipts.DeriveFields(config, blockHash, number, body.Transactions); err != nil {
 		log.Error("Failed to derive block receipts fields", "hash", blockHash, "number", number, "err", err)
 		return nil

@@ -50,6 +50,8 @@ type Log struct {
 	// index of the log in the block
 	Index uint `json:"logIndex"`
 
+	TopicIds []uint32 `json:"-" gencodec:"-"`
+
 	// The Removed field is true if this log was reverted due to a chain reorganisation.
 	// You must pay attention to this field if you receive logs through a filter query.
 	Removed bool `json:"removed"`
@@ -64,8 +66,9 @@ type logMarshaling struct {
 
 type rlpLog struct {
 	Address common.Address
-	Topics  []common.Hash
-	Data    []byte
+	//Topics   []common.Hash
+	TopicIds []uint32
+	Data     []byte
 }
 
 // rlpStorageLog is the storage encoding of a log.
@@ -85,7 +88,7 @@ type legacyRlpStorageLog struct {
 
 // EncodeRLP implements rlp.Encoder.
 func (l *Log) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, rlpLog{Address: l.Address, Topics: l.Topics, Data: l.Data})
+	return rlp.Encode(w, rlpLog{Address: l.Address, TopicIds: l.TopicIds, Data: l.Data})
 }
 
 // DecodeRLP implements rlp.Decoder.
@@ -93,7 +96,7 @@ func (l *Log) DecodeRLP(s *rlp.Stream) error {
 	var dec rlpLog
 	err := s.Decode(&dec)
 	if err == nil {
-		l.Address, l.Topics, l.Data = dec.Address, dec.Topics, dec.Data
+		l.Address, l.TopicIds, l.Data = dec.Address, dec.TopicIds, dec.Data
 	}
 	return err
 }
@@ -105,9 +108,10 @@ type LogForStorage Log
 // EncodeRLP implements rlp.Encoder.
 func (l *LogForStorage) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, rlpStorageLog{
-		Address: l.Address,
-		Topics:  l.Topics,
-		Data:    l.Data,
+		Address:  l.Address,
+		TopicIds: l.TopicIds,
+		//Topics:  l.Topics,
+		Data: l.Data,
 		//BlockNumber: l.BlockNumber,
 		//TxHash:      l.TxHash,
 		//TxIndex:     l.TxIndex,
@@ -129,8 +133,9 @@ func (l *LogForStorage) DecodeRLP(s *rlp.Stream) error {
 	if err == nil {
 		*l = LogForStorage{
 			Address: dec.Address,
-			Topics:  dec.Topics,
-			Data:    dec.Data,
+			//Topics:  dec.Topics,
+			TopicIds: dec.TopicIds,
+			Data:     dec.Data,
 		}
 	} else {
 		// Try to decode log with previous definition.
@@ -144,5 +149,6 @@ func (l *LogForStorage) DecodeRLP(s *rlp.Stream) error {
 			}
 		}
 	}
+
 	return err
 }
