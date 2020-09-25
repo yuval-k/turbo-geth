@@ -444,17 +444,15 @@ func ReadReceipts(db DatabaseReader, number uint64, config *params.ChainConfig) 
 	}
 
 	t := time.Now()
-	idBytes := make([]byte, 4)
 	for _, r := range receipts {
 		for _, l := range r.Logs {
 			for i, id := range l.TopicIds {
-				binary.BigEndian.PutUint32(idBytes, id)
-				topic, err := db.Get(dbutils.LogId2Topic, idBytes)
+				var err error
+				l.Topics[i], err = ReadTopic(db, id)
 				if err != nil {
 					log.Error("Missing topic for id", "id", id, "err", err)
 					return nil
 				}
-				l.Topics[i].SetBytes(topic)
 			}
 		}
 	}
@@ -465,6 +463,17 @@ func ReadReceipts(db DatabaseReader, number uint64, config *params.ChainConfig) 
 		return nil
 	}
 	return receipts
+}
+
+var topicIDBytes = make([]byte, 4)
+
+func ReadTopic(db DatabaseReader, id uint32) (common.Hash, error) {
+	binary.BigEndian.PutUint32(topicIDBytes, id)
+	topic, err := db.Get(dbutils.LogId2Topic, topicIDBytes)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	return common.BytesToHash(topic), nil
 }
 
 // WriteReceipts stores all the transaction receipts belonging to a block.

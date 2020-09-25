@@ -17,7 +17,7 @@ import (
 )
 
 var receiptLeadingZeroes = Migration{
-	Name: "receipt_leading_zeroes_5",
+	Name: "receipt_leading_zeroes_6",
 	Up: func(tx ethdb.DbWithPendingMutations, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
 		if exists, err := tx.(ethdb.BucketsMigrator).BucketExists(dbutils.BlockReceiptsPrefixOld1); err != nil {
 			return err
