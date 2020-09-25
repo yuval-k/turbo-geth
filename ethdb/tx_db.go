@@ -502,7 +502,7 @@ func Ids(db CountersStorage) (*dbutils.IDs, error) {
 var keyAggregatesBytes = []byte(dbutils.KeyAggregates)
 
 func Aggregates(db CountersStorage) (*dbutils.Aggregates, error) {
-	v, err := db.WithCounters(keyIDsBytes, &dbutils.Aggregates{})
+	v, err := db.WithCounters(keyAggregatesBytes, &dbutils.Aggregates{})
 	if err != nil {
 		return nil, err
 	}
