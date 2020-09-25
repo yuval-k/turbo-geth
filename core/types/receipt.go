@@ -225,91 +225,6 @@ func (r *ReceiptForStorage) DecodeRLP(s *rlp.Stream) error {
 	return nil
 }
 
-// 1st byte stores amount of leading zeroes - it's db-level detail, don't return it to user
-func leadingZeroEncode(in []byte) []byte {
-	if len(in) == 0 {
-		return in
-	}
-
-	leadingZeros := uint8(0)
-	for i := 0; i < len(in); i++ {
-		if in[i] != 0 || leadingZeros == 255 {
-			break
-		}
-		leadingZeros++
-	}
-	var out []byte
-	if leadingZeros > 0 {
-		out = common.CopyBytes(in)
-		out[leadingZeros-1] = leadingZeros
-		out = out[leadingZeros-1:]
-	} else {
-		out = append([]byte{0}, in...)
-	}
-
-	return out
-}
-
-// 1st byte stores amount of leading zeroes - it's db-level detail, don't return it to user
-func leadingZeroDecode(in []byte) []byte {
-	if len(in) == 0 {
-		return in
-	}
-
-	if in[0] == 0 {
-		return in[1:]
-	}
-
-	if in[0] == 1 {
-		in[0] = 0
-		return in
-	}
-
-	withLeadingZeroes := make([]byte, int(in[0])+len(in)-1)
-	copy(withLeadingZeroes[int(in[0]):], in[1:])
-	return withLeadingZeroes
-}
-
-// DeprecatedReceiptForStorage1 - same as ReceiptForStorage but without leading zero compression
-type DeprecatedReceiptForStorage1 Receipt
-
-// EncodeRLP implements rlp.Encoder, and flattens all content fields of a receipt
-// into an RLP stream.
-func (r *DeprecatedReceiptForStorage1) EncodeRLP(w io.Writer) error {
-	enc := &storedReceiptRLP{
-		PostStateOrStatus: (*Receipt)(r).statusEncoding(),
-		CumulativeGasUsed: r.CumulativeGasUsed,
-		Logs:              make([]*LogForStorage, len(r.Logs)),
-	}
-	for i, log := range r.Logs {
-		enc.Logs[i] = (*LogForStorage)(log)
-	}
-	return rlp.Encode(w, enc)
-}
-
-// DecodeRLP implements rlp.Decoder, and loads both consensus and implementation
-// fields of a receipt from an RLP stream.
-func (r *DeprecatedReceiptForStorage1) DecodeRLP(s *rlp.Stream) error {
-	// Retrieve the entire receipt blob as we need to try multiple decoders
-	blob, err := s.Raw()
-	if err != nil {
-		return err
-	}
-	var stored storedReceiptRLP
-	if err := rlp.DecodeBytes(blob, &stored); err != nil {
-		return err
-	}
-	if err := (*Receipt)(r).setStatus(stored.PostStateOrStatus); err != nil {
-		return err
-	}
-	r.CumulativeGasUsed = stored.CumulativeGasUsed
-	r.Logs = make([]*Log, len(stored.Logs))
-	for i, log := range stored.Logs {
-		r.Logs[i] = (*Log)(log)
-	}
-	return nil
-}
-
 // Receipts is a wrapper around a Receipt array to implement DerivableList.
 type Receipts []*Receipt
 
@@ -366,4 +281,89 @@ func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, num
 		}
 	}
 	return nil
+}
+
+// DeprecatedReceiptForStorage1 - same as ReceiptForStorage but without leading zero compression
+type DeprecatedReceiptForStorage1 Receipt
+
+// EncodeRLP implements rlp.Encoder, and flattens all content fields of a receipt
+// into an RLP stream.
+func (r *DeprecatedReceiptForStorage1) EncodeRLP(w io.Writer) error {
+	enc := &storedReceiptRLP{
+		PostStateOrStatus: (*Receipt)(r).statusEncoding(),
+		CumulativeGasUsed: r.CumulativeGasUsed,
+		Logs:              make([]*LogForStorage, len(r.Logs)),
+	}
+	for i, log := range r.Logs {
+		enc.Logs[i] = (*LogForStorage)(log)
+	}
+	return rlp.Encode(w, enc)
+}
+
+// DecodeRLP implements rlp.Decoder, and loads both consensus and implementation
+// fields of a receipt from an RLP stream.
+func (r *DeprecatedReceiptForStorage1) DecodeRLP(s *rlp.Stream) error {
+	// Retrieve the entire receipt blob as we need to try multiple decoders
+	blob, err := s.Raw()
+	if err != nil {
+		return err
+	}
+	var stored storedReceiptRLP
+	if err := rlp.DecodeBytes(blob, &stored); err != nil {
+		return err
+	}
+	if err := (*Receipt)(r).setStatus(stored.PostStateOrStatus); err != nil {
+		return err
+	}
+	r.CumulativeGasUsed = stored.CumulativeGasUsed
+	r.Logs = make([]*Log, len(stored.Logs))
+	for i, log := range stored.Logs {
+		r.Logs[i] = (*Log)(log)
+	}
+	return nil
+}
+
+// 1st byte stores amount of leading zeroes - it's db-level detail, don't return it to user
+func leadingZeroEncode(in []byte) []byte {
+	if len(in) == 0 {
+		return in
+	}
+
+	leadingZeros := uint8(0)
+	for i := 0; i < len(in); i++ {
+		if in[i] != 0 || leadingZeros == 255 {
+			break
+		}
+		leadingZeros++
+	}
+	var out []byte
+	if leadingZeros > 0 {
+		out = common.CopyBytes(in)
+		out[leadingZeros-1] = leadingZeros
+		out = out[leadingZeros-1:]
+	} else {
+		out = append([]byte{0}, in...)
+	}
+
+	return out
+}
+
+// 1st byte stores amount of leading zeroes - it's db-level detail, don't return it to user
+func leadingZeroDecode(in []byte) []byte {
+	if len(in) == 0 {
+		return in
+	}
+
+	if in[0] == 0 {
+		return in[1:]
+	}
+
+	if in[0] == 1 {
+		in[0] = 0
+		return in
+	}
+
+	withLeadingZeroes := make([]byte, int(in[0])+len(in)-1)
+	copy(withLeadingZeroes[int(in[0]):], in[1:])
+	return withLeadingZeroes
 }
