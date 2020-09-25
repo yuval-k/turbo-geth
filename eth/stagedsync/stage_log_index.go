@@ -101,15 +101,11 @@ func SpawnLogIndex(s *StageState, db ethdb.Database, datadir string, quit <-chan
 			for _, log := range receipt.Logs {
 				for _, topicId := range log.TopicIds {
 					binary.BigEndian.PutUint32(idBytes, topicId)
-					topic, err := tx.Get(dbutils.LogId2Topic, idBytes)
-					if err != nil {
-						return err
-					}
-					topicStr := string(topic)
-					m, ok := indices[topicStr]
+					topicIdStr := string(common.CopyBytes(idBytes))
+					m, ok := indices[topicIdStr]
 					if !ok {
 						m = gocroaring.New()
-						indices[topicStr] = m
+						indices[topicIdStr] = m
 					}
 					m.Add(uint32(blockNum))
 				}
