@@ -63,6 +63,7 @@ var migrations = []Migration{
 	dupSortIH,
 	clearIndices,
 	receiptLeadingZeroes,
+	topicIndexID,
 }
 
 type Migration struct {

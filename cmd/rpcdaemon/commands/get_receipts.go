@@ -5,8 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"math/big"
-
 	"github.com/RoaringBitmap/gocroaring"
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
@@ -23,10 +21,11 @@ import (
 	"github.com/ledgerwatch/turbo-geth/rpc"
 	"github.com/ledgerwatch/turbo-geth/turbo/adapter"
 	"github.com/ledgerwatch/turbo-geth/turbo/transactions"
+	"math/big"
 )
 
 func getReceipts(ctx context.Context, tx rawdb.DatabaseReader, kv ethdb.KV, chainConfig *params.ChainConfig, number uint64, hash common.Hash) (types.Receipts, error) {
-	if cached := rawdb.ReadReceipts(tx, hash, number, chainConfig); cached != nil {
+	if cached := rawdb.ReadReceipts(tx, number, chainConfig); cached != nil {
 		return cached, nil
 	}
 
@@ -59,19 +58,32 @@ func getReceipts(ctx context.Context, tx rawdb.DatabaseReader, kv ethdb.KV, chai
 // GetLogsByHash non-standard RPC that returns all logs in a block
 // TODO(tjayrush): Since this is non-standard we could rename it to GetLogsByBlockHash to be more consistent and avoid confusion
 func (api *APIImpl) GetLogsByHash(ctx context.Context, hash common.Hash) ([][]*types.Log, error) {
-	number := rawdb.ReadHeaderNumber(api.dbReader, hash)
+	tx, err := api.dbReader.Begin(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	number := rawdb.ReadHeaderNumber(tx, hash)
 	if number == nil {
 		return nil, fmt.Errorf("block not found: %x", hash)
 	}
-	genesisHash := rawdb.ReadBlockByNumber(api.dbReader, 0).Hash()
-	chainConfig := rawdb.ReadChainConfig(api.dbReader, genesisHash)
+	genesisHash := rawdb.ReadBlockByNumber(tx, 0).Hash()
+	chainConfig := rawdb.ReadChainConfig(tx, genesisHash)
 
-	receipts, err := getReceipts(ctx, api.dbReader, api.db, chainConfig, *number, hash)
+	receipts, err := getReceipts(ctx, tx, api.db, chainConfig, *number, hash)
 	if err != nil {
 		return nil, fmt.Errorf("getReceipts error: %v", err)
 	}
 	logs := make([][]*types.Log, len(receipts))
 	for i, receipt := range receipts {
+		for _, l := range receipt.Logs {
+			l.Topics, err = rawdb.ReadTopics(tx, l.TopicIds)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		logs[i] = receipt.Logs
 	}
 	return logs, nil
@@ -143,7 +155,12 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 	blockNumbers.AddRange(uint64(begin), uint64(end+1)) // [min,max)
 
 	c := tx.(ethdb.HasTx).Tx().Cursor(dbutils.LogIndex)
-	topicsBitmap, err := getTopicsBitmap(c, crit.Topics)
+	critTopicIds, err := topicsToIds(tx, crit.Topics)
+	if err != nil {
+		return returnLogs(logs), beginErr
+	}
+
+	topicsBitmap, err := getTopicsBitmap2(c, critTopicIds)
 	if err != nil {
 		return nil, err
 	}
@@ -202,8 +219,15 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 		for _, receipt := range receipts {
 			unfiltered = append(unfiltered, receipt.Logs...)
 		}
-		unfiltered = filterLogs(unfiltered, nil, nil, crit.Addresses, crit.Topics)
+		unfiltered = filterLogs2(unfiltered, nil, nil, crit.Addresses, critTopicIds)
 		logs = append(logs, unfiltered...)
+	}
+
+	for _, l := range logs {
+		l.Topics, err = rawdb.ReadTopics(tx, l.TopicIds)
+		if err != nil {
+			return returnLogs(logs), err
+		}
 	}
 
 	return returnLogs(logs), nil
@@ -247,6 +271,50 @@ func getTopicsBitmap(c ethdb.Cursor, topics [][]common.Hash) (*gocroaring.Bitmap
 	return result, nil
 }
 
+func getTopicsBitmap2(c ethdb.Cursor, topics [][]uint32) (*gocroaring.Bitmap, error) {
+	idBytes := make([]byte, 4)
+	var result *gocroaring.Bitmap
+	for _, sub := range topics {
+		var bitmapForORing *gocroaring.Bitmap
+		for _, topic := range sub {
+			binary.BigEndian.PutUint32(idBytes, topic)
+			m, err := bitmapdb.Get(c, idBytes)
+			if err != nil {
+				return nil, err
+			}
+			if bitmapForORing == nil {
+				bitmapForORing = m
+			} else {
+				bitmapForORing = gocroaring.FastOr(bitmapForORing, m)
+			}
+		}
+
+		if bitmapForORing != nil {
+			if result == nil {
+				result = bitmapForORing
+			} else {
+				result = gocroaring.And(bitmapForORing, result)
+			}
+		}
+	}
+	return result, nil
+}
+
+func topicsToIds(db ethdb.Getter, topics [][]common.Hash) ([][]uint32, error) {
+	ids := make([][]uint32, len(topics))
+	for i, sub := range topics {
+		ids[i] = make([]uint32, len(sub))
+		for j, topic := range sub {
+			var err error
+			ids[i][j], err = rawdb.ReadTopicId(db, topic)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return ids, nil
+}
+
 // NewRangeFilter creates a new filter which uses a bloom filter on blocks to
 // figure out whether a particular block is interesting or not.
 func NewRangeFilter(begin, end int64, addresses []common.Address, topics [][]common.Hash) *Filter {
@@ -280,16 +348,22 @@ func NewRangeFilter(begin, end int64, addresses []common.Address, topics [][]com
 }
 
 func (api *APIImpl) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
+	tx, err := api.dbReader.Begin(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
 	// Retrieve the transaction and assemble its EVM context
-	tx, blockHash, blockNumber, txIndex := rawdb.ReadTransaction(api.dbReader, hash)
+	txn, blockHash, blockNumber, txIndex := rawdb.ReadTransaction(tx, hash)
 	if tx == nil {
 		return nil, fmt.Errorf("transaction %#x not found", hash)
 	}
 
-	genesisHash := rawdb.ReadBlockByNumber(api.dbReader, 0).Hash()
-	chainConfig := rawdb.ReadChainConfig(api.dbReader, genesisHash)
+	genesisHash := rawdb.ReadBlockByNumber(tx, 0).Hash()
+	chainConfig := rawdb.ReadChainConfig(tx, genesisHash)
 
-	receipts, err := getReceipts(ctx, api.dbReader, api.db, chainConfig, blockNumber, blockHash)
+	receipts, err := getReceipts(ctx, tx, api.db, chainConfig, blockNumber, blockHash)
 	if err != nil {
 		return nil, fmt.Errorf("getReceipts error: %v", err)
 	}
@@ -299,14 +373,15 @@ func (api *APIImpl) GetTransactionReceipt(ctx context.Context, hash common.Hash)
 	receipt := receipts[txIndex]
 
 	var signer types.Signer = types.FrontierSigner{}
-	if tx.Protected() {
-		signer = types.NewEIP155Signer(tx.ChainID().ToBig())
+	if txn.Protected() {
+		signer = types.NewEIP155Signer(txn.ChainID().ToBig())
 	}
-	from, _ := types.Sender(signer, tx)
+	from, _ := types.Sender(signer, txn)
 
 	// Fill in the derived information in the logs
 	if receipt.Logs != nil {
 		for _, log := range receipt.Logs {
+			log.Topics, err = rawdb.ReadTopics(tx, log.TopicIds)
 			log.BlockNumber = blockNumber
 			log.TxHash = hash
 			log.TxIndex = uint(txIndex)
@@ -321,7 +396,7 @@ func (api *APIImpl) GetTransactionReceipt(ctx context.Context, hash common.Hash)
 		"transactionHash":   hash,
 		"transactionIndex":  hexutil.Uint64(txIndex),
 		"from":              from,
-		"to":                tx.To(),
+		"to":                txn.To(),
 		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
 		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
 		"contractAddress":   nil,
@@ -508,6 +583,42 @@ Logs:
 			match := len(sub) == 0 // empty rule set == wildcard
 			for _, topic := range sub {
 				if log.Topics[i] == topic {
+					match = true
+					break
+				}
+			}
+			if !match {
+				continue Logs
+			}
+		}
+		ret = append(ret, log)
+	}
+	return ret
+}
+
+// filterLogs creates a slice of logs matching the given criteria.
+func filterLogs2(logs []*types.Log, fromBlock, toBlock *big.Int, addresses []common.Address, topics [][]uint32) []*types.Log {
+	var ret []*types.Log
+Logs:
+	for _, log := range logs {
+		if fromBlock != nil && fromBlock.Int64() >= 0 && fromBlock.Uint64() > log.BlockNumber {
+			continue
+		}
+		if toBlock != nil && toBlock.Int64() >= 0 && toBlock.Uint64() < log.BlockNumber {
+			continue
+		}
+
+		if len(addresses) > 0 && !includes(addresses, log.Address) {
+			continue
+		}
+		// If the to filtered topics is greater than the amount of topics in logs, skip.
+		if len(topics) > len(log.TopicIds) {
+			continue Logs
+		}
+		for i, sub := range topics {
+			match := len(sub) == 0 // empty rule set == wildcard
+			for _, topic := range sub {
+				if log.TopicIds[i] == topic {
 					match = true
 					break
 				}

@@ -2,6 +2,7 @@ package stagedsync
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"os"
@@ -86,6 +87,11 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 	logBlock := stageProgress
 	// Warmup only works for HDD sync, and for long ranges
 	var warmup = hdd && (to-s.BlockNumber) > 30000
+	ids, err := ethdb.Ids(tx)
+	if err != nil {
+		return err
+	}
+	idBytes := make([]byte, 4)
 
 	for blockNum := stageProgress + 1; blockNum <= to; blockNum++ {
 		if err := common.Stopped(quit); err != nil {
@@ -131,8 +137,36 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 		if writeReceipts {
 			// Convert the receipts into their storage form and serialize them
 			storageReceipts := make([]*types.ReceiptForStorage, len(receipts))
-			for i, receipt := range receipts {
-				storageReceipts[i] = (*types.ReceiptForStorage)(receipt)
+			for ri, receipt := range receipts {
+				for li, l := range receipt.Logs {
+					l.TopicIds = make([]uint32, len(l.Topics))
+					for ti, topic := range l.Topics { // convert topics to topicIDs
+						id, err := batch.Get(dbutils.LogTopic2Id, topic[:])
+						if err != nil && !errors.Is(err, ethdb.ErrKeyNotFound) {
+							return err
+						}
+
+						// create topic if not exists with topicID++
+						if err != nil && errors.Is(err, ethdb.ErrKeyNotFound) {
+							ids.Topic++
+							binary.BigEndian.PutUint32(idBytes, ids.Topic)
+							storageReceipts[ri].Logs[li].TopicIds[ti] = ids.Topic
+
+							err = batch.Put(dbutils.LogTopic2Id, topic[:], common.CopyBytes(idBytes))
+							if err != nil {
+								return err
+							}
+							err = tx.Append(dbutils.LogId2Topic, common.CopyBytes(idBytes), topic[:])
+							if err != nil {
+								return err
+							}
+							continue
+						}
+
+						storageReceipts[ri].Logs[li].TopicIds[ti] = binary.BigEndian.Uint32(id)
+					}
+				}
+				storageReceipts[ri] = (*types.ReceiptForStorage)(receipt)
 			}
 			var bytes []byte
 			if bytes, err = rlp.EncodeToBytes(storageReceipts); err != nil {

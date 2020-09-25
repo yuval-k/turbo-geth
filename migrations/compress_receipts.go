@@ -17,7 +17,7 @@ import (
 )
 
 var receiptLeadingZeroes = Migration{
-	Name: "receipt_leading_zeroes_6",
+	Name: "receipt_leading_zeroes_and_topic_id",
 	Up: func(tx ethdb.DbWithPendingMutations, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
 		if exists, err := tx.(ethdb.BucketsMigrator).BucketExists(dbutils.BlockReceiptsPrefixOld1); err != nil {
 			return err
@@ -119,9 +119,56 @@ var receiptLeadingZeroes = Migration{
 			return err
 		}
 
-		//if err := tx.(ethdb.BucketsMigrator).DropBuckets(dbutils.BlockReceiptsPrefixOld1); err != nil {
-		//	return err
-		//}
+		if err := tx.(ethdb.BucketsMigrator).DropBuckets(dbutils.BlockReceiptsPrefixOld1); err != nil {
+			return err
+		}
+		return OnLoadCommit(tx, nil, true)
+	},
+}
+
+var topicIndexID = Migration{
+	Name: "topic_index_id",
+	Up: func(tx ethdb.DbWithPendingMutations, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
+		extractFunc := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
+			if len(k) != 32+2 {
+				return next(k, k, v)
+			}
+
+			topic := k[:32]
+			shardN := k[32:]
+
+			if err := next(k, k, nil); err != nil { // delete old type of keys
+				return err
+			}
+
+			id, err := tx.Get(dbutils.LogTopic2Id, topic[:])
+			if err != nil {
+				return err
+			}
+
+			newK := make([]byte, 4+2)
+			copy(newK[:4], id)
+			copy(newK[4:], shardN)
+
+			if err := next(k, newK, v); err != nil { // create new type of keys
+				return err
+			}
+
+			return nil
+		}
+
+		if err := etl.Transform(
+			tx,
+			dbutils.LogIndex,
+			dbutils.LogIndex,
+			datadir,
+			extractFunc,
+			etl.IdentityLoadFunc,
+			etl.TransformArgs{OnLoadCommit: OnLoadCommit},
+		); err != nil {
+			return err
+		}
+
 		return OnLoadCommit(tx, nil, true)
 	},
 }

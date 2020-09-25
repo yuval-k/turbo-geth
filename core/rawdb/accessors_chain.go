@@ -21,9 +21,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"math/big"
-	"time"
-
+	"github.com/golang/snappy"
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/common/debug"
@@ -31,8 +29,7 @@ import (
 	"github.com/ledgerwatch/turbo-geth/log"
 	"github.com/ledgerwatch/turbo-geth/params"
 	"github.com/ledgerwatch/turbo-geth/rlp"
-
-	"github.com/golang/snappy"
+	"math/big"
 )
 
 // ReadCanonicalHash retrieves the hash assigned to a canonical block number.
@@ -443,21 +440,6 @@ func ReadReceipts(db DatabaseReader, number uint64, config *params.ChainConfig) 
 		return nil
 	}
 
-	t := time.Now()
-	for _, r := range receipts {
-		for _, l := range r.Logs {
-			for i, id := range l.TopicIds {
-				var err error
-				l.Topics[i], err = ReadTopic(db, id)
-				if err != nil {
-					log.Error("Missing topic for id", "id", id, "err", err)
-					return nil
-				}
-			}
-		}
-	}
-	fmt.Printf("aa: %s\n", time.Since(t))
-
 	if err := receipts.DeriveFields(config, blockHash, number, body.Transactions); err != nil {
 		log.Error("Failed to derive block receipts fields", "hash", blockHash, "number", number, "err", err)
 		return nil
@@ -467,6 +449,18 @@ func ReadReceipts(db DatabaseReader, number uint64, config *params.ChainConfig) 
 
 var topicIDBytes = make([]byte, 4)
 
+func ReadTopics(db DatabaseReader, ids []uint32) ([]common.Hash, error) {
+	res := make([]common.Hash, len(ids))
+	for i, id := range ids {
+		var err error
+		res[i], err = ReadTopic(db, id)
+		if err != nil {
+			return nil, fmt.Errorf("missing topic for id=%d: %w", id, err)
+		}
+	}
+	return res, nil
+}
+
 func ReadTopic(db DatabaseReader, id uint32) (common.Hash, error) {
 	binary.BigEndian.PutUint32(topicIDBytes, id)
 	topic, err := db.Get(dbutils.LogId2Topic, topicIDBytes)
@@ -474,6 +468,14 @@ func ReadTopic(db DatabaseReader, id uint32) (common.Hash, error) {
 		return common.Hash{}, err
 	}
 	return common.BytesToHash(topic), nil
+}
+
+func ReadTopicId(db DatabaseReader, topic common.Hash) (uint32, error) {
+	id, err := db.Get(dbutils.LogTopic2Id, topic[:])
+	if err != nil {
+		return 0, err
+	}
+	return binary.BigEndian.Uint32(id), nil
 }
 
 // WriteReceipts stores all the transaction receipts belonging to a block.

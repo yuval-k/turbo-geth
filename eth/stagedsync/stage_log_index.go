@@ -60,6 +60,7 @@ func SpawnLogIndex(s *StageState, db ethdb.Database, datadir string, quit <-chan
 	receipts := tx.(ethdb.HasTx).Tx().Cursor(dbutils.BlockReceiptsPrefix)
 	checkFlushEvery := time.NewTicker(logIndicesCheckSizeEvery)
 	defer checkFlushEvery.Stop()
+	idBytes := make([]byte, 4)
 
 	for k, v, err := receipts.Seek(dbutils.EncodeBlockNumber(start)); k != nil; k, v, err = receipts.Next() {
 		if err != nil {
@@ -98,8 +99,13 @@ func SpawnLogIndex(s *StageState, db ethdb.Database, datadir string, quit <-chan
 
 		for _, receipt := range storageReceipts {
 			for _, log := range receipt.Logs {
-				for _, topic := range log.Topics {
-					topicStr := string(topic.Bytes())
+				for _, topicId := range log.TopicIds {
+					binary.BigEndian.PutUint32(idBytes, topicId)
+					topic, err := tx.Get(dbutils.LogId2Topic, idBytes)
+					if err != nil {
+						return err
+					}
+					topicStr := string(topic)
 					m, ok := indices[topicStr]
 					if !ok {
 						m = gocroaring.New()
