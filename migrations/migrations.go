@@ -64,7 +64,7 @@ var migrations = []Migration{
 	clearIndices,
 	receiptLeadingZeroes,
 	topicIndexID,
-	receiptLeadingZeroes2,
+	//receiptLeadingZeroes2,
 }
 
 type Migration struct {
