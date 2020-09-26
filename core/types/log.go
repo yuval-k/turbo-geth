@@ -66,13 +66,17 @@ type logMarshaling struct {
 
 type rlpLog struct {
 	Address common.Address
-	//Topics   []common.Hash
-	TopicIds []uint32
-	Data     []byte
+	Topics  []common.Hash
+	//TopicIds []uint32
+	Data []byte
 }
 
 // rlpStorageLog is the storage encoding of a log.
-type rlpStorageLog rlpLog
+type rlpStorageLog struct {
+	Address  common.Address
+	TopicIds []uint32
+	Data     []byte
+}
 
 // legacyRlpStorageLog is the previous storage encoding of a log including some redundant fields.
 type legacyRlpStorageLog struct {
@@ -88,7 +92,7 @@ type legacyRlpStorageLog struct {
 
 // EncodeRLP implements rlp.Encoder.
 func (l *Log) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, rlpLog{Address: l.Address, TopicIds: l.TopicIds, Data: l.Data})
+	return rlp.Encode(w, rlpLog{Address: l.Address, Topics: l.Topics, Data: l.Data})
 }
 
 // DecodeRLP implements rlp.Decoder.
@@ -96,7 +100,7 @@ func (l *Log) DecodeRLP(s *rlp.Stream) error {
 	var dec rlpLog
 	err := s.Decode(&dec)
 	if err == nil {
-		l.Address, l.TopicIds, l.Data = dec.Address, dec.TopicIds, dec.Data
+		l.Address, l.Topics, l.Data = dec.Address, dec.Topics, dec.Data
 	}
 	return err
 }

@@ -92,7 +92,6 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 	if err != nil {
 		return err
 	}
-	idBytes := make([]byte, 4)
 
 	for blockNum := stageProgress + 1; blockNum <= to; blockNum++ {
 		if err := common.Stopped(quit); err != nil {
@@ -139,32 +138,10 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 			// Convert the receipts into their storage form and serialize them
 			storageReceipts := make([]*types.ReceiptForStorage, len(receipts))
 			for ri, receipt := range receipts {
-				for li, l := range receipt.Logs {
-					l.TopicIds = make([]uint32, len(l.Topics))
-					for ti, topic := range l.Topics { // convert topics to topicIDs
-						id, err := batch.Get(dbutils.LogTopic2Id, topic[:])
-						if err != nil && !errors.Is(err, ethdb.ErrKeyNotFound) {
-							return err
-						}
-
-						// create topic if not exists with topicID++
-						if err != nil && errors.Is(err, ethdb.ErrKeyNotFound) {
-							ids.Topic++
-							binary.BigEndian.PutUint32(idBytes, ids.Topic)
-							storageReceipts[ri].Logs[li].TopicIds[ti] = ids.Topic
-
-							err = batch.Put(dbutils.LogTopic2Id, topic[:], common.CopyBytes(idBytes))
-							if err != nil {
-								return err
-							}
-							err = tx.Append(dbutils.LogId2Topic, common.CopyBytes(idBytes), topic[:])
-							if err != nil {
-								return err
-							}
-							continue
-						}
-
-						storageReceipts[ri].Logs[li].TopicIds[ti] = binary.BigEndian.Uint32(id)
+				for _, l := range receipt.Logs {
+					l.TopicIds, err = createTopics(batch, tx, ids, l.Topics)
+					if err != nil {
+						return err
 					}
 				}
 				storageReceipts[ri] = (*types.ReceiptForStorage)(receipt)
@@ -243,6 +220,37 @@ func logProgress(prev, now uint64, batch ethdb.DbWithPendingMutations) uint64 {
 		"numGC", int(m.NumGC))
 
 	return now
+}
+
+func createTopics(batch ethdb.DbWithPendingMutations, tx ethdb.DbWithPendingMutations, ids *dbutils.IDs, topics []common.Hash) ([]uint32, error) {
+	topicIDs := make([]uint32, len(topics))
+	idBytes := make([]byte, 4)
+	for ti, topic := range topics { // convert topics to topicIDs
+		id, err := batch.Get(dbutils.LogTopic2Id, topic[:])
+		if err != nil && !errors.Is(err, ethdb.ErrKeyNotFound) {
+			return nil, err
+		}
+
+		// create topic if not exists with topicID++
+		if err != nil && errors.Is(err, ethdb.ErrKeyNotFound) {
+			ids.Topic++
+			binary.BigEndian.PutUint32(idBytes, ids.Topic)
+			topicIDs[ti] = ids.Topic
+
+			err = batch.Put(dbutils.LogTopic2Id, topic[:], common.CopyBytes(idBytes))
+			if err != nil {
+				return nil, err
+			}
+			err = tx.Append(dbutils.LogId2Topic, common.CopyBytes(idBytes), topic[:])
+			if err != nil {
+				return nil, err
+			}
+			continue
+		}
+
+		topicIDs[ti] = binary.BigEndian.Uint32(id)
+	}
+	return topicIDs, nil
 }
 
 func UnwindExecutionStage(u *UnwindState, s *StageState, stateDB ethdb.Database, writeReceipts bool) error {

@@ -447,8 +447,6 @@ func ReadReceipts(db DatabaseReader, number uint64, config *params.ChainConfig) 
 	return receipts
 }
 
-var topicIDBytes = make([]byte, 4)
-
 func ReadTopics(db DatabaseReader, ids []uint32) ([]common.Hash, error) {
 	res := make([]common.Hash, len(ids))
 	for i, id := range ids {
@@ -460,6 +458,8 @@ func ReadTopics(db DatabaseReader, ids []uint32) ([]common.Hash, error) {
 	}
 	return res, nil
 }
+
+var topicIDBytes = make([]byte, 4)
 
 func ReadTopic(db DatabaseReader, id uint32) (common.Hash, error) {
 	binary.BigEndian.PutUint32(topicIDBytes, id)

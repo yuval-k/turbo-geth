@@ -70,8 +70,7 @@ func SpawnLogIndex(s *StageState, db ethdb.Database, datadir string, quit <-chan
 		if err := common.Stopped(quit); err != nil {
 			return err
 		}
-		blockNum64Bytes := k[:len(k)-32]
-		blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
+		blockNum := binary.BigEndian.Uint64(k)
 
 		select {
 		default:
