@@ -151,7 +151,7 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 				return fmt.Errorf("encode block receipts for block %d: %v", block.NumberU64(), err)
 			}
 			// Store the flattened receipt slice
-			if err = tx.Append(dbutils.BlockReceiptsPrefix, dbutils.BlockReceiptsKey(block.NumberU64()), bytes); err != nil {
+			if err = tx.Append(dbutils.BlockReceipts, dbutils.BlockReceiptsKey(block.NumberU64()), bytes); err != nil {
 				return fmt.Errorf("writing receipts for block %d: %v", block.NumberU64(), err)
 			}
 		}
@@ -343,7 +343,7 @@ func UnwindExecutionStage(u *UnwindState, s *StageState, stateDB ethdb.Database,
 		}
 
 		idBytes := make([]byte, 4)
-		if err := stateDB.Walk(dbutils.BlockReceiptsPrefix, dbutils.EncodeBlockNumber(u.UnwindPoint+1), 0, func(k, v []byte) (bool, error) {
+		if err := stateDB.Walk(dbutils.BlockReceipts, dbutils.EncodeBlockNumber(u.UnwindPoint+1), 0, func(k, v []byte) (bool, error) {
 			storageReceipts := []*types.ReceiptForStorage{}
 			if err := rlp.DecodeBytes(v, &storageReceipts); err != nil {
 				return false, fmt.Errorf("invalid receipt array RLP: %w, blockNum=%x", err, k)
@@ -383,7 +383,7 @@ func UnwindExecutionStage(u *UnwindState, s *StageState, stateDB ethdb.Database,
 					}
 				}
 			}
-			if err := batch.Delete(dbutils.BlockReceiptsPrefix, common.CopyBytes(k)); err != nil {
+			if err := batch.Delete(dbutils.BlockReceipts, common.CopyBytes(k)); err != nil {
 				return false, fmt.Errorf("unwind Execution: delete receipts: %v", err)
 			}
 			return true, nil

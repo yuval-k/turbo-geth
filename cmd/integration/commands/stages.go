@@ -313,6 +313,13 @@ func stageLogIndex(ctx context.Context) error {
 	bc, _, progress := newSync(ctx.Done(), db, db, nil)
 	defer bc.Stop()
 
+	//fmt.Printf("%s\n", dbutils.LogId2Topic)
+	//db.Walk(dbutils.LogId2Topic, nil,0, func(k, v []byte) (bool, error) {
+	//	fmt.Printf("k/v: %x %x\n", k, v)
+	//	return true, nil
+	//})
+	//return nil
+
 	if reset {
 		if err := resetLogIndex(db); err != nil {
 			return err

@@ -112,7 +112,7 @@ var (
 	HeaderNumberPrefix = "H"         // headerNumberPrefix + hash -> num (uint64 big endian)
 
 	BlockBodyPrefix         = "b"  // blockBodyPrefix + num (uint64 big endian) + hash -> block body
-	BlockReceiptsPrefix     = "r2" // blockNum_u64 -> block receipts rlp
+	BlockReceipts           = "r2" // blockNum_u64 -> block receipts rlp
 	BlockReceiptsPrefixOld1 = "r"  // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
 
 	LogId2Topic = "log_id_topic" // num (uint32 big endian) -> 32 bytes topic
@@ -206,7 +206,7 @@ var Buckets = []string{
 	HeaderPrefix,
 	HeaderNumberPrefix,
 	BlockBodyPrefix,
-	BlockReceiptsPrefix,
+	BlockReceipts,
 	TxLookupPrefix,
 	BloomBitsPrefix,
 	PreimagePrefix,
@@ -301,6 +301,12 @@ var BucketsConfigs = BucketsCfg{
 	IntermediateTrieHashBucket: {
 		Flags:               lmdb.DupSort,
 		CustomDupComparator: DupCmpSuffix32,
+	},
+	LogTopic2Id: {
+		Flags:                     lmdb.DupSort,
+		AutoDupSortKeysConversion: true,
+		DupFromLen:                32,
+		DupToLen:                  16,
 	},
 }
 

@@ -17,7 +17,7 @@ import (
 )
 
 var receiptLeadingZeroes = Migration{
-	Name: "receipt_leading_zeroes_and_topic_id",
+	Name: "receipt_leading_zeroes_and_topic_id_3",
 	Up: func(tx ethdb.DbWithPendingMutations, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
 		if exists, err := tx.(ethdb.BucketsMigrator).BucketExists(dbutils.BlockReceiptsPrefixOld1); err != nil {
 			return err
@@ -25,7 +25,7 @@ var receiptLeadingZeroes = Migration{
 			return OnLoadCommit(tx, nil, true)
 		}
 
-		if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix, dbutils.LogTopic2Id, dbutils.LogId2Topic); err != nil {
+		if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceipts, dbutils.LogTopic2Id, dbutils.LogId2Topic); err != nil {
 			return err
 		}
 
@@ -94,18 +94,18 @@ var receiptLeadingZeroes = Migration{
 				log.Crit("Failed to encode block receipts", "err", err)
 			}
 
-			if err := tx.Append(dbutils.BlockReceiptsPrefix, blockNum64Bytes, newV); err != nil {
+			if err := tx.Append(dbutils.BlockReceipts, blockNum64Bytes, newV); err != nil {
 				return false, err
 			}
 
 			select {
 			default:
 			case <-logEvery.C:
-				sz, _ := tx.(ethdb.HasTx).Tx().BucketSize(dbutils.BlockReceiptsPrefix)
+				sz, _ := tx.(ethdb.HasTx).Tx().BucketSize(dbutils.BlockReceipts)
 				sz1, _ := tx.(ethdb.HasTx).Tx().BucketSize(dbutils.LogTopic2Id)
 				sz2, _ := tx.(ethdb.HasTx).Tx().BucketSize(dbutils.LogId2Topic)
 				log.Info("Progress", "blockNum", blockNum,
-					dbutils.BlockReceiptsPrefix, common.StorageSize(sz),
+					dbutils.BlockReceipts, common.StorageSize(sz),
 					dbutils.LogTopic2Id, common.StorageSize(sz1),
 					dbutils.LogId2Topic, common.StorageSize(sz2),
 				)

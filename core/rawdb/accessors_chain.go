@@ -376,7 +376,7 @@ func DeleteTd(db DatabaseDeleter, hash common.Hash, number uint64) {
 // HasReceipts verifies the existence of all the transaction receipts belonging
 // to a block.
 func HasReceipts(db DatabaseReader, number uint64) bool {
-	if has, err := db.Has(dbutils.BlockReceiptsPrefix, dbutils.BlockReceiptsKey(number)); !has || err != nil {
+	if has, err := db.Has(dbutils.BlockReceipts, dbutils.BlockReceiptsKey(number)); !has || err != nil {
 		return false
 	}
 	return true
@@ -387,7 +387,7 @@ func ReadReceiptsRLP(db DatabaseReader, number uint64) rlp.RawValue {
 	data := []byte{}
 	//data, _ := db.Ancient(freezerReceiptTable, number)
 	if len(data) == 0 {
-		data, _ = db.Get(dbutils.BlockReceiptsPrefix, dbutils.BlockReceiptsKey(number))
+		data, _ = db.Get(dbutils.BlockReceipts, dbutils.BlockReceiptsKey(number))
 		// In the background freezer is moving data from leveldb to flatten files.
 		// So during the first check for ancient db, the data is not yet in there,
 		// but when we reach into leveldb, the data was already moved. That would
@@ -404,7 +404,7 @@ func ReadReceiptsRLP(db DatabaseReader, number uint64) rlp.RawValue {
 // should not be used. Use ReadReceipts instead if the metadata is needed.
 func ReadRawReceipts(db DatabaseReader, number uint64) types.Receipts {
 	// Retrieve the flattened receipt slice
-	data, _ := db.Get(dbutils.BlockReceiptsPrefix, dbutils.BlockReceiptsKey(number))
+	data, _ := db.Get(dbutils.BlockReceipts, dbutils.BlockReceiptsKey(number))
 	if len(data) == 0 {
 		return nil
 	}
@@ -491,14 +491,14 @@ func WriteReceipts(db DatabaseWriter, number uint64, receipts types.Receipts) {
 		log.Crit("Failed to encode block receipts", "err", err)
 	}
 	// Store the flattened receipt slice
-	if err := db.Put(dbutils.BlockReceiptsPrefix, dbutils.BlockReceiptsKey(number), bytes); err != nil {
+	if err := db.Put(dbutils.BlockReceipts, dbutils.BlockReceiptsKey(number), bytes); err != nil {
 		log.Crit("Failed to store block receipts", "err", err)
 	}
 }
 
 // DeleteReceipts removes all receipt data associated with a block hash.
 func DeleteReceipts(db DatabaseDeleter, number uint64) {
-	if err := db.Delete(dbutils.BlockReceiptsPrefix, dbutils.BlockReceiptsKey(number)); err != nil {
+	if err := db.Delete(dbutils.BlockReceipts, dbutils.BlockReceiptsKey(number)); err != nil {
 		log.Crit("Failed to delete block receipts", "err", err)
 	}
 }

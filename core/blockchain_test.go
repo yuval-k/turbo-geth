@@ -1647,7 +1647,7 @@ func doModesTest(history, preimages, receipts, txlookup bool) error {
 	for bucketName, shouldBeEmpty := range map[string]bool{
 		dbutils.AccountsHistoryBucket: !history,
 		dbutils.PreimagePrefix:        !preimages,
-		dbutils.BlockReceiptsPrefix:   !receipts,
+		dbutils.BlockReceipts:         !receipts,
 		dbutils.TxLookupPrefix:        !txlookup,
 	} {
 		numberOfEntries := 0
@@ -1666,7 +1666,7 @@ func doModesTest(history, preimages, receipts, txlookup bool) error {
 			return err
 		}
 
-		if bucketName == string(dbutils.BlockReceiptsPrefix) {
+		if bucketName == string(dbutils.BlockReceipts) {
 			// we will always have a receipt for genesis
 			numberOfEntries--
 		}

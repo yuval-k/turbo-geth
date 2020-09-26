@@ -57,7 +57,7 @@ func SpawnLogIndex(s *StageState, db ethdb.Database, datadir string, quit <-chan
 
 	indices := map[string]*gocroaring.Bitmap{}
 	logIndexCursor := tx.(ethdb.HasTx).Tx().Cursor(dbutils.LogIndex)
-	receipts := tx.(ethdb.HasTx).Tx().Cursor(dbutils.BlockReceiptsPrefix)
+	receipts := tx.(ethdb.HasTx).Tx().Cursor(dbutils.BlockReceipts)
 	checkFlushEvery := time.NewTicker(logIndicesCheckSizeEvery)
 	defer checkFlushEvery.Stop()
 	idBytes := make([]byte, 4)
@@ -154,7 +154,7 @@ func UnwindLogIndex(u *UnwindState, s *StageState, db ethdb.Database, quitCh <-c
 	logsIndexKeys := map[string]bool{}
 	logIndexCursor := tx.(ethdb.HasTx).Tx().Cursor(dbutils.LogIndex)
 
-	receipts := tx.(ethdb.HasTx).Tx().Cursor(dbutils.BlockReceiptsPrefix)
+	receipts := tx.(ethdb.HasTx).Tx().Cursor(dbutils.BlockReceipts)
 	start := dbutils.EncodeBlockNumber(u.UnwindPoint + 1)
 	for k, v, err := receipts.Seek(start); k != nil; k, v, err = receipts.Next() {
 		if err != nil {
