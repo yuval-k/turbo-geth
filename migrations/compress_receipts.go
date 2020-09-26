@@ -122,6 +122,48 @@ var receiptLeadingZeroes = Migration{
 	},
 }
 
+var receiptLeadingZeroes2 = Migration{
+	Name: "_receipt_leading_zeroes_and_topic_id_9",
+	Up: func(tx ethdb.DbWithPendingMutations, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
+		logEvery := time.NewTicker(30 * time.Second)
+		defer logEvery.Stop()
+
+		if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.LogTopic2Id, dbutils.LogId2Topic); err != nil {
+			return err
+		}
+
+		extractFunc := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
+			return next(k, k, v)
+		}
+
+		if err := etl.Transform(
+			tx,
+			dbutils.LogTopic2IdOld2,
+			dbutils.LogTopic2Id,
+			datadir,
+			extractFunc,
+			etl.IdentityLoadFunc,
+			etl.TransformArgs{},
+		); err != nil {
+			return err
+		}
+
+		if err := etl.Transform(
+			tx,
+			dbutils.LogId2TopicOld2,
+			dbutils.LogId2Topic,
+			datadir,
+			extractFunc,
+			etl.IdentityLoadFunc,
+			etl.TransformArgs{},
+		); err != nil {
+			return err
+		}
+
+		return OnLoadCommit(tx, nil, true)
+	},
+}
+
 var topicIndexID = Migration{
 	Name: "topic_index_id",
 	Up: func(tx ethdb.DbWithPendingMutations, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
@@ -153,7 +195,7 @@ var topicIndexID = Migration{
 			return nil
 		}
 
-		if err := etl.Transform(
+		return etl.Transform(
 			tx,
 			dbutils.LogIndex,
 			dbutils.LogIndex,
@@ -161,10 +203,6 @@ var topicIndexID = Migration{
 			extractFunc,
 			etl.IdentityLoadFunc,
 			etl.TransformArgs{OnLoadCommit: OnLoadCommit},
-		); err != nil {
-			return err
-		}
-
-		return OnLoadCommit(tx, nil, true)
+		)
 	},
 }

@@ -115,8 +115,11 @@ var (
 	BlockReceipts           = "r2" // blockNum_u64 -> block receipts rlp
 	BlockReceiptsPrefixOld1 = "r"  // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
 
-	LogId2Topic = "log_id_topic" // num (uint32 big endian) -> 32 bytes topic
-	LogTopic2Id = "log_topic_id" // 32 bytes topic -> num (uint32 big endian)
+	LogId2Topic = "log_id_topic_2" // num (uint32 big endian) -> 32 bytes topic
+	LogTopic2Id = "log_topic_id_2" // 32 bytes topic -> num (uint32 big endian)
+
+	LogId2TopicOld2 = "log_id_topic" // num (uint32 big endian) -> 32 bytes topic
+	LogTopic2IdOld2 = "log_topic_id" // 32 bytes topic -> num (uint32 big endian)
 
 	// Stores bitmap indices - in which block numbers saw logs of given 'address' or 'topic'
 	// [addr or topicId] + [2 bytes inverted shard number] -> bitmap(blockN)
@@ -242,6 +245,8 @@ var DeprecatedBuckets = []string{
 	PlainStateBucketOld1,
 	IntermediateTrieHashBucketOld1,
 	BlockReceiptsPrefixOld1,
+	LogId2TopicOld2,
+	LogTopic2IdOld2,
 }
 
 type CustomComparator string
@@ -306,8 +311,8 @@ var BucketsConfigs = BucketsCfg{
 		Flags:                     lmdb.DupSort | lmdb.DupFixed,
 		AutoDupSortKeysConversion: true,
 		DupFromLen:                32,
-		DupToLen:                  16,
-		DupFixedSize:              20,
+		DupToLen:                  8,
+		DupFixedSize:              28,
 	},
 }
 
