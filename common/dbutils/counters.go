@@ -8,13 +8,14 @@ import (
 
 const KeyIDs = "ids"
 
-// Store id of last inserted entity to db - increment before use
+// IDs - store id of last inserted entity to db - increment before use
 type IDs struct {
 	Topic uint32
 }
 
 const KeyAggregates = "aggregates"
 
+// Aggregates - store some statistical aggregates of data: for example min/max of values in some bucket
 type Aggregates struct {
 }
 

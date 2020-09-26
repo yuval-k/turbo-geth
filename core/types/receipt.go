@@ -180,7 +180,7 @@ func (r *ReceiptForStorage) EncodeRLP(w io.Writer) error {
 		Logs:              make([]*LogForStorage, len(r.Logs)),
 	}
 	for i, log := range r.Logs {
-		log.Data = leadingZeroEncode(log.Data)
+		//log.Data = leadingZeroEncode(log.Data)
 		enc.Logs[i] = (*LogForStorage)(log)
 	}
 	return rlp.Encode(w, enc)
@@ -204,7 +204,7 @@ func (r *ReceiptForStorage) DecodeRLP(s *rlp.Stream) error {
 	r.CumulativeGasUsed = stored.CumulativeGasUsed
 	r.Logs = make([]*Log, len(stored.Logs))
 	for i, log := range stored.Logs {
-		log.Data = leadingZeroDecode(log.Data)
+		//log.Data = leadingZeroDecode(log.Data)
 		r.Logs[i] = (*Log)(log)
 	}
 	//r.Bloom = CreateBloom(Receipts{(*Receipt)(r)})

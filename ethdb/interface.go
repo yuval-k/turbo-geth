@@ -153,10 +153,10 @@ type DbWithPendingMutations interface {
 	//  - get data from db
 	//  - unmarshal into provided pointer
 	// 	- on commit - marshal and put to db
-	// second parameter should be pointer, method returns variable of same type as passed in parameter
-	// don't use variable which you pass to second parameter, use variable which returns this method
-	// it allows internal caching and make sure that all callers will receive same pointer during transaction
-	//
+	// Second parameter should be pointer, method returns variable of same type as passed in parameter.
+	// Don't use variable which you pass to second parameter, use variable which returns this method.
+	// It allows internal caching and make sure that all callers will receive same pointer during transaction.
+	// Multiple calls of this func with same key will return same pointer.
 	//
 	// It's generic method - please write your own typed wrapper to use in app code. For example:
 	// ids, err := ethdb.Ids(tx)

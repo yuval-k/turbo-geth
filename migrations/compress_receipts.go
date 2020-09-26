@@ -136,6 +136,10 @@ var receiptLeadingZeroes2 = Migration{
 			return next(k, k, v)
 		}
 
+		extractFunc2 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
+			return next(k, k, v)
+		}
+
 		if err := etl.Transform(
 			tx,
 			dbutils.LogTopic2IdOld2,
@@ -153,7 +157,7 @@ var receiptLeadingZeroes2 = Migration{
 			dbutils.LogId2TopicOld2,
 			dbutils.LogId2Topic,
 			datadir,
-			extractFunc,
+			extractFunc2,
 			etl.IdentityLoadFunc,
 			etl.TransformArgs{},
 		); err != nil {
