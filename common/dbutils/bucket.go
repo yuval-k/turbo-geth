@@ -303,10 +303,11 @@ var BucketsConfigs = BucketsCfg{
 		CustomDupComparator: DupCmpSuffix32,
 	},
 	LogTopic2Id: {
-		Flags:                     lmdb.DupSort,
+		Flags:                     lmdb.DupSort | lmdb.DupFixed,
 		AutoDupSortKeysConversion: true,
 		DupFromLen:                32,
 		DupToLen:                  16,
+		DupFixedSize:              20,
 	},
 }
 
