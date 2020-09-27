@@ -2,8 +2,6 @@ package commands
 
 import (
 	"context"
-	"fmt"
-	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"runtime"
 	"time"
 
@@ -315,17 +313,17 @@ func stageLogIndex(ctx context.Context) error {
 	bc, _, progress := newSync(ctx.Done(), db, db, nil)
 	defer bc.Stop()
 
-	unique := map[string]bool{}
-	fmt.Printf("%s\n", dbutils.LogId2Topic)
-
-	db.Walk(dbutils.LogId2Topic, nil, 0, func(k, v []byte) (bool, error) {
-		if _, ok := unique[string(k)]; ok {
-			panic("duplicate")
-		}
-		unique[string(k)] = true
-		return true, nil
-	})
-	return nil
+	//unique := map[string]bool{}
+	//fmt.Printf("%s\n", dbutils.LogId2Topic)
+	//
+	//db.Walk(dbutils.LogId2Topic, nil, 0, func(k, v []byte) (bool, error) {
+	//	if _, ok := unique[string(k)]; ok {
+	//		panic("duplicate")
+	//	}
+	//	unique[string(k)] = true
+	//	return true, nil
+	//})
+	//return nil
 
 	//db.Walk(dbutils.BlockReceipts, nil, 0, func(k, v []byte) (bool, error) {
 	//	blockNum64Bytes := k
