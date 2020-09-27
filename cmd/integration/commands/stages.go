@@ -319,7 +319,6 @@ func stageLogIndex(ctx context.Context) error {
 	fmt.Printf("%s\n", dbutils.LogId2Topic)
 
 	db.Walk(dbutils.LogId2Topic, nil, 0, func(k, v []byte) (bool, error) {
-		fmt.Printf("k/v: %x %x\n", k, v)
 		if _, ok := unique[string(k)]; ok {
 			panic("duplicate")
 		}
