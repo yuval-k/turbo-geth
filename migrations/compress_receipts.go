@@ -19,16 +19,6 @@ import (
 var receiptLeadingZeroes = Migration{
 	Name: "receipt_leading_zeroes_and_topic_id_5",
 	Up: func(tx ethdb.DbWithPendingMutations, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
-		unique := map[string]bool{}
-		fmt.Printf("%s\n", dbutils.LogId2Topic)
-		tx.Walk(dbutils.LogId2Topic, nil, 0, func(k, v []byte) (bool, error) {
-			if _, ok := unique[string(k)]; ok {
-				panic("duplicate")
-			}
-			unique[string(k)] = true
-			return true, nil
-		})
-		panic(1)
 		if exists, err := tx.(ethdb.BucketsMigrator).BucketExists(dbutils.BlockReceiptsPrefixOld1); err != nil {
 			return err
 		} else if !exists {
@@ -130,52 +120,6 @@ var receiptLeadingZeroes = Migration{
 		//if err := tx.(ethdb.BucketsMigrator).DropBuckets(dbutils.BlockReceiptsPrefixOld1); err != nil {
 		//	return err
 		//}
-		return OnLoadCommit(tx, nil, true)
-	},
-}
-
-var receiptLeadingZeroes2 = Migration{
-	Name: "_receipt_leading_zeroes_and_topic_id_9",
-	Up: func(tx ethdb.DbWithPendingMutations, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
-		logEvery := time.NewTicker(30 * time.Second)
-		defer logEvery.Stop()
-
-		if err := tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.LogTopic2Id, dbutils.LogId2Topic); err != nil {
-			return err
-		}
-
-		extractFunc := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
-			return next(k, k, v)
-		}
-
-		extractFunc2 := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
-			return next(k, k, v)
-		}
-
-		if err := etl.Transform(
-			tx,
-			dbutils.LogTopic2IdOld2,
-			dbutils.LogTopic2Id,
-			datadir,
-			extractFunc,
-			etl.IdentityLoadFunc,
-			etl.TransformArgs{},
-		); err != nil {
-			return err
-		}
-
-		if err := etl.Transform(
-			tx,
-			dbutils.LogId2TopicOld2,
-			dbutils.LogId2Topic,
-			datadir,
-			extractFunc2,
-			etl.IdentityLoadFunc,
-			etl.TransformArgs{},
-		); err != nil {
-			return err
-		}
-
 		return OnLoadCommit(tx, nil, true)
 	},
 }
