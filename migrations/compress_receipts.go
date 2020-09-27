@@ -19,6 +19,16 @@ import (
 var receiptLeadingZeroes = Migration{
 	Name: "receipt_leading_zeroes_and_topic_id_5",
 	Up: func(tx ethdb.DbWithPendingMutations, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
+		unique := map[string]bool{}
+		fmt.Printf("%s\n", dbutils.LogId2Topic)
+		tx.Walk(dbutils.LogId2Topic, nil, 0, func(k, v []byte) (bool, error) {
+			if _, ok := unique[string(k)]; ok {
+				panic("duplicate")
+			}
+			unique[string(k)] = true
+			return true, nil
+		})
+		panic(1)
 		if exists, err := tx.(ethdb.BucketsMigrator).BucketExists(dbutils.BlockReceiptsPrefixOld1); err != nil {
 			return err
 		} else if !exists {
