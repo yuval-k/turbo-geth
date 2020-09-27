@@ -33,11 +33,11 @@ var receiptLeadingZeroes = Migration{
 		defer logEvery.Stop()
 
 		ids, err := ethdb.Ids(tx)
-		ids.Topic = 0 // Important! to reset topicID counter
-
 		if err != nil {
 			return err
 		}
+		ids.Topic = 0 // Important! to reset topicID counter
+
 		iBytes := make([]byte, 4)
 		if err := tx.Walk(dbutils.BlockReceiptsPrefixOld1, nil, 0, func(k, v []byte) (bool, error) {
 			blockHashBytes := k[len(k)-32:]
