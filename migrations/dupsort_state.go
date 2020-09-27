@@ -123,7 +123,7 @@ var dupSortIH = Migration{
 
 var clearIndices = Migration{
 	Name: "clear_indices2",
-	Up: func(db ethdb.Database, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
+	Up: func(db ethdb.DbWithPendingMutations, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
 		if err := db.(ethdb.BucketsMigrator).ClearBuckets(dbutils.LogIndex); err != nil {
 			return err
 		}
