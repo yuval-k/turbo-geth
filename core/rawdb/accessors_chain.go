@@ -466,6 +466,7 @@ func ReadTopic(db DatabaseReader, id uint32) (common.Hash, error) {
 	binary.BigEndian.PutUint32(topicIDBytes, id)
 	topic, err := db.Get(dbutils.LogId2Topic, topicIDBytes)
 	if err != nil {
+		fmt.Printf("1: %d %x %s\n", id, topic, err)
 		return common.Hash{}, err
 	}
 	return common.BytesToHash(topic), nil

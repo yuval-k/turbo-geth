@@ -2,11 +2,8 @@ package commands
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
-	"github.com/ledgerwatch/turbo-geth/core/types"
-	"github.com/ledgerwatch/turbo-geth/rlp"
 	"runtime"
 	"time"
 
@@ -318,41 +315,42 @@ func stageLogIndex(ctx context.Context) error {
 	bc, _, progress := newSync(ctx.Done(), db, db, nil)
 	defer bc.Stop()
 
-	db.Walk(dbutils.BlockReceipts, nil, 0, func(k, v []byte) (bool, error) {
-		blockNum64Bytes := k
-		blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
+	unique := map[string]bool{}
+	fmt.Printf("%s\n", dbutils.LogId2Topic)
 
-		// Decode the receipts by legacy data type
-		receipts := []*types.ReceiptForStorage{}
-		if err := rlp.DecodeBytes(v, &receipts); err != nil {
-			return false, fmt.Errorf("invalid receipt array RLP: %w, blockNum=%d", err, blockNum)
+	db.Walk(dbutils.LogId2Topic, nil, 0, func(k, v []byte) (bool, error) {
+		fmt.Printf("k/v: %x %x\n", k, v)
+		if _, ok := unique[string(k)]; ok {
+			panic("duplicate")
 		}
-
-		print := false
-		if len(v) > 10_000 {
-			print = true
-		}
-		for _, r := range receipts {
-			for _, l := range r.Logs {
-				if print {
-					fmt.Printf("1: %d: %x %x\n", blockNum, r.ContractAddress, r.PostState)
-					fmt.Printf("2: %x, %x\n", l.Address, l.Data)
-					fmt.Printf("3: %d\n", l.TopicIds)
-				}
-			}
-		}
+		unique[string(k)] = true
 		return true, nil
 	})
 	return nil
-	//unique := map[string]bool{}
-	//fmt.Printf("%s\n", dbutils.LogId2Topic)
+
+	//db.Walk(dbutils.BlockReceipts, nil, 0, func(k, v []byte) (bool, error) {
+	//	blockNum64Bytes := k
+	//	blockNum := binary.BigEndian.Uint64(blockNum64Bytes)
 	//
-	//db.Walk(dbutils.LogId2Topic, nil, 0, func(k, v []byte) (bool, error) {
-	//	fmt.Printf("k/v: %x %x\n", k, v)
-	//	if _, ok := unique[string(k)]; ok {
-	//		panic("duplicate")
+	//	// Decode the receipts by legacy data type
+	//	receipts := []*types.ReceiptForStorage{}
+	//	if err := rlp.DecodeBytes(v, &receipts); err != nil {
+	//		return false, fmt.Errorf("invalid receipt array RLP: %w, blockNum=%d", err, blockNum)
 	//	}
-	//	unique[string(k)] = true
+	//
+	//	print := false
+	//	if len(v) > 10_000 {
+	//		print = true
+	//	}
+	//	for _, r := range receipts {
+	//		for _, l := range r.Logs {
+	//			if print {
+	//				fmt.Printf("1: %d: %x %x\n", blockNum, r.ContractAddress, r.PostState)
+	//				fmt.Printf("2: %x, %x\n", l.Address, l.Data)
+	//				fmt.Printf("3: %d\n", l.TopicIds)
+	//			}
+	//		}
+	//	}
 	//	return true, nil
 	//})
 	//return nil
