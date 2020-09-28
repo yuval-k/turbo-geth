@@ -137,7 +137,6 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 		if writeReceipts {
 			for _, receipt := range receipts {
 				for _, l := range receipt.Logs {
-					var err error
 					l.TopicIds, err = createTopics(batch, tx, ids, l.Topics)
 					if err != nil {
 						return err

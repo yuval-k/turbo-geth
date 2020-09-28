@@ -156,7 +156,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 
 	critTopicIds, err := topicsToIds(tx, crit.Topics)
 	if err != nil {
-		return returnLogs(logs), beginErr
+		return returnLogs(logs), err
 	}
 
 	topicsBitmap, err := getTopicsBitmap2(tx.(ethdb.HasTx).Tx().Cursor(dbutils.LogTopicIndex), critTopicIds)
@@ -174,9 +174,9 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 	logAddrIndex := tx.(ethdb.HasTx).Tx().Cursor(dbutils.LogAddressIndex)
 	var addrBitmap *gocroaring.Bitmap
 	for _, addr := range crit.Addresses {
-		m, err := bitmapdb.Get(logAddrIndex, addr[:])
-		if err != nil {
-			return nil, err
+		m, errGet := bitmapdb.Get(logAddrIndex, addr[:])
+		if errGet != nil {
+			return nil, errGet
 		}
 		if addrBitmap == nil {
 			addrBitmap = m
@@ -207,9 +207,9 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 			return returnLogs(logs), fmt.Errorf("block not found %d", uint64(blockNToMatch))
 		}
 
-		receipts, err := getReceipts(ctx, tx, api.db, uint64(blockNToMatch), blockHash)
-		if err != nil {
-			return returnLogs(logs), err
+		receipts, errGet := getReceipts(ctx, tx, api.db, uint64(blockNToMatch), blockHash)
+		if errGet != nil {
+			return returnLogs(logs), errGet
 		}
 
 		unfiltered := make([]*types.Log, 0, len(receipts))
@@ -376,6 +376,9 @@ func (api *APIImpl) GetTransactionReceipt(ctx context.Context, hash common.Hash)
 	if receipt.Logs != nil {
 		for _, log := range receipt.Logs {
 			log.Topics, err = rawdb.ReadTopics(tx, log.TopicIds)
+			if err != nil {
+				return nil, err
+			}
 			log.BlockNumber = blockNumber
 			log.TxHash = hash
 			log.TxIndex = uint(txIndex)
