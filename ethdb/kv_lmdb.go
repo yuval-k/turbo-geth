@@ -836,6 +836,11 @@ func (c *LmdbCursor) Next() (k, v []byte, err error) {
 		}
 	}
 
+	b := c.bucketCfg
+	if b.AutoDupSortKeysConversion {
+		return c.nextDupSort()
+	}
+
 	k, v, err = c.next()
 	if err != nil {
 		if lmdb.IsNotFound(err) {
@@ -844,9 +849,30 @@ func (c *LmdbCursor) Next() (k, v []byte, err error) {
 		return []byte{}, nil, fmt.Errorf("failed LmdbKV cursor.Next(): %w", err)
 	}
 
+	if c.prefix != nil && !bytes.HasPrefix(k, c.prefix) {
+		k, v = nil, nil
+	}
+
+	return k, v, nil
+}
+
+func (c *LmdbCursor) nextDupSort() (k, v []byte, err error) {
 	b := c.bucketCfg
-	if b.AutoDupSortKeysConversion && len(k) == b.DupToLen {
-		keyPart := b.DupFromLen - b.DupToLen
+	from, to := b.DupFromLen, b.DupToLen
+	k, v, err = c.nextDup()
+	if err != nil && lmdb.IsNotFound(err) {
+		k, v, err = c.nextNoDup()
+		if err != nil {
+			if lmdb.IsNotFound(err) {
+				return nil, nil, nil
+			}
+			return []byte{}, nil, fmt.Errorf("failed LmdbKV cursor.Next(): %w", err)
+		}
+	} else if err != nil {
+		return []byte{}, nil, err
+	}
+	if len(k) == to {
+		keyPart := from - to
 		k = append(k, v[:keyPart]...)
 		v = v[keyPart:]
 	}
