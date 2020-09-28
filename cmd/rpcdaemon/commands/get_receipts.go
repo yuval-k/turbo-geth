@@ -297,7 +297,7 @@ func getTopicsBitmap2(c ethdb.Cursor, topics [][]uint32) (*gocroaring.Bitmap, er
 	return result, nil
 }
 
-func topicsToIds(db ethdb.Getter, topics [][]common.Hash) ([][]uint32, error) {
+func topicsToIds(db rawdb.DatabaseReader, topics [][]common.Hash) ([][]uint32, error) {
 	ids := make([][]uint32, len(topics))
 	for i, sub := range topics {
 		ids[i] = make([]uint32, len(sub))
