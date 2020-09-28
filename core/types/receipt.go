@@ -294,7 +294,7 @@ func (r *DeprecatedReceiptForStorage1) DecodeRLP(s *rlp.Stream) error {
 }
 
 // 1st byte stores amount of leading zeroes - it's db-level detail, don't return it to user
-func leadingZeroEncode(in []byte) []byte { // nolint:deadcode
+func leadingZeroEncode(in []byte) []byte { // nolint:deadcode,unused
 	if len(in) == 0 {
 		return in
 	}
@@ -319,7 +319,7 @@ func leadingZeroEncode(in []byte) []byte { // nolint:deadcode
 }
 
 // 1st byte stores amount of leading zeroes - it's db-level detail, don't return it to user
-func leadingZeroDecode(in []byte) []byte { // nolint:deadcode
+func leadingZeroDecode(in []byte) []byte { // nolint:deadcode,unused
 	if len(in) == 0 {
 		return in
 	}
