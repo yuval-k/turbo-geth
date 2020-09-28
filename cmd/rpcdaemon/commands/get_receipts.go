@@ -3,7 +3,6 @@ package commands
 import (
 	"context"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"math/big"
 
@@ -20,7 +19,6 @@ import (
 	"github.com/ledgerwatch/turbo-geth/ethdb"
 	"github.com/ledgerwatch/turbo-geth/ethdb/bitmapdb"
 	"github.com/ledgerwatch/turbo-geth/params"
-	"github.com/ledgerwatch/turbo-geth/rpc"
 	"github.com/ledgerwatch/turbo-geth/turbo/adapter"
 	"github.com/ledgerwatch/turbo-geth/turbo/transactions"
 )
@@ -159,7 +157,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 		return returnLogs(logs), err
 	}
 
-	topicsBitmap, err := getTopicsBitmap2(tx.(ethdb.HasTx).Tx().Cursor(dbutils.LogTopicIndex), critTopicIds)
+	topicsBitmap, err := getTopicsBitmap(tx.(ethdb.HasTx).Tx().Cursor(dbutils.LogTopicIndex), critTopicIds)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +214,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 		for _, receipt := range receipts {
 			unfiltered = append(unfiltered, receipt.Logs...)
 		}
-		unfiltered = filterLogs(unfiltered, nil, nil, crit.Addresses, crit.Topics)
+		unfiltered = filterLogs(unfiltered, nil, nil, crit.Addresses, critTopicIds)
 		logs = append(logs, unfiltered...)
 	}
 
@@ -241,34 +239,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 // {{}, {B}}          matches any topic in first position AND B in second position
 // {{A}, {B}}         matches topic A in first position AND B in second position
 // {{A, B}, {C, D}}   matches topic (A OR B) in first position AND (C OR D) in second position
-func getTopicsBitmap(c ethdb.Cursor, topics [][]common.Hash) (*gocroaring.Bitmap, error) {
-	var result *gocroaring.Bitmap
-	for _, sub := range topics {
-		var bitmapForORing *gocroaring.Bitmap
-		for _, topic := range sub {
-			m, err := bitmapdb.Get(c, topic[:])
-			if err != nil {
-				return nil, err
-			}
-			if bitmapForORing == nil {
-				bitmapForORing = m
-			} else {
-				bitmapForORing = gocroaring.FastOr(bitmapForORing, m)
-			}
-		}
-
-		if bitmapForORing != nil {
-			if result == nil {
-				result = bitmapForORing
-			} else {
-				result = gocroaring.And(bitmapForORing, result)
-			}
-		}
-	}
-	return result, nil
-}
-
-func getTopicsBitmap2(c ethdb.Cursor, topics [][]uint32) (*gocroaring.Bitmap, error) {
+func getTopicsBitmap(c ethdb.Cursor, topics [][]uint32) (*gocroaring.Bitmap, error) {
 	idBytes := make([]byte, 4)
 	var result *gocroaring.Bitmap
 	for _, sub := range topics {
@@ -417,140 +388,6 @@ func (api *APIImpl) GetTransactionReceipt(ctx context.Context, hash common.Hash)
 	return fields, nil
 }
 
-// Logs searches the blockchain for matching log entries, returning all from the
-// first block that contains matches, updating the start of the filter accordingly.
-func (f *Filter) Logs(ctx context.Context, api *APIImpl) ([]*types.Log, error) {
-	// If we're doing singleton block filtering, execute and return
-	if f.block != (common.Hash{}) {
-		header, err := api.GetHeaderByHash(ctx, f.block)
-		if err != nil {
-			return nil, err
-		}
-		if header == nil {
-			return nil, errors.New("unknown block")
-		}
-		return f.blockLogs(ctx, header, api)
-	}
-
-	// Figure out the limits of the filter range
-	latest, err := getLatestBlockNumber(api.dbReader)
-	if err != nil {
-		return nil, err
-	}
-
-	if f.begin == -1 {
-		f.begin = int64(latest)
-	}
-	end := uint64(f.end)
-	if f.end == -1 {
-		end = latest
-	}
-
-	if api.ethBackend == nil {
-		// We're running in --chaindata mode or otherwise cannot get the backend
-		return nil, fmt.Errorf(NotAvailableChainData, "eth_getLogs")
-	}
-
-	// Gather all indexed logs, and finish with non indexed ones
-	var logs []*types.Log
-	size, sections, _ := api.ethBackend.BloomStatus()
-
-	if indexed := sections * size; indexed > uint64(f.begin) {
-		if indexed > end {
-			logs, err = f.indexedLogs(ctx, end, api)
-		} else {
-			logs, err = f.indexedLogs(ctx, indexed-1, api)
-		}
-		if err != nil {
-			return logs, err
-		}
-	}
-	rest, err := f.unindexedLogs(ctx, end, api)
-	logs = append(logs, rest...)
-	return logs, err
-}
-
-// indexedLogs returns the logs matching the filter criteria based on the bloom
-// bits indexed available locally or via the network.
-func (f *Filter) indexedLogs(ctx context.Context, end uint64, api *APIImpl) ([]*types.Log, error) {
-	// Iterate over the matches until exhausted or context closed
-	var logs []*types.Log
-
-	for num := f.begin; num < int64(end)+1; num++ {
-		// Retrieve the suggested block and pull any truly matching logs
-		header, err := api.GetHeaderByNumber(ctx, rpc.BlockNumber(num))
-		if header == nil || err != nil {
-			return logs, err
-		}
-		found, err := f.checkMatches(ctx, header, api)
-		if err != nil {
-			return logs, err
-		}
-		logs = append(logs, found...)
-	}
-
-	return logs, nil
-}
-
-// unindexedLogs returns the logs matching the filter criteria based on raw block
-// iteration and bloom matching.
-func (f *Filter) unindexedLogs(ctx context.Context, end uint64, api *APIImpl) ([]*types.Log, error) {
-	var logs []*types.Log
-
-	for ; f.begin <= int64(end); f.begin++ {
-		header, err := api.GetHeaderByNumber(ctx, rpc.BlockNumber(f.begin))
-		if header == nil || err != nil {
-			return logs, err
-		}
-		found, err := f.blockLogs(ctx, header, api)
-		if err != nil {
-			return logs, err
-		}
-		logs = append(logs, found...)
-	}
-	return logs, nil
-}
-
-// blockLogs returns the logs matching the filter criteria within a single block.
-func (f *Filter) blockLogs(ctx context.Context, header *types.Header, api *APIImpl) (logs []*types.Log, err error) {
-	if bloomFilter(header.Bloom, f.addresses, f.topics) {
-		found, err := f.checkMatches(ctx, header, api)
-		if err != nil {
-			return logs, err
-		}
-		logs = append(logs, found...)
-	}
-	return logs, nil
-}
-
-// checkMatches checks if the receipts belonging to the given header contain any log events that
-// match the filter criteria. This function is called when the bloom filter signals a potential match.
-func (f *Filter) checkMatches(ctx context.Context, header *types.Header, api *APIImpl) (logs []*types.Log, err error) {
-	// Get the logs of the block
-	logsList, err := api.GetLogsByHash(ctx, header.Hash())
-	if err != nil {
-		return nil, err
-	}
-	unfiltered := make([]*types.Log, 0, len(logsList))
-	for _, logs := range logsList {
-		unfiltered = append(unfiltered, logs...)
-	}
-	logs = filterLogs(unfiltered, nil, nil, f.addresses, f.topics)
-	if len(logs) > 0 {
-		// We have matching logs, check if we need to resolve full logs via the light client
-		if logs[0].TxHash == (common.Hash{}) {
-			receipts := rawdb.ReadReceipts(api.dbReader, header.Number.Uint64())
-			unfiltered = unfiltered[:0]
-			for _, receipt := range receipts {
-				unfiltered = append(unfiltered, receipt.Logs...)
-			}
-			logs = filterLogs(unfiltered, nil, nil, f.addresses, f.topics)
-		}
-		return logs, nil
-	}
-	return nil, nil
-}
-
 func includes(addresses []common.Address, a common.Address) bool {
 	for _, addr := range addresses {
 		if addr == a {
@@ -562,43 +399,7 @@ func includes(addresses []common.Address, a common.Address) bool {
 }
 
 // filterLogs creates a slice of logs matching the given criteria.
-func filterLogs(logs []*types.Log, fromBlock, toBlock *big.Int, addresses []common.Address, topics [][]common.Hash) []*types.Log {
-	var ret []*types.Log
-Logs:
-	for _, log := range logs {
-		if fromBlock != nil && fromBlock.Int64() >= 0 && fromBlock.Uint64() > log.BlockNumber {
-			continue
-		}
-		if toBlock != nil && toBlock.Int64() >= 0 && toBlock.Uint64() < log.BlockNumber {
-			continue
-		}
-
-		if len(addresses) > 0 && !includes(addresses, log.Address) {
-			continue
-		}
-		// If the to filtered topics is greater than the amount of topics in logs, skip.
-		if len(topics) > len(log.Topics) {
-			continue Logs
-		}
-		for i, sub := range topics {
-			match := len(sub) == 0 // empty rule set == wildcard
-			for _, topic := range sub {
-				if log.Topics[i] == topic {
-					match = true
-					break
-				}
-			}
-			if !match {
-				continue Logs
-			}
-		}
-		ret = append(ret, log)
-	}
-	return ret
-}
-
-// filterLogs creates a slice of logs matching the given criteria.
-func filterLogs2(logs []*types.Log, fromBlock, toBlock *big.Int, addresses []common.Address, topics [][]uint32) []*types.Log {
+func filterLogs(logs []*types.Log, fromBlock, toBlock *big.Int, addresses []common.Address, topics [][]uint32) []*types.Log {
 	var ret []*types.Log
 Logs:
 	for _, log := range logs {
@@ -631,35 +432,6 @@ Logs:
 		ret = append(ret, log)
 	}
 	return ret
-}
-
-func bloomFilter(bloom types.Bloom, addresses []common.Address, topics [][]common.Hash) bool {
-	if len(addresses) > 0 {
-		var included bool
-		for _, addr := range addresses {
-			if types.BloomLookup(bloom, addr) {
-				included = true
-				break
-			}
-		}
-		if !included {
-			return false
-		}
-	}
-
-	for _, sub := range topics {
-		included := len(sub) == 0 // empty rule set == wildcard
-		for _, topic := range sub {
-			if types.BloomLookup(bloom, topic) {
-				included = true
-				break
-			}
-		}
-		if !included {
-			return false
-		}
-	}
-	return true
 }
 
 func returnLogs(logs []*types.Log) []*types.Log {
