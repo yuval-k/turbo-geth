@@ -767,9 +767,22 @@ func (c *IHCursor) _seek(seek []byte) (k, v []byte, err error) {
 
 	return c._next()
 }
+func (c *IHCursor) _forward() (k, v []byte, err error) {
+	k, v, err = c.c.NextDup()
+	if err != nil {
+		return []byte{}, nil, err
+	}
+	if k == nil {
+		k, v, err = c.c.NextNoDup()
+		if err != nil {
+			return []byte{}, nil, err
+		}
+	}
+	return k, v, nil
+}
 
 func (c *IHCursor) _next() (k, v []byte, err error) {
-	k, v, err = c.c.Next()
+	k, v, err = c._forward()
 	if err != nil {
 		return []byte{}, nil, err
 	}
@@ -793,7 +806,7 @@ func (c *IHCursor) _next() (k, v []byte, err error) {
 			return []byte{}, nil, err
 		}
 
-		k, v, err = c.c.Next()
+		k, v, err = c._forward()
 		if err != nil {
 			return []byte{}, nil, err
 		}
