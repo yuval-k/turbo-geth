@@ -47,7 +47,7 @@ require (
 	github.com/karalabe/usb v0.0.0-20190919080040-51dc0efba356
 	github.com/kevinburke/go-bindata v3.21.0+incompatible
 	github.com/kylelemons/godebug v1.1.0 // indirect
-	github.com/ledgerwatch/lmdb-go v1.15.1-0.20200929065641-870b35b2e5aa
+	github.com/ledgerwatch/lmdb-go v1.15.1-0.20200929070603-66286bc87501
 	github.com/llgcode/draw2d v0.0.0-20180825133448-f52c8a71aff0
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mattn/go-colorable v0.1.2
