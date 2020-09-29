@@ -109,7 +109,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 	blockNumbers := gocroaring.New()
 	blockNumbers.AddRange(begin, end+1) // [min,max)
 
-	topicsBitmap, err := getTopicsBitmap(tx.(ethdb.HasTx).Tx().Cursor(dbutils.LogTopicIndex), crit.Topics)
+	topicsBitmap, err := getTopicsBitmap(tx.(ethdb.HasTx).Tx().Cursor(dbutils.LogTopicIndex), crit.Topics, uint32(begin), uint32(end))
 	if err != nil {
 		return nil, err
 	}
@@ -117,6 +117,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 		if blockNumbers == nil {
 			blockNumbers = topicsBitmap
 		} else {
+			fmt.Printf("topicsBitmap: %d\n", topicsBitmap.Cardinality())
 			blockNumbers.And(topicsBitmap)
 		}
 	}
@@ -124,7 +125,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 	logAddrIndex := tx.(ethdb.HasTx).Tx().Cursor(dbutils.LogAddressIndex)
 	var addrBitmap *gocroaring.Bitmap
 	for _, addr := range crit.Addresses {
-		m, err := bitmapdb.Get(logAddrIndex, addr[:])
+		m, err := bitmapdb.Get2(logAddrIndex, addr[:], uint32(begin), uint32(end))
 		if err != nil {
 			return nil, err
 		}
@@ -139,6 +140,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 		if blockNumbers == nil {
 			blockNumbers = addrBitmap
 		} else {
+			fmt.Printf("addrBitmap: %d\n", addrBitmap.Cardinality())
 			blockNumbers.And(addrBitmap)
 		}
 	}
@@ -178,12 +180,12 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 // {{}, {B}}          matches any topic in first position AND B in second position
 // {{A}, {B}}         matches topic A in first position AND B in second position
 // {{A, B}, {C, D}}   matches topic (A OR B) in first position AND (C OR D) in second position
-func getTopicsBitmap(c ethdb.Cursor, topics [][]common.Hash) (*gocroaring.Bitmap, error) {
+func getTopicsBitmap(c ethdb.Cursor, topics [][]common.Hash, from, to uint32) (*gocroaring.Bitmap, error) {
 	var result *gocroaring.Bitmap
 	for _, sub := range topics {
 		var bitmapForORing *gocroaring.Bitmap
 		for _, topic := range sub {
-			m, err := bitmapdb.Get(c, topic[:])
+			m, err := bitmapdb.Get2(c, topic[:], from, to)
 			if err != nil {
 				return nil, err
 			}

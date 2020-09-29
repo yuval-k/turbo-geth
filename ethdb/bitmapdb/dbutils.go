@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-
 	"github.com/RoaringBitmap/gocroaring"
 	"github.com/c2h5oh/datasize"
 	"github.com/ledgerwatch/turbo-geth/common"
@@ -180,6 +179,240 @@ func Get(c ethdb.Cursor, key []byte) (*gocroaring.Bitmap, error) {
 			return nil, err
 		}
 		shards = append(shards, bm)
+	}
+
+	if len(shards) == 0 {
+		return gocroaring.New(), nil
+	}
+	return gocroaring.FastOr(shards...), nil
+}
+
+//const ShardLimit = 4 * datasize.KB
+const ShardLimit = 7 * datasize.KB
+
+var blockNBytes = make([]byte, 4)
+var lastShardNum = common.FromHex("ffffffff")
+var f = common.FromHex("374f3a049e006f36f6cf91b02a3b0ee16c858af2f75858733eb0e927b5b7126c")
+
+func AppendMergeByOr2(c ethdb.Cursor, key []byte, delta *gocroaring.Bitmap) error {
+	lastShardKey := make([]byte, len(key)+4)
+	copy(lastShardKey, key)
+	copy(lastShardKey[len(lastShardKey)-4:], lastShardNum)
+
+	currentLastV, seekErr := c.SeekExact(lastShardKey)
+	if seekErr != nil {
+		return seekErr
+	}
+
+	if bytes.HasPrefix(key, f) {
+		fmt.Printf("Did put! %x\n", key)
+	}
+	if currentLastV == nil { // no existing shards, then just create one
+		err := writeBitmapSharded(c, key, delta)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	last, err := gocroaring.Read(currentLastV)
+	if err != nil {
+		return err
+	}
+
+	if len(currentLastV) < int(ShardLimit) { // merge delta to last shard
+		delta = gocroaring.Or(delta, last)
+
+		if bytes.HasPrefix(lastShardKey, f) {
+			fmt.Printf("Del! %x\n", lastShardKey)
+		}
+
+		if err := c.Delete(lastShardKey); err != nil {
+			return err
+		}
+
+		err = writeBitmapSharded(c, key, delta)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	// rename existing last shard and create new last shard
+	max := last.Maximum()
+	binary.BigEndian.PutUint32(blockNBytes, max)
+	if err := c.Put(append(common.CopyBytes(key), blockNBytes...), currentLastV); err != nil {
+		return err
+	}
+	if bytes.HasPrefix(lastShardKey, f) {
+		fmt.Printf("Del! %x\n", lastShardKey)
+	}
+	if err := c.Delete(lastShardKey); err != nil {
+		return err
+	}
+
+	err = writeBitmapSharded(c, key, delta)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func writeBitmapSharded(c ethdb.Cursor, key []byte, delta *gocroaring.Bitmap) error {
+	shardKey := make([]byte, len(key)+4)
+	copy(shardKey, key)
+	//copy(shardKey[len(shardKey)-4:], lastShardNum)
+	sz := delta.SerializedSizeInBytes()
+	if sz > int(ShardLimit) {
+		step := (delta.Maximum() - delta.Minimum()) / uint32(sz/int(ShardLimit))
+		step = step / 2
+		shard, tmp := gocroaring.New(), gocroaring.New() // shard will write to db, tmp will use to add data to shard
+		for delta.Cardinality() > 0 {
+			from := uint64(delta.Minimum())
+			to := from + uint64(step)
+			tmp.Clear()
+			tmp.AddRange(from, to)
+			tmp.And(delta)
+			shard.Or(tmp)
+			delta.RemoveRange(from, to)
+			if shard.SerializedSizeInBytes() >= int(ShardLimit) {
+				newV := make([]byte, shard.SerializedSizeInBytes())
+				err := shard.Write(newV)
+				if err != nil {
+					return err
+				}
+				if delta.Cardinality() > 0 {
+					binary.BigEndian.PutUint32(shardKey[len(shardKey)-4:], shard.Maximum())
+				} else {
+					binary.BigEndian.PutUint32(shardKey[len(shardKey)-4:], ^uint32(0))
+				}
+				err = c.Put(common.CopyBytes(shardKey), newV)
+				if err != nil {
+					return err
+				}
+				shard.Clear()
+			}
+		}
+		return nil
+	}
+
+	newV := make([]byte, delta.SerializedSizeInBytes())
+	err := delta.Write(newV)
+	if err != nil {
+		return err
+	}
+	binary.BigEndian.PutUint32(shardKey[len(shardKey)-4:], ^uint32(0))
+	err = c.Put(common.CopyBytes(shardKey), newV)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// TruncateRange - gets existing bitmap in db and call RemoveRange operator on it.
+// starts from hot shard, stops when shard not overlap with [from-to)
+// !Important: [from, to)
+func TruncateRange2(c ethdb.Cursor, key []byte, from, to uint64) error {
+	updated := 0
+
+	lastShardKey := make([]byte, len(key)+4)
+	copy(lastShardKey, key)
+	copy(lastShardKey[len(lastShardKey)-4:], lastShardNum)
+
+	for k, v, err := c.Seek(lastShardKey); k != nil; k, v, err = c.Prev() {
+		if err != nil {
+			return err
+		}
+
+		if !bytes.HasPrefix(k, key) {
+			break
+		}
+
+		if uint64(binary.BigEndian.Uint32(k[len(k)-4:])) < from {
+			break
+		}
+
+		bm, err := gocroaring.Read(v)
+		if err != nil {
+			return err
+		}
+		noReasonToCheckPrevShard := uint64(bm.Minimum()) <= from
+
+		updated++
+		bm.RemoveRange(from, to)
+		if bm.GetCardinality() == 0 { // don't store empty bitmaps
+			err = c.DeleteCurrent()
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		bm.RunOptimize()
+		newV := make([]byte, bm.SerializedSizeInBytes())
+		err = bm.Write(newV)
+		if err != nil {
+			return err
+		}
+		err = c.Put(common.CopyBytes(k), newV)
+		if err != nil {
+			return err
+		}
+
+		if noReasonToCheckPrevShard {
+			break
+		}
+	}
+
+	// rename last shard
+	k, v, err := c.Current()
+	if err != nil {
+		return err
+	}
+	if !bytes.HasPrefix(k, key) {
+		return nil
+	}
+
+	err = c.DeleteCurrent()
+	if err != nil {
+		return err
+	}
+	err = c.Put(lastShardKey, v)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func Get2(c ethdb.Cursor, key []byte, from, to uint32) (*gocroaring.Bitmap, error) {
+	var shards []*gocroaring.Bitmap
+
+	fromKey := make([]byte, len(key)+4)
+	copy(fromKey, key)
+	binary.BigEndian.PutUint32(fromKey[len(fromKey)-4:], from)
+	fmt.Printf("get2: %x\n", key)
+	for k, v, err := c.Seek(fromKey); k != nil; k, v, err = c.Next() {
+		if err != nil {
+			return nil, err
+		}
+
+		fmt.Printf("get2 seek: %x %d\n", k, len(v))
+		if !bytes.HasPrefix(k, key) {
+			break
+		}
+
+		bm, err := gocroaring.Read(v)
+		if err != nil {
+			return nil, err
+		}
+		shards = append(shards, bm)
+
+		fmt.Printf("get2 check: %d %d\n", binary.BigEndian.Uint32(k[len(k)-4:]), to)
+		if binary.BigEndian.Uint32(k[len(k)-4:]) > to {
+			break
+		}
 	}
 
 	if len(shards) == 0 {
