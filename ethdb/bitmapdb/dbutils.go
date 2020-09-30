@@ -188,7 +188,7 @@ func Get(c ethdb.Cursor, key []byte) (*gocroaring.Bitmap, error) {
 }
 
 //const ShardLimit = 4 * datasize.KB
-const ShardLimit = 7 * datasize.KB
+const ShardLimit = 3 * datasize.KB
 
 var blockNBytes = make([]byte, 4)
 
