@@ -4,14 +4,31 @@
 POST localhost:8545
 Content-Type: application/json
 
-{ "jsonrpc": "2.0", "method": "eth_syncing", "params": [], "id":1}
+{
+  "jsonrpc": "2.0",
+  "method": "eth_syncing",
+  "params": [],
+  "id": 1
+}
 
 ###
 
 POST localhost:8545
 Content-Type: application/json
 
-{ "jsonrpc": "2.0", "method": "debug_accountRange", "params": ["0x1e8480", "", 256, false, false, false], "id":1}
+{
+  "jsonrpc": "2.0",
+  "method": "debug_accountRange",
+  "params": [
+    "0x1e8480",
+    "",
+    256,
+    false,
+    false,
+    false
+  ],
+  "id": 1
+}
 
 ###
 
@@ -34,7 +51,15 @@ Content-Type: application/json
 POST localhost:8545
 Content-Type: application/json
 
-{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0xf4240",true],"id":2}
+{
+  "jsonrpc": "2.0",
+  "method": "eth_getBlockByNumber",
+  "params": [
+    "0xf4240",
+    true
+  ],
+  "id": 2
+}
 
 ###
 
@@ -53,6 +78,7 @@ Content-Type: application/json
   ],
   "id": 537758
 }
+
 ### > 60
 
 ### >20
@@ -71,7 +97,9 @@ Content-Type: application/json
 {
   "jsonrpc": "2.0",
   "method": "eth_getTransactionReceipt",
-  "params": ["0xc05ce241bec59900356ede868d170bc01d743c3cd5ecb129ca99596593022771"],
+  "params": [
+    "0xc05ce241bec59900356ede868d170bc01d743c3cd5ecb129ca99596593022771"
+  ],
   "id": 537758
 }
 
@@ -97,3 +125,28 @@ Content-Type: application/json
   ],
   "id": 537758
 }
+
+###
+
+POST localhost:8545
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "method": "eth_getLogs",
+  "params": [
+    {
+      "address": "0x197E90f9FAD81970bA7976f33CbD77088E5D7cf7",
+      "fromBlock": "0x9743Bd",
+      "toBlock": "0xA743Be",
+      "topics": [
+        null,
+        null,
+        null,
+        "0x0000000000000000000000000000000000000000000000000000000000000000"
+      ]
+    }
+  ],
+  "id": 537758
+}
+

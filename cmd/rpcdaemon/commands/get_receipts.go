@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/RoaringBitmap/gocroaring"
 	"github.com/ledgerwatch/turbo-geth/common"
@@ -109,7 +110,8 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 	blockNumbers := gocroaring.New()
 	blockNumbers.AddRange(begin, end+1) // [min,max)
 
-	topicsBitmap, err := getTopicsBitmap(tx.(ethdb.HasTx).Tx().Cursor(dbutils.LogTopicIndex), crit.Topics, uint32(begin), uint32(end))
+	t := time.Now()
+	topicsBitmap, err := getTopicsBitmap(tx.(ethdb.HasTx).Tx().Cursor(dbutils.LogTopicIndex).Prefetch(1), crit.Topics, uint32(begin), uint32(end))
 	if err != nil {
 		return nil, err
 	}
@@ -121,6 +123,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 			blockNumbers.And(topicsBitmap)
 		}
 	}
+	fmt.Printf("t1: %s\n", time.Since(t))
 
 	logAddrIndex := tx.(ethdb.HasTx).Tx().Cursor(dbutils.LogAddressIndex)
 	var addrBitmap *gocroaring.Bitmap
@@ -145,6 +148,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 		}
 	}
 
+	fmt.Printf("res: %d\n", blockNumbers.Cardinality())
 	if blockNumbers.Cardinality() == 0 {
 		return returnLogs(logs), nil
 	}

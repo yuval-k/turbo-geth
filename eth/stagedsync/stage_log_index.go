@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	logIndicesMemLimit       = 512 * datasize.MB
+	logIndicesMemLimit       = 5 * datasize.MB
 	logIndicesCheckSizeEvery = 30 * time.Second
 )
 
@@ -106,15 +106,18 @@ func promoteLogIndex(tx ethdb.DbWithPendingMutations, start uint64, quit <-chan 
 			runtime.ReadMemStats(&m)
 			log.Info("Progress", "blockNum", blockNum, dbutils.LogTopicIndex, common.StorageSize(sz), dbutils.LogAddressIndex, common.StorageSize(sz2), "alloc", common.StorageSize(m.Alloc), "sys", common.StorageSize(m.Sys))
 		case <-checkFlushEvery.C:
-			if err := flushBitmaps(logTopicIndexCursor, topics); err != nil {
-				return err
+			if needFlush(topics, logIndicesMemLimit) {
+				if err := flushBitmaps(logTopicIndexCursor, topics); err != nil {
+					return err
+				}
 			}
 
-			topics = map[string]*gocroaring.Bitmap{}
-			if err := flushBitmaps(logAddrIndexCursor, addresses); err != nil {
-				return err
+			if needFlush(addresses, logIndicesMemLimit) {
+				topics = map[string]*gocroaring.Bitmap{}
+				if err := flushBitmaps(logAddrIndexCursor, addresses); err != nil {
+					return err
+				}
 			}
-
 			addresses = map[string]*gocroaring.Bitmap{}
 		}
 
@@ -228,13 +231,13 @@ func unwindLogIndex(tx ethdb.Database, from, to uint64, quitCh <-chan struct{}) 
 	return nil
 }
 
-func needFlush(bitmaps map[string]*gocroaring.Bitmap, singleLimit datasize.ByteSize) bool {
+func needFlush(bitmaps map[string]*gocroaring.Bitmap, memLimit datasize.ByteSize) bool {
+	sz := uint64(0)
 	for _, m := range bitmaps {
-		if m.SerializedSizeInBytes() > int(singleLimit) {
-			return true
-		}
+		sz += uint64(m.SerializedSizeInBytes())
 	}
-	return false
+	const memoryNeedsForKey = 32 * 2 // each key stored in RAM: as string ang slice of bytes
+	return uint64(len(bitmaps)*memoryNeedsForKey)+sz > uint64(memLimit)
 }
 
 func flushBitmaps(c ethdb.Cursor, inMem map[string]*gocroaring.Bitmap) error {
