@@ -250,7 +250,7 @@ func flushBitmaps(c ethdb.Cursor, inMem map[string]*gocroaring.Bitmap) error {
 
 	for _, k := range keys {
 		b := inMem[k]
-		if err := bitmapdb.AppendMergeByOr2(c, []byte(k), b); err != nil {
+		if err := bitmapdb.AppendMergeByOr(c, []byte(k), b); err != nil {
 			return err
 		}
 	}
@@ -265,7 +265,7 @@ func truncateBitmaps(c ethdb.Cursor, inMem map[string]bool, from, to uint64) err
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		if err := bitmapdb.TruncateRange2(c, []byte(k), from, to); err != nil {
+		if err := bitmapdb.TruncateRange(c, []byte(k), from, to); err != nil {
 			return nil
 		}
 	}

@@ -128,7 +128,7 @@ func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([
 	logAddrIndex := tx.(ethdb.HasTx).Tx().Cursor(dbutils.LogAddressIndex)
 	var addrBitmap *gocroaring.Bitmap
 	for _, addr := range crit.Addresses {
-		m, err := bitmapdb.Get2(logAddrIndex, addr[:], uint32(begin), uint32(end))
+		m, err := bitmapdb.Get(logAddrIndex, addr[:], uint32(begin), uint32(end))
 		if err != nil {
 			return nil, err
 		}
@@ -189,7 +189,7 @@ func getTopicsBitmap(c ethdb.Cursor, topics [][]common.Hash, from, to uint32) (*
 	for _, sub := range topics {
 		var bitmapForORing *gocroaring.Bitmap
 		for _, topic := range sub {
-			m, err := bitmapdb.Get2(c, topic[:], from, to)
+			m, err := bitmapdb.Get(c, topic[:], from, to)
 			if err != nil {
 				return nil, err
 			}
