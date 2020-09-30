@@ -85,10 +85,10 @@ func TestSharding2(t *testing.T) {
 	{
 		k := []byte{1}
 		// Write/Read large bitmap works expected
-		for i := uint32(0); i < 3_000_000; i += 5_000 {
+		for i := uint32(0); i < 3_000_000; i += 1_000_000 {
 			bm1 := gocroaring.New()
-			for j := i; j < i+5_000; j += 2 {
-				bm1.Add(j)
+			for j := i; j < i+1_000_000; j += 20 {
+				bm1.AddRange(uint64(j), uint64(j+10))
 			}
 			err := bitmapdb.AppendMergeByOr2(c, k, bm1)
 			require.NoError(t, err)
@@ -97,11 +97,12 @@ func TestSharding2(t *testing.T) {
 		fromDb, err := bitmapdb.Get2(c, k, 0, 10_000_000)
 		require.NoError(t, err)
 		expect := gocroaring.New()
-		for i := uint32(0); i < 3_000_000; i += 5_000 {
-			for j := i; j < i+5_000; j += 2 {
-				expect.Add(j)
+		for i := uint32(0); i < 3_000_000; i += 1_000_000 {
+			for j := i; j < i+1_000_000; j += 20 {
+				expect.AddRange(uint64(j), uint64(j+10))
 			}
 		}
+
 		expect.Xor(fromDb)
 		require.Equal(t, 0, int(expect.GetCardinality()))
 
@@ -113,9 +114,9 @@ func TestSharding2(t *testing.T) {
 		require.NoError(t, err)
 
 		expect = gocroaring.New()
-		for i := uint32(0); i < 2_000_000; i += 100_000 {
-			for j := uint32(0); j < i+100_000; j += 2 {
-				expect.Add(j)
+		for i := uint32(0); i < 2_000_000; i += 1_000_000 {
+			for j := i; j < i+1_000_000; j += 20 {
+				expect.AddRange(uint64(j), uint64(j+10))
 			}
 		}
 		expect.Xor(fromDb)

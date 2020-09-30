@@ -188,7 +188,7 @@ func Get(c ethdb.Cursor, key []byte) (*gocroaring.Bitmap, error) {
 }
 
 //const ShardLimit = 4 * datasize.KB
-const ShardLimit = 3 * datasize.KB
+const ShardLimit = 7 * datasize.KB
 
 var blockNBytes = make([]byte, 4)
 
@@ -263,6 +263,7 @@ func writeBitmapSharded(c ethdb.Cursor, key []byte, delta *gocroaring.Bitmap) er
 		shardsAmount = 1
 	}
 	step := (delta.Maximum() - delta.Minimum()) / shardsAmount
+	step = step / 16
 	shard, tmp := gocroaring.New(), gocroaring.New() // shard will write to db, tmp will use to add data to shard
 	for delta.Cardinality() > 0 {
 		from := uint64(delta.Minimum())
@@ -271,18 +272,19 @@ func writeBitmapSharded(c ethdb.Cursor, key []byte, delta *gocroaring.Bitmap) er
 		tmp.AddRange(from, to)
 		tmp.And(delta)
 		shard.Or(tmp)
+		shard.RunOptimize()
 		delta.RemoveRange(from, to)
+		if delta.Cardinality() == 0 {
+			break
+		}
 		if shard.SerializedSizeInBytes() >= int(ShardLimit) {
 			newV := make([]byte, shard.SerializedSizeInBytes())
 			err := shard.Write(newV)
 			if err != nil {
 				return err
 			}
-			if delta.Cardinality() > 0 {
-				binary.BigEndian.PutUint32(shardKey[len(shardKey)-4:], shard.Maximum())
-			} else {
-				binary.BigEndian.PutUint32(shardKey[len(shardKey)-4:], ^uint32(0))
-			}
+			binary.BigEndian.PutUint32(shardKey[len(shardKey)-4:], shard.Maximum())
+
 			err = c.Put(common.CopyBytes(shardKey), newV)
 			if err != nil {
 				return err
@@ -290,6 +292,21 @@ func writeBitmapSharded(c ethdb.Cursor, key []byte, delta *gocroaring.Bitmap) er
 			shard.Clear()
 		}
 	}
+
+	if shard.SerializedSizeInBytes() > 0 {
+		newV := make([]byte, shard.SerializedSizeInBytes())
+		err := shard.Write(newV)
+		if err != nil {
+			return err
+		}
+		binary.BigEndian.PutUint32(shardKey[len(shardKey)-4:], ^uint32(0))
+		err = c.Put(common.CopyBytes(shardKey), newV)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
 	return nil
 }
 
@@ -297,13 +314,11 @@ func writeBitmapSharded(c ethdb.Cursor, key []byte, delta *gocroaring.Bitmap) er
 // starts from hot shard, stops when shard not overlap with [from-to)
 // !Important: [from, to)
 func TruncateRange2(c ethdb.Cursor, key []byte, from, to uint64) error {
-	updated := 0
+	shardKey := make([]byte, len(key)+4)
+	copy(shardKey, key)
+	binary.BigEndian.PutUint32(shardKey[len(shardKey)-4:], uint32(from))
 
-	lastShardKey := make([]byte, len(key)+4)
-	copy(lastShardKey, key)
-	binary.BigEndian.PutUint32(lastShardKey[len(lastShardKey)-4:], ^uint32(0))
-
-	for k, v, err := c.Seek(lastShardKey); k != nil; k, v, err = c.Prev() {
+	for k, v, err := c.Seek(shardKey); k != nil; k, v, err = c.Next() {
 		if err != nil {
 			return err
 		}
@@ -312,22 +327,20 @@ func TruncateRange2(c ethdb.Cursor, key []byte, from, to uint64) error {
 			break
 		}
 
-		if uint64(binary.BigEndian.Uint32(k[len(k)-4:])) < from {
-			break
-		}
-
 		bm, err := gocroaring.Read(v)
 		if err != nil {
 			return err
 		}
-		noReasonToCheckPrevShard := uint64(bm.Minimum()) <= from
+		noReasonToCheckNextShard := (uint64(bm.Minimum()) <= from && uint64(bm.Maximum()) >= to) || binary.BigEndian.Uint32(k[len(k)-4:]) == ^uint32(0)
 
-		updated++
 		bm.RemoveRange(from, to)
 		if bm.GetCardinality() == 0 { // don't store empty bitmaps
 			err = c.DeleteCurrent()
 			if err != nil {
 				return err
+			}
+			if noReasonToCheckNextShard {
+				break
 			}
 			continue
 		}
@@ -343,7 +356,7 @@ func TruncateRange2(c ethdb.Cursor, key []byte, from, to uint64) error {
 			return err
 		}
 
-		if noReasonToCheckPrevShard {
+		if noReasonToCheckNextShard {
 			break
 		}
 	}
@@ -353,15 +366,28 @@ func TruncateRange2(c ethdb.Cursor, key []byte, from, to uint64) error {
 	if err != nil {
 		return err
 	}
+	if k == nil { // if last shard was deleted, do 1 step back
+		k, v, err = c.Prev()
+		if err != nil {
+			return err
+		}
+	}
+
+	if binary.BigEndian.Uint32(k[len(k)-4:]) == ^uint32(0) { // nothing to return
+		return nil
+	}
 	if !bytes.HasPrefix(k, key) {
 		return nil
 	}
 
+	copyV := common.CopyBytes(v)
 	err = c.DeleteCurrent()
 	if err != nil {
 		return err
 	}
-	err = c.Put(lastShardKey, v)
+
+	binary.BigEndian.PutUint32(shardKey[len(shardKey)-4:], ^uint32(0))
+	err = c.Put(shardKey, copyV)
 	if err != nil {
 		return err
 	}
