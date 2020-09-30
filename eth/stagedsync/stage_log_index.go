@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	logIndicesMemLimit       = 5 * datasize.MB
+	logIndicesMemLimit       = 15 * datasize.MB
 	logIndicesCheckSizeEvery = 30 * time.Second
 )
 

@@ -191,8 +191,6 @@ func Get(c ethdb.Cursor, key []byte) (*gocroaring.Bitmap, error) {
 const ShardLimit = 7 * datasize.KB
 
 var blockNBytes = make([]byte, 4)
-var lastShardNum = common.FromHex("ffffffff")
-var f = common.FromHex("374f3a049e006f36f6cf91b02a3b0ee16c858af2f75858733eb0e927b5b7126c")
 
 func AppendMergeByOr2(c ethdb.Cursor, key []byte, delta *gocroaring.Bitmap) error {
 	lastShardKey := make([]byte, len(key)+4)
@@ -204,9 +202,6 @@ func AppendMergeByOr2(c ethdb.Cursor, key []byte, delta *gocroaring.Bitmap) erro
 		return seekErr
 	}
 
-	if bytes.HasPrefix(key, f) {
-		fmt.Printf("Did put! %x %d %d\n", key, delta.Cardinality(), delta.ToArray())
-	}
 	if currentLastV == nil { // no existing shards, then just create one
 		err := writeBitmapSharded(c, key, delta)
 		if err != nil {
@@ -256,22 +251,18 @@ func writeBitmapSharded(c ethdb.Cursor, key []byte, delta *gocroaring.Bitmap) er
 			return err
 		}
 		binary.BigEndian.PutUint32(shardKey[len(shardKey)-4:], ^uint32(0))
-		if bytes.HasPrefix(key, f) {
-			fmt.Printf("Put! %x\n", shardKey)
-		}
 		err = c.Put(common.CopyBytes(shardKey), newV)
 		if err != nil {
 			return err
 		}
+		return nil
 	}
 
 	shardsAmount := uint32(sz / int(ShardLimit))
 	if shardsAmount == 0 {
-		fmt.Printf("%d %d\n ", sz, int(ShardLimit))
 		shardsAmount = 1
 	}
 	step := (delta.Maximum() - delta.Minimum()) / shardsAmount
-	fmt.Printf("step: %d\n ", step)
 	shard, tmp := gocroaring.New(), gocroaring.New() // shard will write to db, tmp will use to add data to shard
 	for delta.Cardinality() > 0 {
 		from := uint64(delta.Minimum())
@@ -291,9 +282,6 @@ func writeBitmapSharded(c ethdb.Cursor, key []byte, delta *gocroaring.Bitmap) er
 				binary.BigEndian.PutUint32(shardKey[len(shardKey)-4:], shard.Maximum())
 			} else {
 				binary.BigEndian.PutUint32(shardKey[len(shardKey)-4:], ^uint32(0))
-			}
-			if bytes.HasPrefix(key, f) {
-				fmt.Printf("Put! %x\n", shardKey)
 			}
 			err = c.Put(common.CopyBytes(shardKey), newV)
 			if err != nil {
