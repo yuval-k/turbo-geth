@@ -129,7 +129,7 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 		}
 
 		if writeReceipts {
-			if err = appendReceipts(tx, receipts, block.NumberU64(), block.Hash()); err != nil {
+			if err = appendReceipts(tx, receipts, block.NumberU64()); err != nil {
 				return err
 			}
 		}
@@ -200,14 +200,14 @@ func logProgress(prev, now uint64, batch ethdb.DbWithPendingMutations) uint64 {
 	return now
 }
 
-func appendReceipts(tx ethdb.DbWithPendingMutations, receipts types.Receipts, blockNumber uint64, blockHash common.Hash) error {
+func appendReceipts(tx ethdb.DbWithPendingMutations, receipts types.Receipts, blockNumber uint64) error {
 	newV := make([]byte, 0, 1024)
 	err := cbor.Marshal(&newV, receipts)
 	if err != nil {
 		return fmt.Errorf("encode block receipts for block %d: %v", blockNumber, err)
 	}
 	// Store the flattened receipt slice
-	if err = tx.Append(dbutils.BlockReceiptsPrefix, dbutils.BlockReceiptsKey(blockNumber, blockHash), newV); err != nil {
+	if err = tx.Append(dbutils.BlockReceiptsPrefix, dbutils.BlockReceiptsKey(blockNumber), newV); err != nil {
 		return fmt.Errorf("writing receipts for block %d: %v", blockNumber, err)
 	}
 	return nil

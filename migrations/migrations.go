@@ -64,11 +64,13 @@ var migrations = []Migration{
 	clearIndices,
 	resetIHBucketToRecoverDB,
 	receiptsCborEncode,
+	receiptsTopicNormalForm,
+	topicIndexID,
 }
 
 type Migration struct {
 	Name string
-	Up   func(db ethdb.Database, dataDir string, OnLoadCommit etl.LoadCommitHandler) error
+	Up   func(db ethdb.DbWithPendingMutations, dataDir string, OnLoadCommit etl.LoadCommitHandler) error
 }
 
 var (

@@ -33,7 +33,8 @@ type Log struct {
 	// address of the contract that generated the event
 	Address common.Address `json:"address" gencodec:"required" codec:"1"`
 	// list of topics provided by the contract.
-	Topics []common.Hash `json:"topics" gencodec:"required" codec:"2"`
+	Topics   []common.Hash `json:"topics" gencodec:"required" codec:"-"`
+	TopicIds []uint64      `json:"ids" gencodec:"required" codec:"2"`
 	// supplied by the contract, usually ABI-encoded
 	Data []byte `json:"data" gencodec:"required" codec:"3"`
 

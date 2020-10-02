@@ -20,7 +20,7 @@ import (
 )
 
 func getReceipts(ctx context.Context, tx rawdb.DatabaseReader, kv ethdb.KV, number uint64, hash common.Hash) (types.Receipts, error) {
-	if cached := rawdb.ReadReceipts(tx, hash, number); cached != nil {
+	if cached := rawdb.ReadReceipts(tx, number); cached != nil {
 		return cached, nil
 	}
 
