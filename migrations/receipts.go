@@ -56,7 +56,7 @@ var receiptsCborEncode = Migration{
 }
 
 var receiptsTopicNormalForm = Migration{
-	Name: "receipt_topic_normal_form",
+	Name: "receipt_topic_normal_form_2",
 	Up: func(tx ethdb.DbWithPendingMutations, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
 		if exists, err := tx.(ethdb.BucketsMigrator).BucketExists(dbutils.BlockReceiptsPrefixOld1); err != nil {
 			return err
@@ -176,48 +176,5 @@ var receiptsTopicNormalForm = Migration{
 		//	return err
 		//}
 		return OnLoadCommit(tx, nil, true)
-	},
-}
-
-var topicIndexID = Migration{
-	Name: "topic_index_id",
-	Up: func(tx ethdb.DbWithPendingMutations, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
-		extractFunc := func(k []byte, v []byte, next etl.ExtractNextFunc) error {
-			if len(k) != 32+2 {
-				return next(k, k, v)
-			}
-
-			topic := k[:32]
-			shardN := k[32:]
-
-			if err := next(k, k, nil); err != nil { // delete old type of keys
-				return err
-			}
-
-			id, err := tx.Get(dbutils.LogTopic2Id, topic[:])
-			if err != nil {
-				return err
-			}
-
-			newK := make([]byte, 4+2)
-			copy(newK[:4], id)
-			copy(newK[4:], shardN)
-
-			if err := next(k, newK, v); err != nil { // create new type of keys
-				return err
-			}
-
-			return nil
-		}
-
-		return etl.Transform(
-			tx,
-			dbutils.LogTopicIndex,
-			dbutils.LogTopicIndex,
-			datadir,
-			extractFunc,
-			etl.IdentityLoadFunc,
-			etl.TransformArgs{OnLoadCommit: OnLoadCommit},
-		)
 	},
 }

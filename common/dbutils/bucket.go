@@ -115,8 +115,8 @@ var (
 	BlockReceiptsPrefixOld1 = "r"  // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
 	BlockReceiptsPrefix     = "r2" // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
 
-	LogId2Topic = "log_id_topic" // num (uint32 big endian) -> 32 bytes topic
-	LogTopic2Id = "log_topic_id" // 32 bytes topic -> num (uint32 big endian)
+	LogId2Topic = "log_id_topic" // num (uint64 big endian) -> 32 bytes topic
+	LogTopic2Id = "log_topic_id" // 32 bytes topic -> num (uint64 big endian)
 
 	// Stores bitmap indices - in which block numbers saw logs of given 'address' or 'topic'
 	// [addr or topic] + [2 bytes inverted shard number] -> bitmap(blockN)

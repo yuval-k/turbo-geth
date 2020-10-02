@@ -65,7 +65,6 @@ var migrations = []Migration{
 	resetIHBucketToRecoverDB,
 	receiptsCborEncode,
 	receiptsTopicNormalForm,
-	topicIndexID,
 }
 
 type Migration struct {
