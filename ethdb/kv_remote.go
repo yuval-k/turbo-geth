@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"time"
@@ -346,9 +347,8 @@ func (c *remoteCursor) Seek(seek []byte) ([]byte, []byte, error) {
 	var err error
 	if c.stream == nil {
 		var streamCtx context.Context
-		streamCtx, c.streamCancelFn = context.WithCancel(context.Background()) // We create child context for the stream so we can cancel it to prevent leak
+		streamCtx, c.streamCancelFn = context.WithCancel(c.ctx) // We create child context for the stream so we can cancel it to prevent leak
 		c.stream, err = c.tx.db.remoteKV.Seek(streamCtx)
-		fmt.Printf("eee: %s\n", err)
 	}
 
 	if err != nil {
@@ -398,8 +398,16 @@ func (c *remoteCursor) Last() ([]byte, []byte, error) {
 
 func (c *remoteCursor) Close() {
 	if c.stream != nil {
-		_ = c.stream.CloseSend()
-		c.streamCancelFn()
+		defer c.streamCancelFn()
+
+		err := c.stream.CloseSend()
+		if err != nil {
+			log.Warn("couldn't send msg CloseSend to server", "err", err)
+		}
+		_, err = c.stream.Recv()
+		if err != nil && err != io.EOF {
+			log.Warn("received unexpected error from server after CloseSend", "err", err)
+		}
 		c.stream = nil
 		c.streamingRequested = false
 	}
@@ -436,6 +444,7 @@ func (c *remoteCursorDupSort) SeekBothExact(key, value []byte) ([]byte, []byte, 
 
 func (c *remoteCursorDupSort) SeekBothRange(key, value []byte) ([]byte, []byte, error) {
 	if c.stream != nil {
+		_ = c.stream.CloseSend()
 		c.streamCancelFn() // This will close the stream and free resources
 		c.stream = nil
 		c.streamingRequested = false
@@ -445,7 +454,7 @@ func (c *remoteCursorDupSort) SeekBothRange(key, value []byte) ([]byte, []byte, 
 	var err error
 	if c.stream == nil {
 		var streamCtx context.Context
-		streamCtx, c.streamCancelFn = context.WithCancel(context.Background()) // We create child context for the stream so we can cancel it to prevent leak
+		streamCtx, c.streamCancelFn = context.WithCancel(c.ctx) // We create child context for the stream so we can cancel it to prevent leak
 		c.stream, err = c.tx.db.remoteKV.Seek(streamCtx)
 		if err != nil {
 			return []byte{}, nil, err
