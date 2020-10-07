@@ -17,6 +17,7 @@ import (
 	"github.com/ledgerwatch/turbo-geth/turbo/adapter"
 	"github.com/ledgerwatch/turbo-geth/turbo/transactions"
 	"math/big"
+	"time"
 )
 
 func getReceipts(ctx context.Context, tx rawdb.DatabaseReader, kv ethdb.KV, number uint64, hash common.Hash) (types.Receipts, error) {
@@ -74,13 +75,23 @@ func (api *APIImpl) GetLogsByHash(ctx context.Context, hash common.Hash) ([][]*t
 func (api *APIImpl) GetLogs(ctx context.Context, crit filters.FilterCriteria) ([]*types.Log, error) {
 	var begin, end uint64
 	var logs []*types.Log //nolint:prealloc
-
 	tx, beginErr := api.dbReader.Begin(ctx)
 	if beginErr != nil {
 		return returnLogs(logs), beginErr
 	}
 	defer tx.Rollback()
 
+	c := tx.(ethdb.HasTx).Tx().Cursor(dbutils.LogTopicIndex).Prefetch(1)
+	for k, _, err := c.Seek(common.FromHex("ffff")); k != nil; k, _, err = c.Next() {
+		if err != nil {
+			fmt.Printf("22L: %x, %x\n", err, k)
+			return nil, err
+		}
+
+	}
+	c.Close()
+	time.Sleep(5 * time.Second)
+	return nil, nil
 	if crit.BlockHash != nil {
 		number := rawdb.ReadHeaderNumber(tx, *crit.BlockHash)
 		if number == nil {

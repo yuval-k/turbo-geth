@@ -318,20 +318,18 @@ func (c *remoteCursor) First() ([]byte, []byte, error) {
 // Seek - doesn't start streaming (because much of code does only several .Seek calls without reading sequence of data)
 // .Next() - does request streaming (if configured by user)
 func (c *remoteCursor) Seek(seek []byte) ([]byte, []byte, error) {
-	c.closeGrpcStream()
+	if c.streamingRequested {
+		c.closeGrpcStream()
+	}
 	c.initialized = true
 
-	var err error
 	if c.stream == nil {
-		var streamCtx context.Context
-		streamCtx, c.streamCancelFn = context.WithCancel(c.ctx) // We create child context for the stream so we can cancel it to prevent leak
-		c.stream, err = c.tx.db.remoteKV.Seek(streamCtx)
+		if err := c.openGrpcStream(); err != nil {
+			return []byte{}, nil, err
+		}
 	}
 
-	if err != nil {
-		return []byte{}, nil, err
-	}
-	err = c.stream.Send(&remote.SeekRequest{BucketName: c.bucketName, SeekKey: seek, Prefix: c.prefix, StartSreaming: false})
+	err := c.stream.Send(&remote.SeekRequest{BucketName: c.bucketName, SeekKey: seek, Prefix: c.prefix, StartSreaming: false})
 	if err != nil {
 		return []byte{}, nil, err
 	}
@@ -361,6 +359,7 @@ func (c *remoteCursor) Next() ([]byte, []byte, error) {
 
 	pair, err := c.stream.Recv()
 	if err != nil {
+		fmt.Printf("%s\n", err)
 		return []byte{}, nil, err
 	}
 	return pair.Key, pair.Value, nil
@@ -368,6 +367,14 @@ func (c *remoteCursor) Next() ([]byte, []byte, error) {
 
 func (c *remoteCursor) Last() ([]byte, []byte, error) {
 	panic("not implemented yet")
+}
+
+func (c *remoteCursor) openGrpcStream() error {
+	var streamCtx context.Context
+	streamCtx, c.streamCancelFn = context.WithCancel(c.ctx) // We create child context for the stream so we can cancel it to prevent leak
+	var err error
+	c.stream, err = c.tx.db.remoteKV.Seek(streamCtx)
+	return err
 }
 
 func (c *remoteCursor) closeGrpcStream() {
@@ -429,15 +436,14 @@ func (c *remoteCursorDupSort) SeekBothExact(key, value []byte) ([]byte, []byte, 
 }
 
 func (c *remoteCursorDupSort) SeekBothRange(key, value []byte) ([]byte, []byte, error) {
-	c.closeGrpcStream() // TODO: if streaming not requested then no reason to close
+	if c.streamingRequested {
+		c.closeGrpcStream()
+	}
 	c.initialized = true
 
 	var err error
 	if c.stream == nil {
-		var streamCtx context.Context
-		streamCtx, c.streamCancelFn = context.WithCancel(c.ctx) // We create child context for the stream so we can cancel it to prevent leak
-		c.stream, err = c.tx.db.remoteKV.Seek(streamCtx)
-		if err != nil {
+		if err := c.openGrpcStream(); err != nil {
 			return []byte{}, nil, err
 		}
 	}
