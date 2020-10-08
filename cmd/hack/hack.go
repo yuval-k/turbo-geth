@@ -1974,7 +1974,7 @@ func hugeFreelist(chaindata string) error {
 	fmt.Printf("commit small changes with small freelist: %s\n", time.Since(t))
 	check(err)
 
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 300; i++ {
 		newV := make([]byte, 1*1024*1024*1024)
 		newk := make([]byte, 2)
 		binary.BigEndian.PutUint16(newk, uint16(i))
@@ -2018,7 +2018,7 @@ func hugeFreelist(chaindata string) error {
 	fmt.Printf("commit small changes with big freelist: %s\n", time.Since(t))
 	check(err)
 
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 300; i++ {
 		newV := make([]byte, 1*1024*1024*1024)
 		newk := make([]byte, 2)
 		binary.BigEndian.PutUint16(newk, uint16(i))
