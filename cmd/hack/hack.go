@@ -2088,7 +2088,7 @@ type keccakState interface {
 	Reset()
 }
 
-func bloomState(chaindata string) error {
+func bloomState(chaindata string, block uint64) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
 	count := 0
@@ -2136,13 +2136,17 @@ func bloomState(chaindata string) error {
 	}
 	defer tx.Rollback()
 	stateReader := state.NewPlainStateReader(tx)
-	seed := uint32(678)
+	seed := block
 	var location common.Hash
 	var address common.Address
 	location[0] = byte(seed & 0xff)
 	location[1] = byte((seed >> 8) & 0xff)
 	location[2] = byte((seed >> 16) & 0xff)
 	location[3] = byte((seed >> 24) & 0xff)
+	location[4] = byte((seed >> 32) & 0xff)
+	location[5] = byte((seed >> 40) & 0xff)
+	location[6] = byte((seed >> 48) & 0xff)
+	location[7] = byte((seed >> 56) & 0xff)
 	sha := sha3.NewLegacyKeccak256().(keccakState)
 	start := time.Now()
 	for i := 0; i < 200000; i++ {
@@ -2159,6 +2163,25 @@ func bloomState(chaindata string) error {
 		}
 	}
 	log.Info("Loop without bloom filter done", "in", time.Since(start))
+	start = time.Now()
+	missed := 0
+	for i := 0; i < 200000; i++ {
+		sha.Reset()
+		if _, err = sha.Write(location[:]); err != nil {
+			return err
+		}
+		if _, err = sha.Read(location[:]); err != nil {
+			return err
+		}
+		copy(address[:], location[12:])
+		if filter.Test(address[:]) {
+			missed++
+			if _, err = stateReader.ReadAccountData(address); err != nil {
+				return err
+			}
+		}
+	}
+	log.Info("Loop with bloom filter done", "in", time.Since(start), "misses", missed)
 	return nil
 }
 
@@ -2321,7 +2344,7 @@ func main() {
 		}
 	}
 	if *action == "bloomState" {
-		if err := bloomState(*chaindata); err != nil {
+		if err := bloomState(*chaindata, uint64(*block)); err != nil {
 			fmt.Printf("Error: %v\n", err)
 		}
 	}
