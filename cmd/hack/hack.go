@@ -1990,6 +1990,7 @@ func hugeFreelist(chaindata string) error {
 	defer db.Close()
 	tx, err = db.Begin(context.Background())
 	check(err)
+	defer tx.Rollback()
 
 	for i := 0; i < 300; i++ {
 		newV := make([]byte, 1*1024*1024)
