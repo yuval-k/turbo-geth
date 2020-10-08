@@ -1984,6 +1984,13 @@ func hugeFreelist(chaindata string) error {
 	fmt.Printf("commit2: %s\n", time.Since(t))
 	check(err)
 
+	tx.Rollback()
+	db.Close()
+	db = ethdb.MustOpen(chaindata)
+	defer db.Close()
+	tx, err = db.Begin(context.Background())
+	check(err)
+
 	for i := 0; i < 300; i++ {
 		newV := make([]byte, 1*1024*1024)
 		newk := make([]byte, 2)
