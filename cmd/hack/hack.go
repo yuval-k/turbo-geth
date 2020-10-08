@@ -1971,7 +1971,7 @@ func hugeFreelist(chaindata string) error {
 
 	t := time.Now()
 	err = tx.CommitAndBegin(context.Background())
-	fmt.Printf("commit0: %s\n", time.Since(t))
+	fmt.Printf("commit small changes with small freelist: %s\n", time.Since(t))
 	check(err)
 
 	for i := 0; i < 200; i++ {
@@ -1984,7 +1984,7 @@ func hugeFreelist(chaindata string) error {
 
 	t = time.Now()
 	err = tx.CommitAndBegin(context.Background())
-	fmt.Printf("commit1: %s\n", time.Since(t))
+	fmt.Printf("commit big changes with small freelist: %s\n", time.Since(t))
 	check(err)
 
 	t = time.Now()
@@ -1994,7 +1994,7 @@ func hugeFreelist(chaindata string) error {
 
 	t = time.Now()
 	err = tx.CommitAndBegin(context.Background())
-	fmt.Printf("commit2: %s\n", time.Since(t))
+	fmt.Printf("commit clear bucket: %s\n", time.Since(t))
 	check(err)
 
 	tx.Rollback()
@@ -2015,9 +2015,31 @@ func hugeFreelist(chaindata string) error {
 
 	t = time.Now()
 	err = tx.CommitAndBegin(context.Background())
-	fmt.Printf("commit3: %s\n", time.Since(t))
+	fmt.Printf("commit small changes with big freelist: %s\n", time.Since(t))
 	check(err)
 
+	for i := 0; i < 200; i++ {
+		newV := make([]byte, 1*1024*1024*1024)
+		newk := make([]byte, 2)
+		binary.BigEndian.PutUint16(newk, uint16(i))
+		err = tx.Put(dbutils.AccountsHistoryBucket, newk, newV)
+		check(err)
+	}
+
+	t = time.Now()
+	err = tx.CommitAndBegin(context.Background())
+	fmt.Printf("commit big changes with big freelist: %s\n", time.Since(t))
+	check(err)
+
+	t = time.Now()
+	err = tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.AccountsHistoryBucket)
+	fmt.Printf("clear bucket: %s\n", time.Since(t))
+	check(err)
+
+	t = time.Now()
+	err = tx.CommitAndBegin(context.Background())
+	fmt.Printf("commit clear bucket: %s\n", time.Since(t))
+	check(err)
 	return nil
 }
 
