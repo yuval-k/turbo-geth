@@ -2092,7 +2092,7 @@ func bloomState(chaindata string, block uint64) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
 	count := 0
-	filter := bloom.New(16*8*1024*1024, 5) // 16 Mb, 5 hash functions
+	filter := bloom.New(512*1024*1024, 5) // 16 Mb, 5 hash functions
 	if _, err := os.Stat("statefilter"); os.IsNotExist(err) {
 		if err = db.KV().View(context.Background(), func(tx ethdb.Tx) error {
 			c := tx.Cursor(dbutils.PlainStateBucket)
