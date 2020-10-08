@@ -44,6 +44,7 @@ import (
 	"github.com/valyala/gozstd"
 	"github.com/wcharczuk/go-chart"
 	"github.com/wcharczuk/go-chart/util"
+	"github.com/willf/bloom"
 )
 
 var emptyCodeHash = crypto.Keccak256(nil)
@@ -2077,6 +2078,33 @@ func extracHeaders(chaindata string, block uint64) error {
 	return nil
 }
 
+func bloomState(chaindata string) error {
+	db := ethdb.MustOpen(chaindata)
+	defer db.Close()
+	count := 0
+	filter := bloom.New(16*8*1024*1024, 5) // 16 Mb, 5 hash functions
+	if err := db.KV().View(context.Background(), func(tx ethdb.Tx) error {
+		c := tx.Cursor(dbutils.PlainStateBucket)
+		for k, _, err := c.First(); k != nil; k, _, err = c.Next() {
+			if err != nil {
+				return err
+			}
+			if len(k) != 20 {
+				continue
+			}
+			filter.Add(k)
+			count++
+			if count%100000 == 0 {
+				fmt.Printf("Processed %dK account records\n", count/1000)
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
 func main() {
 	flag.Parse()
 
@@ -2232,6 +2260,11 @@ func main() {
 	}
 	if *action == "extractHeaders" {
 		if err := extracHeaders(*chaindata, uint64(*block)); err != nil {
+			fmt.Printf("Error: %v\n", err)
+		}
+	}
+	if *action == "bloomState" {
+		if err := bloomState(*chaindata); err != nil {
 			fmt.Printf("Error: %v\n", err)
 		}
 	}
