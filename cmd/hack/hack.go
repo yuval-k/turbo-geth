@@ -2136,7 +2136,7 @@ func bloomState(chaindata string) error {
 	}
 	defer tx.Rollback()
 	stateReader := state.NewPlainStateReader(tx)
-	seed := uint32(58)
+	seed := uint32(678)
 	var location common.Hash
 	var address common.Address
 	location[0] = byte(seed & 0xff)
@@ -2145,7 +2145,7 @@ func bloomState(chaindata string) error {
 	location[3] = byte((seed >> 24) & 0xff)
 	sha := sha3.NewLegacyKeccak256().(keccakState)
 	start := time.Now()
-	for i := 0; i < 2000000; i++ {
+	for i := 0; i < 200000; i++ {
 		sha.Reset()
 		if _, err = sha.Write(location[:]); err != nil {
 			return err
