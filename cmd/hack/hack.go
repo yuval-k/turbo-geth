@@ -61,6 +61,11 @@ var chaindata = flag.String("chaindata", "chaindata", "path to the chaindata dat
 var bucket = flag.String("bucket", "", "bucket in the database")
 var hash = flag.String("hash", "0x00", "image for preimage or state root for testBlockHashes action")
 
+var size = flag.Int("size", 512, "size of bloom filter, in Mb")
+var funcs = flag.Int("funcs", 10, "number of functions in the bloom filter")
+var seed = flag.Int("seed", 45, "seed for generating randomised access pattern")
+var loop = flag.Int("loop", 200000, "number of iterations in the loop accessing the state")
+
 func check(e error) {
 	if e != nil {
 		panic(e)
@@ -2088,11 +2093,11 @@ type keccakState interface {
 	Reset()
 }
 
-func bloomState(chaindata string, seed uint64, funcs int) error {
+func bloomState(chaindata string, size int, funcs uint, seed uint64, loop int) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
 	count := 0
-	filter := bloom.New(8*512*1024*1024, uint(funcs)) // 0.5 Gb, 5 hash functions
+	filter := bloom.New(8*uint(size)*1024*1024, funcs) // 0.5 Gb, 5 hash functions
 	if _, err := os.Stat("statefilter"); os.IsNotExist(err) {
 		if err = db.KV().View(context.Background(), func(tx ethdb.Tx) error {
 			c := tx.Cursor(dbutils.PlainStateBucket)
@@ -2164,7 +2169,7 @@ func bloomState(chaindata string, seed uint64, funcs int) error {
 	log.Info("Loop without bloom filter done", "in", time.Since(start))
 	start = time.Now()
 	missed := 0
-	for i := 0; i < 200000; i++ {
+	for i := 0; i < loop; i++ {
 		sha.Reset()
 		if _, err = sha.Write(location[:]); err != nil {
 			return err
@@ -2343,7 +2348,7 @@ func main() {
 		}
 	}
 	if *action == "bloomState" {
-		if err := bloomState(*chaindata, uint64(*block), *rewind); err != nil {
+		if err := bloomState(*chaindata, *size, uint(*funcs), uint64(*seed), *loop); err != nil {
 			fmt.Printf("Error: %v\n", err)
 		}
 	}
