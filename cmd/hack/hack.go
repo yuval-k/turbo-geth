@@ -2088,11 +2088,11 @@ type keccakState interface {
 	Reset()
 }
 
-func bloomState(chaindata string, block uint64) error {
+func bloomState(chaindata string, seed uint64, funcs int) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
 	count := 0
-	filter := bloom.New(512*1024*1024, 15) // 0.5 Gb, 5 hash functions
+	filter := bloom.New(512*1024*1024, uint(funcs)) // 0.5 Gb, 5 hash functions
 	if _, err := os.Stat("statefilter"); os.IsNotExist(err) {
 		if err = db.KV().View(context.Background(), func(tx ethdb.Tx) error {
 			c := tx.Cursor(dbutils.PlainStateBucket)
@@ -2136,7 +2136,6 @@ func bloomState(chaindata string, block uint64) error {
 	}
 	defer tx.Rollback()
 	stateReader := state.NewPlainStateReader(tx)
-	seed := block
 	var location common.Hash
 	var address common.Address
 	location[0] = byte(seed & 0xff)
@@ -2344,7 +2343,7 @@ func main() {
 		}
 	}
 	if *action == "bloomState" {
-		if err := bloomState(*chaindata, uint64(*block)); err != nil {
+		if err := bloomState(*chaindata, uint64(*block), *rewind); err != nil {
 			fmt.Printf("Error: %v\n", err)
 		}
 	}
