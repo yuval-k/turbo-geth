@@ -1961,7 +1961,7 @@ func hugeFreelist(chaindata string) error {
 	check(err)
 	defer tx.Rollback()
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 200; i++ {
 		newV := make([]byte, 1*1024*1024*1024)
 		newk := make([]byte, 2)
 		binary.BigEndian.PutUint16(newk, uint16(i))
