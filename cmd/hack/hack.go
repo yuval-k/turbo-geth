@@ -1962,7 +1962,7 @@ func hugeFreelist(chaindata string) error {
 	defer tx.Rollback()
 
 	for i := 0; i < 100; i++ {
-		newV := make([]byte, 1*1024*1024)
+		newV := make([]byte, 1*1024*1024*1024)
 		newk := make([]byte, 2)
 		binary.BigEndian.PutUint16(newk, uint16(i))
 		err = tx.Put(dbutils.AccountsHistoryBucket, newk, newV)
