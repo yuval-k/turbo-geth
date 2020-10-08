@@ -1954,6 +1954,52 @@ func benchRlp(chaindata string) error {
 	return nil
 }
 
+func hugeFreelist(chaindata string) error {
+	db := ethdb.MustOpen(chaindata)
+	defer db.Close()
+	tx, err := db.Begin(context.Background())
+	check(err)
+	defer tx.Rollback()
+
+	for i := 0; i < 300; i++ {
+		newV := make([]byte, 1*1024*1024)
+		newk := make([]byte, 2)
+		binary.BigEndian.PutUint16(newk, uint16(i))
+		err = tx.Put(dbutils.CurrentStateBucket, newk, newV)
+		check(err)
+	}
+
+	t := time.Now()
+	err = tx.CommitAndBegin(context.Background())
+	fmt.Printf("commit1: %s\n", time.Since(t))
+	check(err)
+
+	t = time.Now()
+	err = tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.CurrentStateBucket)
+	fmt.Printf("clear bucket: %s\n", time.Since(t))
+	check(err)
+
+	t = time.Now()
+	err = tx.CommitAndBegin(context.Background())
+	fmt.Printf("commit2: %s\n", time.Since(t))
+	check(err)
+
+	for i := 0; i < 300; i++ {
+		newV := make([]byte, 1*1024)
+		newk := make([]byte, 2)
+		binary.BigEndian.PutUint16(newk, uint16(i))
+		err = tx.Put(dbutils.CurrentStateBucket, newk, newV)
+		check(err)
+	}
+
+	t = time.Now()
+	err = tx.CommitAndBegin(context.Background())
+	fmt.Printf("commit3: %s\n", time.Since(t))
+	check(err)
+
+	return nil
+}
+
 func mint(chaindata string, block uint64) error {
 	f, err := os.Create("mint.csv")
 	if err != nil {
@@ -2227,6 +2273,11 @@ func main() {
 	}
 	if *action == "benchRlp" {
 		if err := benchRlp(*chaindata); err != nil {
+			fmt.Printf("Error: %v\n", err)
+		}
+	}
+	if *action == "hugeFreelist" {
+		if err := hugeFreelist(*chaindata); err != nil {
 			fmt.Printf("Error: %v\n", err)
 		}
 	}
