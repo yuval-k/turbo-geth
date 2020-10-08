@@ -1961,11 +1961,11 @@ func hugeFreelist(chaindata string) error {
 	check(err)
 	defer tx.Rollback()
 
-	for i := 0; i < 300; i++ {
+	for i := 0; i < 100; i++ {
 		newV := make([]byte, 1*1024*1024)
 		newk := make([]byte, 2)
 		binary.BigEndian.PutUint16(newk, uint16(i))
-		err = tx.Put(dbutils.CurrentStateBucket, newk, newV)
+		err = tx.Put(dbutils.AccountsHistoryBucket, newk, newV)
 		check(err)
 	}
 
@@ -1975,7 +1975,7 @@ func hugeFreelist(chaindata string) error {
 	check(err)
 
 	t = time.Now()
-	err = tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.CurrentStateBucket)
+	err = tx.(ethdb.BucketsMigrator).ClearBuckets(dbutils.AccountsHistoryBucket)
 	fmt.Printf("clear bucket: %s\n", time.Since(t))
 	check(err)
 
@@ -1988,7 +1988,7 @@ func hugeFreelist(chaindata string) error {
 		newV := make([]byte, 1*1024)
 		newk := make([]byte, 2)
 		binary.BigEndian.PutUint16(newk, uint16(i))
-		err = tx.Put(dbutils.CurrentStateBucket, newk, newV)
+		err = tx.Put(dbutils.AccountsHistoryBucket, newk, newV)
 		check(err)
 	}
 
