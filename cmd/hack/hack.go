@@ -45,6 +45,7 @@ import (
 	"github.com/wcharczuk/go-chart"
 	"github.com/wcharczuk/go-chart/util"
 	"github.com/willf/bloom"
+	"golang.org/x/crypto/sha3"
 )
 
 var emptyCodeHash = crypto.Keccak256(nil)
@@ -2078,30 +2079,86 @@ func extracHeaders(chaindata string, block uint64) error {
 	return nil
 }
 
+// keccakState wraps sha3.state. In addition to the usual hash methods, it also supports
+// Read to get a variable amount of data from the hash state. Read is faster than Sum
+// because it doesn't copy the internal state, but also modifies the internal state.
+type keccakState interface {
+	Write([]byte) (int, error)
+	Read([]byte) (int, error)
+	Reset()
+}
+
 func bloomState(chaindata string) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
 	count := 0
 	filter := bloom.New(16*8*1024*1024, 5) // 16 Mb, 5 hash functions
-	if err := db.KV().View(context.Background(), func(tx ethdb.Tx) error {
-		c := tx.Cursor(dbutils.PlainStateBucket)
-		for k, _, err := c.First(); k != nil; k, _, err = c.Next() {
-			if err != nil {
-				return err
+	if _, err := os.Stat("statefilter"); os.IsNotExist(err) {
+		if err = db.KV().View(context.Background(), func(tx ethdb.Tx) error {
+			c := tx.Cursor(dbutils.PlainStateBucket)
+			for k, _, err := c.First(); k != nil; k, _, err = c.Next() {
+				if err != nil {
+					return err
+				}
+				if len(k) != 20 {
+					continue
+				}
+				filter.Add(k)
+				count++
+				if count%100000 == 0 {
+					fmt.Printf("Processed %dK account records\n", count/1000)
+				}
 			}
-			if len(k) != 20 {
-				continue
-			}
-			filter.Add(k)
-			count++
-			if count%100000 == 0 {
-				fmt.Printf("Processed %dK account records\n", count/1000)
-			}
+			return nil
+		}); err != nil {
+			return err
 		}
-		return nil
-	}); err != nil {
+		var f *os.File
+		if f, err = os.Create("statefilter"); err != nil {
+			return err
+		}
+		if _, err = filter.WriteTo(f); err != nil {
+			return err
+		}
+	}
+	if f, err := os.Open("statefilter"); err == nil {
+		if _, err = filter.ReadFrom(f); err != nil {
+			return err
+		}
+	} else {
 		return err
 	}
+	log.Info("Got state bloom filter")
+	// Randomised chain of requests
+	tx, err := db.Begin(context.Background())
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	stateReader := state.NewPlainStateReader(tx)
+	seed := uint32(42)
+	var location common.Hash
+	var address common.Address
+	location[0] = byte(seed & 0xff)
+	location[1] = byte((seed >> 8) & 0xff)
+	location[2] = byte((seed >> 16) & 0xff)
+	location[3] = byte((seed >> 24) & 0xff)
+	sha := sha3.NewLegacyKeccak256().(keccakState)
+	start := time.Now()
+	for i := 0; i < 1000; i++ {
+		sha.Reset()
+		if _, err = sha.Write(location[:]); err != nil {
+			return err
+		}
+		if _, err = sha.Read(location[:]); err != nil {
+			return err
+		}
+		copy(address[:], location[12:])
+		if _, err = stateReader.ReadAccountData(address); err != nil {
+			return err
+		}
+	}
+	log.Info("Loop without bloom filter done", "in", time.Since(start))
 	return nil
 }
 
