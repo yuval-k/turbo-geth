@@ -2153,7 +2153,7 @@ func bloomState(chaindata string, size int, funcs uint, seed uint64, loop int) e
 	location[7] = byte((seed >> 56) & 0xff)
 	sha := sha3.NewLegacyKeccak256().(keccakState)
 	start := time.Now()
-	for i := 0; i < 200000; i++ {
+	for i := 0; i < loop; i++ {
 		sha.Reset()
 		if _, err = sha.Write(location[:]); err != nil {
 			return err
