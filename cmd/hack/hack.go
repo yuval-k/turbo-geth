@@ -1961,6 +1961,19 @@ func hugeFreelist(chaindata string) error {
 	check(err)
 	defer tx.Rollback()
 
+	for i := 0; i < 300; i++ {
+		newV := make([]byte, 1*1024*1024)
+		newk := make([]byte, 2)
+		binary.BigEndian.PutUint16(newk, uint16(i))
+		err = tx.Put(dbutils.AccountsHistoryBucket, newk, newV)
+		check(err)
+	}
+
+	t := time.Now()
+	err = tx.CommitAndBegin(context.Background())
+	fmt.Printf("commit0: %s\n", time.Since(t))
+	check(err)
+
 	for i := 0; i < 200; i++ {
 		newV := make([]byte, 1*1024*1024*1024)
 		newk := make([]byte, 2)
@@ -1969,7 +1982,7 @@ func hugeFreelist(chaindata string) error {
 		check(err)
 	}
 
-	t := time.Now()
+	t = time.Now()
 	err = tx.CommitAndBegin(context.Background())
 	fmt.Printf("commit1: %s\n", time.Since(t))
 	check(err)
