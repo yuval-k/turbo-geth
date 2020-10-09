@@ -248,6 +248,8 @@ github.com/ledgerwatch/lmdb-go v1.15.1-0.20200907102535-adf129c101e7 h1:xKMRPv7Y
 github.com/ledgerwatch/lmdb-go v1.15.1-0.20200907102535-adf129c101e7/go.mod h1:NKRpCxksoTQPyxsUcBiVOe0135uqnJsnf6cElxmOL0o=
 github.com/ledgerwatch/lmdb-go v1.15.1-0.20201008215956-59ef2ce451d2 h1:2MvgitTuGu0ZdiZfXy/fui4KG8esnEBU5d6CGQKZOBY=
 github.com/ledgerwatch/lmdb-go v1.15.1-0.20201008215956-59ef2ce451d2/go.mod h1:NKRpCxksoTQPyxsUcBiVOe0135uqnJsnf6cElxmOL0o=
+github.com/ledgerwatch/lmdb-go v1.15.1-0.20201009022611-6e107eab52af h1:G/k9kX3YYYijZ1A/8d/6lwyXYquoaDN6R+8Zud7ieU8=
+github.com/ledgerwatch/lmdb-go v1.15.1-0.20201009022611-6e107eab52af/go.mod h1:NKRpCxksoTQPyxsUcBiVOe0135uqnJsnf6cElxmOL0o=
 github.com/leodido/go-urn v1.2.0 h1:hpXL4XnriNwQ/ABnpepYM/1vCLWNDfUNts8dX3xTG6Y=
 github.com/leodido/go-urn v1.2.0/go.mod h1:+8+nEpDfqqsY+g338gtMEUOtuK+4dEMhiQEgxpxOKII=
 github.com/llgcode/draw2d v0.0.0-20180825133448-f52c8a71aff0 h1:2vp6ESimuT8pCuZHThVyV0hlfa9oPL06HnGCL9pbUgc=
