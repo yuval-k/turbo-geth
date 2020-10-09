@@ -1955,7 +1955,7 @@ func benchRlp(chaindata string) error {
 	return nil
 }
 
-func hugeFreelistDoCrazyShit(db ethdb.Database) {
+func crazyWrites(db ethdb.Database) {
 	tx, err := db.Begin(context.Background())
 	check(err)
 	defer tx.Rollback()
@@ -1971,15 +1971,35 @@ func hugeFreelistDoCrazyShit(db ethdb.Database) {
 			check(err)
 		}
 	}
+}
 
+func crazyReads(db ethdb.Database) {
+	i := 0
+	for {
+		db.(ethdb.HasKV).KV().View(context.Background(), func(tx ethdb.Tx) error {
+			c := tx.Cursor(dbutils.AccountsHistoryBucket)
+			for k, _, err := c.First(); k != nil; k, _, err = c.Next() {
+				check(err)
+				i++
+				if i > 10_000_000 {
+					return nil
+				}
+			}
+			return nil
+		})
+	}
 }
 
 func hugeFreelist(chaindata string) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
-	for i := 0; i < 80; i++ {
-		go hugeFreelistDoCrazyShit(db)
+	for i := 0; i < 20; i++ {
+		go crazyWrites(db)
 	}
+	for i := 0; i < 80; i++ {
+		go crazyReads(db)
+	}
+
 	tx, err := db.Begin(context.Background())
 	check(err)
 	defer tx.Rollback()
