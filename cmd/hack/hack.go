@@ -1960,10 +1960,10 @@ func hugeFreelistDoCrazyShit(db ethdb.Database) {
 	check(err)
 	defer tx.Rollback()
 	for {
-		newV := make([]byte, 1*1024*1024*1024)
-		newk := make([]byte, 2)
-		i := uint16(rand.Uint32())
-		binary.BigEndian.PutUint16(newk, uint16(rand.Uint32()))
+		newV := make([]byte, 1*1024)
+		newk := make([]byte, 4)
+		i := rand.Uint32()
+		binary.BigEndian.PutUint32(newk, i)
 		err = tx.Put(dbutils.AccountsHistoryBucket, newk, newV)
 		check(err)
 		if i%10 == 0 {
@@ -1977,7 +1977,7 @@ func hugeFreelistDoCrazyShit(db ethdb.Database) {
 func hugeFreelist(chaindata string) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 80; i++ {
 		go hugeFreelistDoCrazyShit(db)
 	}
 	tx, err := db.Begin(context.Background())
