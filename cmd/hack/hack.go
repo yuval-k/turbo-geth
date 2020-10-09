@@ -1999,7 +1999,7 @@ func hugeFreelist(chaindata string) error {
 	for i := 0; i < 80; i++ {
 		go crazyReads(db)
 	}
-
+	mdb_node_add
 	tx, err := db.Begin(context.Background())
 	check(err)
 	defer tx.Rollback()
