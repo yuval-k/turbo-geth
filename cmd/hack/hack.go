@@ -1966,7 +1966,8 @@ func crazyWrites(db ethdb.Database) {
 		binary.BigEndian.PutUint32(newk, i)
 		err = tx.Put(dbutils.AccountsHistoryBucket, newk, newV)
 		check(err)
-		if i%10 == 0 {
+		if i%1001 == 0 {
+			os.Exit(1)
 			err = tx.CommitAndBegin(context.Background())
 			check(err)
 		}
@@ -1993,16 +1994,17 @@ func crazyReads(db ethdb.Database) {
 func hugeFreelist(chaindata string) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
+
+	tx, err := db.Begin(context.Background())
+	check(err)
+	defer tx.Rollback()
+
 	for i := 0; i < 20; i++ {
 		go crazyWrites(db)
 	}
 	for i := 0; i < 80; i++ {
 		go crazyReads(db)
 	}
-	mdb_node_add
-	tx, err := db.Begin(context.Background())
-	check(err)
-	defer tx.Rollback()
 
 	for i := 0; i < 300; i++ {
 		newV := make([]byte, 1*1024*1024)
