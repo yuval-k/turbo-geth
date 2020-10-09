@@ -505,7 +505,7 @@ func (tx *lmdbTx) Commit(ctx context.Context) error {
 		return err
 	}
 	commitTook := time.Since(commitTimer)
-	if commitTook > 20*time.Second {
+	if commitTook > time.Second/10 {
 		log.Info("Batch", "commit", commitTook)
 	}
 
@@ -515,7 +515,7 @@ func (tx *lmdbTx) Commit(ctx context.Context) error {
 			log.Warn("fsync after commit failed", "err", err)
 		}
 		fsyncTook := time.Since(fsyncTimer)
-		if fsyncTook > 20*time.Second {
+		if fsyncTook > time.Second/10 {
 			log.Info("Batch", "fsync", fsyncTook)
 		}
 	}
