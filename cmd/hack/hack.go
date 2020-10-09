@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
+	"math/rand"
 	"os"
 	"os/signal"
 	"runtime"
@@ -1954,9 +1955,31 @@ func benchRlp(chaindata string) error {
 	return nil
 }
 
+func hugeFreelistDoCrazyShit(db ethdb.Database) {
+	tx, err := db.Begin(context.Background())
+	check(err)
+	defer tx.Rollback()
+	for {
+		newV := make([]byte, 1*1024*1024*1024)
+		newk := make([]byte, 2)
+		i := uint16(rand.Uint32())
+		binary.BigEndian.PutUint16(newk, uint16(rand.Uint32()))
+		err = tx.Put(dbutils.AccountsHistoryBucket, newk, newV)
+		check(err)
+		if i%10 == 0 {
+			err = tx.CommitAndBegin(context.Background())
+			check(err)
+		}
+	}
+
+}
+
 func hugeFreelist(chaindata string) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
+	for i := 0; i < 20; i++ {
+		go hugeFreelistDoCrazyShit(db)
+	}
 	tx, err := db.Begin(context.Background())
 	check(err)
 	defer tx.Rollback()
@@ -1974,7 +1997,7 @@ func hugeFreelist(chaindata string) error {
 	fmt.Printf("commit small changes with small freelist: %s\n", time.Since(t))
 	check(err)
 
-	for i := 0; i < 300; i++ {
+	for i := 0; i < 50; i++ {
 		newV := make([]byte, 1*1024*1024*1024)
 		newk := make([]byte, 2)
 		binary.BigEndian.PutUint16(newk, uint16(i))
@@ -2018,7 +2041,7 @@ func hugeFreelist(chaindata string) error {
 	fmt.Printf("commit small changes with big freelist: %s\n", time.Since(t))
 	check(err)
 
-	for i := 0; i < 300; i++ {
+	for i := 0; i < 50; i++ {
 		newV := make([]byte, 1*1024*1024*1024)
 		newk := make([]byte, 2)
 		binary.BigEndian.PutUint16(newk, uint16(i))
