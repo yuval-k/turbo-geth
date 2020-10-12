@@ -11,7 +11,8 @@ same as it was when tx=1 started).
 
 FREE_DBI=0 - table where LMDB stores overall history - which tx freed which pages:
 [tx_id] -> [number_of_page_ids_u64][list_of_page_ids]
-Can read FREE_DBI by `mdb_cursor_open(tx, 0)`
+Can read FREE_DBI by `mdb_cursor_open(tx, 0)` - it works only in Read transactions:
+@see `mdb_cursor_open`: `if (dbi == FREE_DBI && !F_ISSET(txn->mt_flags, MDB_TXN_RDONLY))`
 
 All pages which freed by Tx stored in `txn->mt_free_pgs`
 Inside every `tx.Commit()` called method `mdb_freelist_save` which stores `txn->mt_free_pgs` to FREE_DBI.
