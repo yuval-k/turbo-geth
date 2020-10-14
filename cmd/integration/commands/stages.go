@@ -526,8 +526,7 @@ func newSync(quitCh <-chan struct{}, db ethdb.Database, tx ethdb.Database, hook 
 	if err != nil {
 		panic(err)
 	}
-
-	sm, err := ethdb.GetStorageModeFromDB(db)
+	sm, err := ethdb.GetStorageModeFromDB(tx)
 	if err != nil {
 		panic(err)
 	}
@@ -548,7 +547,7 @@ func newSync(quitCh <-chan struct{}, db ethdb.Database, tx ethdb.Database, hook 
 			}
 			return s
 		}
-		s, err := st.StageState(stage, db)
+		s, err := st.StageState(stage, tx)
 		if err != nil {
 			panic(err)
 		}
