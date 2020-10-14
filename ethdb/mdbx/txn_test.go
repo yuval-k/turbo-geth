@@ -1031,7 +1031,7 @@ func TestTxn_Stat(t *testing.T) {
 
 	var stat *Stat
 	err = env.View(func(txn *Txn) (err error) {
-		stat, err = txn.Stat(dbi)
+		stat, err = txn.StatDBI(dbi)
 		return err
 	})
 	if err != nil {

@@ -643,7 +643,7 @@ func (tx *mdbxTx) Has(bucket string, key []byte) (bool, error) {
 }
 
 func (tx *mdbxTx) BucketSize(name string) (uint64, error) {
-	st, err := tx.tx.Stat(mdbx.DBI(tx.db.buckets[name].DBI))
+	st, err := tx.tx.StatDBI(mdbx.DBI(tx.db.buckets[name].DBI))
 	if err != nil {
 		return 0, err
 	}
@@ -651,7 +651,7 @@ func (tx *mdbxTx) BucketSize(name string) (uint64, error) {
 }
 
 func (tx *mdbxTx) BucketStat(name string) (*mdbx.Stat, error) {
-	return tx.tx.Stat(mdbx.DBI(tx.db.buckets[name].DBI))
+	return tx.tx.StatDBI(mdbx.DBI(tx.db.buckets[name].DBI))
 }
 
 func (tx *mdbxTx) Cursor(bucket string) Cursor {
@@ -745,7 +745,7 @@ func (c *MdbxCursor) initCursor() error {
 }
 
 func (c *MdbxCursor) Count() (uint64, error) {
-	st, err := c.tx.tx.Stat(c.dbi)
+	st, err := c.tx.tx.StatDBI(c.dbi)
 	if err != nil {
 		return 0, err
 	}
