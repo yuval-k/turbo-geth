@@ -26,7 +26,9 @@ const (
 	EnvDefaults = C.MDBX_ENV_DEFAULTS
 	LifoReclaim = C.MDBX_LIFORECLAIM
 	//FixedMap    = C.MDBX_FIXEDMAP   // Danger zone. Map memory at a fixed address.
-	NoSubdir   = C.MDBX_NOSUBDIR   // Argument to Open is a file, not a directory.
+	NoSubdir   = C.MDBX_NOSUBDIR // Argument to Open is a file, not a directory.
+	Accede     = C.MDBX_ACCEDE
+	Coalesce   = C.MDBX_COALESCE
 	Readonly   = C.MDBX_RDONLY     // Used in several functions to denote an object as readonly.
 	WriteMap   = C.MDBX_WRITEMAP   // Use a writable memory map.
 	NoMetaSync = C.MDBX_NOMETASYNC // Don't fsync metapage after commit.
