@@ -107,6 +107,7 @@ func beginTxn(env *Env, parent *Txn, flags uint) (*Txn, error) {
 	}
 	ret := C.mdbx_txn_begin(env._env, ptxn, C.MDBX_txn_flags_t(flags), &txn._txn)
 	if ret != success {
+		panic(operrno("mdbx_txn_begin", ret))
 		return nil, operrno("mdbx_txn_begin", ret)
 	}
 	return txn, nil
