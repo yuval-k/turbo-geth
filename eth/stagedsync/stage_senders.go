@@ -108,11 +108,13 @@ func SpawnRecoverSendersStage(cfg Stage3Config, s *StageState, db ethdb.Database
 
 	jobs := make(chan *senderRecoveryJob, cfg.BatchSize)
 	out := make(chan *senderRecoveryJob, cfg.BatchSize)
+	log.Info("Sync (Senders): Started recoverer goroutines", "numOfGoroutines", cfg.NumOfGoroutines)
 	wg := new(sync.WaitGroup)
 	wg.Add(cfg.NumOfGoroutines)
 	for i := 0; i < cfg.NumOfGoroutines; i++ {
 		go func(threadNo int) {
 			defer wg.Done()
+			out <- &senderRecoveryJob{err: fmt.Errorf("alex")}
 			// each goroutine gets it's own crypto context to make sure they are really parallel
 			recoverSenders(secp256k1.ContextForThread(threadNo), config, jobs, out, quitCh)
 		}(i)
@@ -196,8 +198,6 @@ func SpawnRecoverSendersStage(cfg Stage3Config, s *StageState, db ethdb.Database
 	}
 
 	close(jobs)
-
-	log.Info("Sync (Senders): Started recoverer goroutines", "numOfGoroutines", cfg.NumOfGoroutines)
 	wg.Wait()
 	close(out)
 	for err := range errCh {
