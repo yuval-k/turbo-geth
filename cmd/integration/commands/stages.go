@@ -243,7 +243,7 @@ func init() {
 }
 
 func stageSenders(db ethdb.Database, ctx context.Context) error {
-	bc, _, progress := newSync(ctx.Done(), db, db, nil)
+	_, bc, _, progress := newSync(ctx.Done(), db, db, nil)
 	defer bc.Stop()
 
 	if reset {
@@ -285,7 +285,7 @@ func stageExec(db ethdb.Database, ctx context.Context) error {
 		panic(err)
 	}
 
-	bc, _, progress := newSync(ctx.Done(), db, db, nil)
+	cc, bc, _, progress := newSync(ctx.Done(), db, db, nil)
 	defer bc.Stop()
 
 	if reset { //nolint:staticcheck
@@ -300,7 +300,7 @@ func stageExec(db ethdb.Database, ctx context.Context) error {
 		return stagedsync.UnwindExecutionStage(u, stage4, db, false)
 	}
 	return stagedsync.SpawnExecuteBlocksStage(stage4, db,
-		bc.Config(), bc, bc.GetVMConfig(),
+		bc.Config(), cc, bc.GetVMConfig(),
 		ch,
 		stagedsync.ExecuteBlockStageParams{
 			ToBlock:       block, // limit execution to the specified block
@@ -322,7 +322,7 @@ func stageIHash(db ethdb.Database, ctx context.Context) error {
 		panic(err)
 	}
 
-	bc, _, progress := newSync(ctx.Done(), db, db, nil)
+	_, bc, _, progress := newSync(ctx.Done(), db, db, nil)
 	defer bc.Stop()
 
 	if reset {
@@ -353,7 +353,7 @@ func stageHashState(db ethdb.Database, ctx context.Context) error {
 		panic(err)
 	}
 
-	bc, _, progress := newSync(ctx.Done(), db, db, nil)
+	_, bc, _, progress := newSync(ctx.Done(), db, db, nil)
 	defer bc.Stop()
 
 	if reset {
@@ -379,7 +379,7 @@ func stageHashState(db ethdb.Database, ctx context.Context) error {
 func stageLogIndex(db ethdb.Database, ctx context.Context) error {
 	core.UsePlainStateExecution = true
 
-	bc, _, progress := newSync(ctx.Done(), db, db, nil)
+	_, bc, _, progress := newSync(ctx.Done(), db, db, nil)
 	defer bc.Stop()
 
 	if reset {
@@ -408,7 +408,7 @@ func stageLogIndex(db ethdb.Database, ctx context.Context) error {
 func stageCallTraces(db ethdb.Database, ctx context.Context) error {
 	core.UsePlainStateExecution = true
 
-	bc, _, progress := newSync(ctx.Done(), db, db, nil)
+	_, bc, _, progress := newSync(ctx.Done(), db, db, nil)
 	defer bc.Stop()
 
 	if reset {
@@ -446,7 +446,7 @@ func stageHistory(db ethdb.Database, ctx context.Context) error {
 		panic(err)
 	}
 
-	bc, _, progress := newSync(ctx.Done(), db, db, nil)
+	_, bc, _, progress := newSync(ctx.Done(), db, db, nil)
 	defer bc.Stop()
 
 	if reset {
@@ -484,7 +484,7 @@ func stageTxLookup(db ethdb.Database, ctx context.Context) error {
 		panic(err)
 	}
 
-	bc, _, progress := newSync(ctx.Done(), db, db, nil)
+	_, bc, _, progress := newSync(ctx.Done(), db, db, nil)
 	defer bc.Stop()
 
 	if reset {
@@ -512,11 +512,14 @@ func printAllStages(db rawdb.DatabaseReader, _ context.Context) error {
 
 type progressFunc func(stage stages.SyncStage) *stagedsync.StageState
 
-func newSync(quitCh <-chan struct{}, db ethdb.Database, tx ethdb.Database, hook stagedsync.ChangeSetHook) (*core.BlockChain, *stagedsync.State, progressFunc) {
-	chainConfig, bc, err := newBlockChain(tx)
+func newSync(quitCh <-chan struct{}, db ethdb.Database, tx ethdb.Database, hook stagedsync.ChangeSetHook) (*core.TinyChainContext, *core.BlockChain, *stagedsync.State, progressFunc) {
+	chainConfig, bc, err := newBlockChain(db)
 	if err != nil {
 		panic(err)
 	}
+	cc := &core.TinyChainContext{}
+	cc.SetDB(tx)
+	cc.SetEngine(ethash.NewFaker())
 	sm, err := ethdb.GetStorageModeFromDB(tx)
 	if err != nil {
 		panic(err)
@@ -525,7 +528,7 @@ func newSync(quitCh <-chan struct{}, db ethdb.Database, tx ethdb.Database, hook 
 		stagedsync.DefaultStages(),
 		stagedsync.DefaultUnwindOrder(),
 		stagedsync.OptionalParameters{},
-	).Prepare(nil, chainConfig, bc, bc.GetVMConfig(), db, tx, "integration_test", sm, "", false, quitCh, nil, nil, func() error { return nil }, hook)
+	).Prepare(nil, chainConfig, cc, bc.GetVMConfig(), db, tx, "integration_test", sm, "", false, quitCh, nil, nil, func() error { return nil }, hook)
 	if err != nil {
 		panic(err)
 	}
@@ -545,7 +548,7 @@ func newSync(quitCh <-chan struct{}, db ethdb.Database, tx ethdb.Database, hook 
 		return s
 	}
 
-	return bc, st, progress
+	return cc, bc, st, progress
 }
 
 func newBlockChain(db ethdb.Database) (*params.ChainConfig, *core.BlockChain, error) {
