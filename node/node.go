@@ -564,7 +564,7 @@ func (n *Node) OpenDatabaseWithFreezer(name string, _, _ int, _, _ string) (*eth
 		db = ethdb.NewMemDatabase()
 	} else {
 		if n.config.MDBX {
-			log.Info("Opening Database (LMDB)", "mapSize", n.config.LMDBMapSize.HR())
+			log.Info("Opening Database (MDBX)", "mapSize", n.config.LMDBMapSize.HR())
 			kv, err := ethdb.NewMDBX().Path(n.config.ResolvePath(name)).MapSize(n.config.LMDBMapSize).Open()
 			if err != nil {
 				return nil, err
