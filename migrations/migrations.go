@@ -119,12 +119,6 @@ func (m *Migrator) Apply(db ethdb.Database, datadir string) error {
 		uniqueNameCheck[m.Migrations[i].Name] = true
 	}
 
-	tx, err := db.Begin(context.Background())
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
 	for i := range m.Migrations {
 		v := m.Migrations[i]
 		if _, ok := applied[v.Name]; ok {
@@ -134,7 +128,7 @@ func (m *Migrator) Apply(db ethdb.Database, datadir string) error {
 		commitFuncCalled := false // commit function must be called if no error, protection against people's mistake
 
 		log.Info("Apply migration", "name", v.Name)
-		if err := v.Up(tx, datadir, func(putter ethdb.Putter, key []byte, isDone bool) error {
+		if err := v.Up(db, datadir, func(putter ethdb.Putter, key []byte, isDone bool) error {
 			if !isDone {
 				return nil // don't save partial progress
 			}
@@ -146,10 +140,6 @@ func (m *Migrator) Apply(db ethdb.Database, datadir string) error {
 			}
 			err = putter.Put(dbutils.Migrations, []byte(v.Name), stagesProgress)
 			if err != nil {
-				return err
-			}
-
-			if err := tx.CommitAndBegin(context.Background()); err != nil {
 				return err
 			}
 			return nil
