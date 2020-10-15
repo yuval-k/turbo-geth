@@ -651,6 +651,9 @@ func (tx *mdbxTx) BucketSize(name string) (uint64, error) {
 }
 
 func (tx *mdbxTx) BucketStat(name string) (*mdbx.Stat, error) {
+	if name == "freelist" || name == "gc" || name == "free_list" {
+		return tx.tx.StatDBI(mdbx.DBI(0))
+	}
 	return tx.tx.StatDBI(mdbx.DBI(tx.db.buckets[name].DBI))
 }
 

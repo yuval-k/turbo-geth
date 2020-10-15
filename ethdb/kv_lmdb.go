@@ -666,6 +666,9 @@ func (tx *lmdbTx) BucketSize(name string) (uint64, error) {
 }
 
 func (tx *lmdbTx) BucketStat(name string) (*lmdb.Stat, error) {
+	if name == "freelist" || name == "gc" || name == "free_list" {
+		return tx.tx.Stat(lmdb.DBI(0))
+	}
 	return tx.tx.Stat(lmdb.DBI(tx.db.buckets[name].DBI))
 }
 
