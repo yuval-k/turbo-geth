@@ -280,7 +280,7 @@ func stageSenders(db ethdb.Database, ctx context.Context) error {
 func stageExec(db ethdb.Database, ctx context.Context) error {
 	core.UsePlainStateExecution = true
 
-	sm, err := ethdb.GetStorageModeFromDB(tx)
+	sm, err := ethdb.GetStorageModeFromDB(db)
 	if err != nil {
 		panic(err)
 	}
