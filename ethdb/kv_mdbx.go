@@ -68,7 +68,7 @@ func (opts MdbxOpts) Open() (KV, error) {
 		return nil, err
 	}
 
-	_ = env.SetDebug(mdbx.LogLvlDoNotChange, mdbx.DbgLegacyTxOverlap) // temporary disable error, because it works if call it 1 time, but returns error if call it twice in same process (what often happening in tests)
+	//_ = env.SetDebug(mdbx.LogLvlDoNotChange, mdbx.DbgLegacyTxOverlap) // temporary disable error, because it works if call it 1 time, but returns error if call it twice in same process (what often happening in tests)
 
 	err = env.SetMaxDBs(100)
 	if err != nil {
@@ -524,9 +524,9 @@ func (tx *mdbxTx) Commit(ctx context.Context) error {
 		return err
 	}
 	commitTook := time.Since(commitTimer)
-	if commitTook > 20*time.Second {
-		log.Info("Batch", "commit", commitTook)
-	}
+	//if commitTook > 20*time.Second {
+	log.Info("Batch", "commit", commitTook)
+	//}
 
 	if !tx.isSubTx && !tx.db.opts.readOnly && !tx.db.opts.inMem { // call fsync only after main transaction commit
 		fsyncTimer := time.Now()
@@ -534,9 +534,9 @@ func (tx *mdbxTx) Commit(ctx context.Context) error {
 			log.Warn("fsync after commit failed", "err", err)
 		}
 		fsyncTook := time.Since(fsyncTimer)
-		if fsyncTook > 20*time.Second {
-			log.Info("Batch", "fsync", fsyncTook)
-		}
+		//if fsyncTook > 20*time.Second {
+		log.Info("Batch", "fsync", fsyncTook)
+		//}
 	}
 	return nil
 }
