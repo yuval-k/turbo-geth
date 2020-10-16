@@ -43,6 +43,12 @@ const (
 	Exclusive   = C.MDBX_EXCLUSIVE // Disable LMDB memory initialization.
 )
 
+const (
+	MinPageSize = C.MDBX_MIN_PAGESIZE
+	MaxPageSize = C.MDBX_MAX_PAGESIZE
+	MaxDbi      = C.MDBX_MAX_DBI
+)
+
 // These flags are exclusively used in the Env.CopyFlags and Env.CopyFDFlags
 // methods.
 const (
