@@ -521,8 +521,8 @@ func (tx *mdbxTx) Commit(ctx context.Context) error {
 	tx.closeCursors()
 
 	commitTimer := time.Now()
+	info, _ := tx.tx.Info(true)
 	if err := tx.tx.Commit(); err != nil {
-		info, _ := tx.tx.Info(true)
 		return fmt.Errorf("commit failed: %w, additional info: %+v\n", err, info)
 	}
 	commitTook := time.Since(commitTimer)
