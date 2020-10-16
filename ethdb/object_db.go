@@ -271,7 +271,7 @@ func (db *ObjectDatabase) removeBucketContentByMultipleTransactions(bucket strin
 	defer logEvery.Stop()
 
 	var partialDropDone bool
-	var deleteKeysPerTx uint64 = 1_000_000
+	var deleteKeysPerTx uint64 = 100_000
 	for !partialDropDone {
 		if err := db.kv.Update(context.Background(), func(tx Tx) error {
 			c := tx.Cursor(bucket)
