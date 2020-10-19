@@ -77,7 +77,7 @@ var receiptsCborEncode = Migration{
 }
 
 var receiptsOnePerTxEncode = Migration{
-	Name: "receipts_one_per_tx",
+	Name: "receipts_one_per_tx2",
 	Up: func(db ethdb.Database, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
 		logEvery := time.NewTicker(30 * time.Second)
 		defer logEvery.Stop()
@@ -92,17 +92,19 @@ var receiptsOnePerTxEncode = Migration{
 
 		buf := bytes.NewBuffer(make([]byte, 0, 100_000))
 		reader := bytes.NewReader(nil)
+		i := 0
 
 		collectorReceipts, err1 := etl.NewCollectorFromFiles(datadir)
 		if err1 != nil {
 			return err1
 		}
-		if collectorReceipts == nil {
+		if collectorReceipts == nil && false {
 			goto LoadPart
 		}
 
 		collectorReceipts = etl.NewCriticalCollector(datadir, etl.NewSortableBuffer(etl.BufferOptimalSize))
 		if err := db.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
+			i++
 			blockNum := binary.BigEndian.Uint64(k[:8])
 			select {
 			default:
@@ -114,9 +116,6 @@ var receiptsOnePerTxEncode = Migration{
 
 			// Convert the receipts from their storage form to their internal representation
 			legacyReceipts := []*LegacyReceipt{}
-			if err := rlp.DecodeBytes(v, &legacyReceipts); err != nil {
-				return false, fmt.Errorf("invalid receipt array RLP: %w, k=%x", err, k)
-			}
 
 			reader.Reset(v)
 			if err := cbor.Unmarshal(&legacyReceipts, reader); err != nil {
@@ -126,18 +125,16 @@ var receiptsOnePerTxEncode = Migration{
 			// Convert the receipts from their storage form to their internal representation
 			receipts := make(types.Receipts, len(legacyReceipts))
 			for i := range legacyReceipts {
+				receipts[i] = &types.Receipt{}
 				receipts[i].PostState = legacyReceipts[i].PostState
 				receipts[i].Status = legacyReceipts[i].Status
 				receipts[i].CumulativeGasUsed = legacyReceipts[i].CumulativeGasUsed
+				receipts[i].Logs = legacyReceipts[i].Logs
 			}
-
 			for txId, r := range receipts {
 				newK := make([]byte, 8+4)
 				copy(newK, k[:8])
 				binary.BigEndian.PutUint32(newK[8:], uint32(txId))
-				for _, l := range r.Logs {
-					fmt.Printf("%x\n", l.Data)
-				}
 
 				buf.Reset()
 				if err := cbor.Marshal(buf, r); err != nil {
@@ -147,14 +144,16 @@ var receiptsOnePerTxEncode = Migration{
 					return false, fmt.Errorf("collecting key %x: %w", k, err)
 				}
 			}
-			panic(1)
+			//if i > 100000 {
+			//	panic(1)
+			//}
 			return true, nil
 		}); err != nil {
 			return err
 		}
 
 	LoadPart:
-		panic(2)
+		//panic(2)
 		if err := db.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix); err != nil {
 			return fmt.Errorf("clearing the receipt bucket: %w", err)
 		}

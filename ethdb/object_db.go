@@ -238,32 +238,7 @@ func (db *ObjectDatabase) BucketExists(name string) (bool, error) {
 	return exists, nil
 }
 
-func (db *ObjectDatabase) ClearBucketsAndCommitEvery(deleteKeysPerTx uint64, buckets ...string) error {
-	for i := range buckets {
-		name := buckets[i]
-		log.Info("Cleaning bucket", "name", name)
-		if err := db.removeBucketContentByMultipleTransactions(name, deleteKeysPerTx); err != nil {
-			return err
-		}
-		if err := db.kv.Update(context.Background(), func(tx Tx) error {
-			migrator, ok := tx.(BucketMigrator)
-			if !ok {
-				return fmt.Errorf("%T doesn't implement ethdb.TxMigrator interface", db.kv)
-			}
-			if err := migrator.ClearBucket(name); err != nil {
-				return err
-			}
-			return nil
-		}); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func (db *ObjectDatabase) ClearBuckets(buckets ...string) error {
-
 	for i := range buckets {
 		name := buckets[i]
 		if err := db.kv.Update(context.Background(), func(tx Tx) error {

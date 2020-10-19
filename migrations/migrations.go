@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
@@ -135,7 +136,7 @@ func (m *Migrator) Apply(db ethdb.Database, datadir string) error {
 		commitFuncCalled := false // commit function must be called if no error, protection against people's mistake
 
 		log.Info("Apply migration", "name", v.Name)
-		if err := v.Up(tx, datadir, func(putter ethdb.Putter, key []byte, isDone bool) error {
+		if err := v.Up(tx, path.Join(datadir, v.Name), func(putter ethdb.Putter, key []byte, isDone bool) error {
 			if !isDone {
 				// do commit, but don't save partial progress
 				if err := tx.CommitAndBegin(context.Background()); err != nil {
