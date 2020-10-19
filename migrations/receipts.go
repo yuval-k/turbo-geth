@@ -76,14 +76,13 @@ var receiptsCborEncode = Migration{
 	},
 }
 
-var receiptsOnePerTxEncode = Migration{
+var receiptsOnePerTx = Migration{
 	Name: "receipts_one_per_tx3",
 	Up: func(db ethdb.Database, datadir string, OnLoadCommit etl.LoadCommitHandler) error {
 		logEvery := time.NewTicker(30 * time.Second)
 		defer logEvery.Stop()
 
 		type LegacyReceipt struct {
-			// Consensus fields: These fields are defined by the Yellow Paper
 			PostState         []byte       `codec:"1"`
 			Status            uint64       `codec:"2"`
 			CumulativeGasUsed uint64       `codec:"3"`

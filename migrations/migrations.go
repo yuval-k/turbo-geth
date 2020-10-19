@@ -65,7 +65,7 @@ var migrations = []Migration{
 	clearIndices,
 	resetIHBucketToRecoverDB,
 	receiptsCborEncode,
-	receiptsOnePerTxEncode,
+	receiptsOnePerTx,
 }
 
 type Migration struct {
