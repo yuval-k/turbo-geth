@@ -90,64 +90,70 @@ var receiptsOnePerTxEncode = Migration{
 			Logs              []*types.Log `codec:"4"`
 		}
 
+		buf := bytes.NewBuffer(make([]byte, 0, 100_000))
+		reader := bytes.NewReader(nil)
+
 		collectorReceipts, err1 := etl.NewCollectorFromFiles(datadir)
 		if err1 != nil {
 			return err1
 		}
-
 		if collectorReceipts == nil {
-			collectorReceipts = etl.NewCriticalCollector(datadir, etl.NewSortableBuffer(etl.BufferOptimalSize))
-			buf := bytes.NewBuffer(make([]byte, 0, 100_000))
-			if err1 = db.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
-				blockNum := binary.BigEndian.Uint64(k[:8])
-				select {
-				default:
-				case <-logEvery.C:
-					var m runtime.MemStats
-					runtime.ReadMemStats(&m)
-					log.Info("Migration progress", "blockNum", blockNum, "alloc", common.StorageSize(m.Alloc), "sys", common.StorageSize(m.Sys))
+			goto LoadPart
+		}
+
+		collectorReceipts = etl.NewCriticalCollector(datadir, etl.NewSortableBuffer(etl.BufferOptimalSize))
+		if err := db.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
+			blockNum := binary.BigEndian.Uint64(k[:8])
+			select {
+			default:
+			case <-logEvery.C:
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				log.Info("Migration progress", "blockNum", blockNum, "alloc", common.StorageSize(m.Alloc), "sys", common.StorageSize(m.Sys))
+			}
+
+			// Convert the receipts from their storage form to their internal representation
+			legacyReceipts := []*LegacyReceipt{}
+			if err := rlp.DecodeBytes(v, &legacyReceipts); err != nil {
+				return false, fmt.Errorf("invalid receipt array RLP: %w, k=%x", err, k)
+			}
+
+			reader.Reset(v)
+			if err := cbor.Unmarshal(&legacyReceipts, reader); err != nil {
+				return false, err
+			}
+
+			// Convert the receipts from their storage form to their internal representation
+			receipts := make(types.Receipts, len(legacyReceipts))
+			for i := range legacyReceipts {
+				receipts[i].PostState = legacyReceipts[i].PostState
+				receipts[i].Status = legacyReceipts[i].Status
+				receipts[i].CumulativeGasUsed = legacyReceipts[i].CumulativeGasUsed
+			}
+
+			for txId, r := range receipts {
+				newK := make([]byte, 8+4)
+				copy(newK, k[:8])
+				binary.BigEndian.PutUint32(newK[8:], uint32(txId))
+				for _, l := range r.Logs {
+					fmt.Printf("%x\n", l.Data)
 				}
 
-				// Convert the receipts from their storage form to their internal representation
-				legacyReceipts := []*LegacyReceipt{}
-				if err := rlp.DecodeBytes(v, &legacyReceipts); err != nil {
-					return false, fmt.Errorf("invalid receipt array RLP: %w, k=%x", err, k)
-				}
-
-				if err := cbor.Unmarshal(&legacyReceipts, bytes.NewReader(v)); err != nil {
+				buf.Reset()
+				if err := cbor.Marshal(buf, r); err != nil {
 					return false, err
 				}
-
-				// Convert the receipts from their storage form to their internal representation
-				receipts := make(types.Receipts, len(legacyReceipts))
-				for i := range legacyReceipts {
-					receipts[i].PostState = legacyReceipts[i].PostState
-					receipts[i].Status = legacyReceipts[i].Status
-					receipts[i].CumulativeGasUsed = legacyReceipts[i].CumulativeGasUsed
+				if err := collectorReceipts.Collect(newK, buf.Bytes()); err != nil {
+					return false, fmt.Errorf("collecting key %x: %w", k, err)
 				}
-
-				for txId, r := range receipts {
-					newK := make([]byte, 8+4)
-					copy(newK, k[:8])
-					binary.BigEndian.PutUint32(newK[8:], uint32(txId))
-					for _, l := range r.Logs {
-						fmt.Printf("%x\n", l.Data)
-					}
-
-					buf.Reset()
-					if err := cbor.Marshal(buf, r); err != nil {
-						return false, err
-					}
-					if err := collectorReceipts.Collect(newK, buf.Bytes()); err != nil {
-						return false, fmt.Errorf("collecting key %x: %w", k, err)
-					}
-				}
-				panic(1)
-				return true, nil
-			}); err1 != nil {
-				return err1
 			}
+			panic(1)
+			return true, nil
+		}); err != nil {
+			return err
 		}
+
+	LoadPart:
 		panic(2)
 		if err := db.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix); err != nil {
 			return fmt.Errorf("clearing the receipt bucket: %w", err)

@@ -87,6 +87,8 @@ func promoteLogIndex(db ethdb.Database, start uint64, datadir string, quit <-cha
 	collectorTopics := etl.NewCollector(datadir, etl.NewSortableBuffer(etl.BufferOptimalSize))
 	collectorAddrs := etl.NewCollector(datadir, etl.NewSortableBuffer(etl.BufferOptimalSize))
 
+	reader := bytes.NewReader(nil)
+
 	for k, v, err := receipts.Seek(dbutils.ReceiptKey(start, 0)); k != nil; k, v, err = receipts.Next() {
 		if err != nil {
 			return err
@@ -120,7 +122,8 @@ func promoteLogIndex(db ethdb.Database, start uint64, datadir string, quit <-cha
 		}
 
 		var receipt = &types.Receipt{}
-		if err := cbor.Unmarshal(receipt, bytes.NewReader(v)); err != nil {
+		reader.Reset(v)
+		if err := cbor.Unmarshal(receipt, reader); err != nil {
 			return fmt.Errorf("receipt unmarshal failed: %w, blocl=%d", err, blockNum)
 		}
 
