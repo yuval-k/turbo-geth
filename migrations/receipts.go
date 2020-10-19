@@ -97,7 +97,7 @@ var receiptsOnePerTxEncode = Migration{
 		if err1 != nil {
 			return err1
 		}
-		if collectorReceipts == nil {
+		if collectorReceipts != nil {
 			goto LoadPart
 		}
 
