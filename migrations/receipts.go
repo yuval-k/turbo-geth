@@ -92,19 +92,17 @@ var receiptsOnePerTxEncode = Migration{
 
 		buf := bytes.NewBuffer(make([]byte, 0, 100_000))
 		reader := bytes.NewReader(nil)
-		i := 0
 
 		collectorReceipts, err1 := etl.NewCollectorFromFiles(datadir)
 		if err1 != nil {
 			return err1
 		}
-		if collectorReceipts == nil && false {
+		if collectorReceipts == nil {
 			goto LoadPart
 		}
 
 		collectorReceipts = etl.NewCriticalCollector(datadir, etl.NewSortableBuffer(etl.BufferOptimalSize))
 		if err := db.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
-			i++
 			blockNum := binary.BigEndian.Uint64(k[:8])
 			select {
 			default:
@@ -144,16 +142,12 @@ var receiptsOnePerTxEncode = Migration{
 					return false, fmt.Errorf("collecting key %x: %w", k, err)
 				}
 			}
-			//if i > 100000 {
-			//	panic(1)
-			//}
 			return true, nil
 		}); err != nil {
 			return err
 		}
 
 	LoadPart:
-		//panic(2)
 		if err := db.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix); err != nil {
 			return fmt.Errorf("clearing the receipt bucket: %w", err)
 		}
