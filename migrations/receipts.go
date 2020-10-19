@@ -130,7 +130,6 @@ var receiptsOnePerTxEncode = Migration{
 					newK := make([]byte, 8+4)
 					copy(newK, k[:8])
 					binary.BigEndian.PutUint32(newK[8:], uint32(txId))
-
 					buf.Reset()
 					if err := cbor.Marshal(buf, r); err != nil {
 						return false, err
