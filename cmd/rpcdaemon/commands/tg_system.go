@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"github.com/ledgerwatch/turbo-geth/ethdb"
 
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/core/forkid"
@@ -22,7 +23,7 @@ func (api *TgImpl) Forks(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHas
 		return Forks{}, err
 	}
 
-	tx, err := api.db.Begin(ctx, nil, false)
+	tx, err := api.db.Begin(ctx, nil, ethdb.RO)
 	if err != nil {
 		return Forks{}, err
 	}

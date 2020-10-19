@@ -9,14 +9,11 @@ import (
 	"runtime/pprof"
 	"time"
 
-	"github.com/ledgerwatch/turbo-geth/ethdb/cbor"
-
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/core"
 	"github.com/ledgerwatch/turbo-geth/core/rawdb"
 	"github.com/ledgerwatch/turbo-geth/core/state"
-	"github.com/ledgerwatch/turbo-geth/core/types"
 	"github.com/ledgerwatch/turbo-geth/core/types/accounts"
 	"github.com/ledgerwatch/turbo-geth/core/vm"
 	"github.com/ledgerwatch/turbo-geth/eth/stagedsync/stages"
@@ -82,7 +79,7 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 		useExternalTx = true
 	} else {
 		var err error
-		tx, err = stateDB.Begin(context.Background())
+		tx, err = stateDB.Begin(context.Background(), ethdb.RW)
 		if err != nil {
 			return err
 		}
@@ -157,7 +154,7 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 		}
 
 		if params.WriteReceipts {
-			if err = appendReceipts(tx, receipts, block.NumberU64(), block.Hash()); err != nil {
+			if err = rawdb.AppendReceipts(tx, block.NumberU64(), receipts); err != nil {
 				return err
 			}
 		}
@@ -229,19 +226,6 @@ func logProgress(prev, now uint64, batch ethdb.DbWithPendingMutations) uint64 {
 	return now
 }
 
-func appendReceipts(tx ethdb.DbWithPendingMutations, receipts types.Receipts, blockNumber uint64, blockHash common.Hash) error {
-	newV := make([]byte, 0, 1024)
-	err := cbor.Marshal(&newV, receipts)
-	if err != nil {
-		return fmt.Errorf("encode block receipts for block %d: %v", blockNumber, err)
-	}
-	// Store the flattened receipt slice
-	if err = tx.Append(dbutils.BlockReceiptsPrefix, dbutils.BlockReceiptsKey(blockNumber, blockHash), newV); err != nil {
-		return fmt.Errorf("writing receipts for block %d: %v", blockNumber, err)
-	}
-	return nil
-}
-
 func UnwindExecutionStage(u *UnwindState, s *StageState, stateDB ethdb.Database, writeReceipts bool) error {
 	if u.UnwindPoint >= s.BlockNumber {
 		s.Done()
@@ -311,7 +295,7 @@ func UnwindExecutionStage(u *UnwindState, s *StageState, stateDB ethdb.Database,
 		return fmt.Errorf("unwind Execution: walking storage changesets: %v", err)
 	}
 	if writeReceipts {
-		if err := stateDB.Walk(dbutils.BlockReceiptsPrefix, dbutils.EncodeBlockNumber(u.UnwindPoint+1), 0, func(k, v []byte) (bool, error) {
+		if err := stateDB.Walk(dbutils.BlockReceiptsPrefix, dbutils.ReceiptKey(u.UnwindPoint+1, 0), 0, func(k, v []byte) (bool, error) {
 			if err := batch.Delete(dbutils.BlockReceiptsPrefix, common.CopyBytes(k)); err != nil {
 				return false, fmt.Errorf("unwind Execution: delete receipts: %v", err)
 			}

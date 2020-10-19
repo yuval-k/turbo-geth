@@ -21,6 +21,7 @@ type TxDb struct {
 	db       Database
 	tx       Tx
 	ParentTx Tx
+	txFlags  TxFlags
 	cursors  map[string]Cursor
 	len      uint64
 }
@@ -36,13 +37,13 @@ func NewTxDbWithoutTransaction(db Database) *TxDb {
 	return &TxDb{db: db}
 }
 
-func (m *TxDb) Begin(ctx context.Context) (DbWithPendingMutations, error) {
+func (m *TxDb) Begin(ctx context.Context, flags TxFlags) (DbWithPendingMutations, error) {
 	batch := m
 	if m.tx != nil {
-		batch = &TxDb{db: m.db}
+		batch = &TxDb{db: m.db, txFlags: flags}
 	}
 
-	if err := batch.begin(ctx, m.tx); err != nil {
+	if err := batch.begin(ctx, m.tx, flags); err != nil {
 		return nil, err
 	}
 	return batch, nil
@@ -85,8 +86,8 @@ func (m *TxDb) NewBatch() DbWithPendingMutations {
 	}
 }
 
-func (m *TxDb) begin(ctx context.Context, parent Tx) error {
-	tx, err := m.db.(HasKV).KV().Begin(ctx, parent, true)
+func (m *TxDb) begin(ctx context.Context, parent Tx, flags TxFlags) error {
+	tx, err := m.db.(HasKV).KV().Begin(ctx, parent, flags)
 	if err != nil {
 		return err
 	}
@@ -334,12 +335,12 @@ func (m *TxDb) CommitAndBegin(ctx context.Context) error {
 		return err
 	}
 
-	return m.begin(ctx, m.ParentTx)
+	return m.begin(ctx, m.ParentTx, m.txFlags)
 }
 
 func (m *TxDb) RollbackAndBegin(ctx context.Context) error {
 	m.Rollback()
-	return m.begin(ctx, m.ParentTx)
+	return m.begin(ctx, m.ParentTx, m.txFlags)
 }
 
 func (m *TxDb) Commit() (uint64, error) {

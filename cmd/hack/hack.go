@@ -1670,7 +1670,7 @@ func iterateOverCode(chaindata string) error {
 func zstd(chaindata string) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
-	tx, errBegin := db.Begin(context.Background())
+	tx, errBegin := db.Begin(context.Background(), ethdb.RW)
 	check(errBegin)
 	defer tx.Rollback()
 
@@ -1862,7 +1862,7 @@ func zstd(chaindata string) error {
 func benchRlp(chaindata string) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
-	tx, err := db.Begin(context.Background())
+	tx, err := db.Begin(context.Background(), ethdb.RW)
 	check(err)
 	defer tx.Rollback()
 
@@ -2089,7 +2089,7 @@ func extracHeaders(chaindata string, block uint64) error {
 func receiptSizes(chaindata string) error {
 	db := ethdb.MustOpen(chaindata)
 	defer db.Close()
-	tx, err := db.KV().Begin(context.Background(), nil, false)
+	tx, err := db.KV().Begin(context.Background(), nil, ethdb.RO)
 	if err != nil {
 		return err
 	}

@@ -6,12 +6,13 @@ import (
 	"github.com/ledgerwatch/turbo-geth/common/hexutil"
 	"github.com/ledgerwatch/turbo-geth/consensus/ethash"
 	"github.com/ledgerwatch/turbo-geth/core/rawdb"
+	"github.com/ledgerwatch/turbo-geth/ethdb"
 	"github.com/ledgerwatch/turbo-geth/rpc"
 )
 
 // BlockReward returns the block reward for this block
 func (api *TraceAPIImpl) BlockReward(ctx context.Context, blockNr rpc.BlockNumber) (Issuance, error) {
-	tx, err := api.dbReader.Begin(ctx)
+	tx, err := api.dbReader.Begin(ctx, ethdb.RO)
 	if err != nil {
 		return Issuance{}, err
 	}
@@ -22,7 +23,7 @@ func (api *TraceAPIImpl) BlockReward(ctx context.Context, blockNr rpc.BlockNumbe
 
 // UncleReward returns the uncle reward for this block
 func (api *TraceAPIImpl) UncleReward(ctx context.Context, blockNr rpc.BlockNumber) (Issuance, error) {
-	tx, err := api.dbReader.Begin(ctx)
+	tx, err := api.dbReader.Begin(ctx, ethdb.RO)
 	if err != nil {
 		return Issuance{}, err
 	}
@@ -33,7 +34,7 @@ func (api *TraceAPIImpl) UncleReward(ctx context.Context, blockNr rpc.BlockNumbe
 
 // Issuance returns the issuance for this block
 func (api *TraceAPIImpl) Issuance(ctx context.Context, blockNr rpc.BlockNumber) (Issuance, error) {
-	tx, err := api.dbReader.Begin(ctx)
+	tx, err := api.dbReader.Begin(ctx, ethdb.RO)
 	if err != nil {
 		return Issuance{}, err
 	}

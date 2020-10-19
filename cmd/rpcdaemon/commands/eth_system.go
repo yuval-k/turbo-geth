@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"github.com/ledgerwatch/turbo-geth/ethdb"
 
 	"github.com/ledgerwatch/turbo-geth/common/hexutil"
 	"github.com/ledgerwatch/turbo-geth/eth"
@@ -43,7 +44,7 @@ func (api *APIImpl) Syncing(_ context.Context) (interface{}, error) {
 
 // ChainId returns the chain id from the config
 func (api *APIImpl) ChainId(ctx context.Context) (hexutil.Uint64, error) {
-	tx, err := api.dbReader.Begin(ctx)
+	tx, err := api.dbReader.Begin(ctx, ethdb.RO)
 	if err != nil {
 		return 0, err
 	}

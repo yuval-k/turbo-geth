@@ -35,7 +35,7 @@ func SpawnLogIndex(s *StageState, db ethdb.Database, datadir string, quit <-chan
 		useExternalTx = true
 	} else {
 		var err error
-		tx, err = db.Begin(context.Background())
+		tx, err = db.Begin(context.Background(), ethdb.RW)
 		if err != nil {
 			return err
 		}
@@ -79,7 +79,7 @@ func promoteLogIndex(db ethdb.Database, start uint64, datadir string, quit <-cha
 	tx := db.(ethdb.HasTx).Tx()
 	topics := map[string]*roaring.Bitmap{}
 	addresses := map[string]*roaring.Bitmap{}
-	receipts := tx.Cursor(dbutils.BlockReceiptsPrefix)
+	receipts := tx.Cursor(dbutils.LogBucket)
 	defer receipts.Close()
 	checkFlushEvery := time.NewTicker(logIndicesCheckSizeEvery)
 	defer checkFlushEvery.Stop()
@@ -87,7 +87,7 @@ func promoteLogIndex(db ethdb.Database, start uint64, datadir string, quit <-cha
 	collectorTopics := etl.NewCollector(datadir, etl.NewSortableBuffer(etl.BufferOptimalSize))
 	collectorAddrs := etl.NewCollector(datadir, etl.NewSortableBuffer(etl.BufferOptimalSize))
 
-	for k, v, err := receipts.Seek(dbutils.EncodeBlockNumber(start)); k != nil; k, v, err = receipts.Next() {
+	for k, v, err := receipts.Seek(dbutils.ReceiptKey(start, 0)); k != nil; k, v, err = receipts.Next() {
 		if err != nil {
 			return err
 		}
@@ -119,31 +119,29 @@ func promoteLogIndex(db ethdb.Database, start uint64, datadir string, quit <-cha
 			}
 		}
 
-		receipts := types.Receipts{}
-		if err := cbor.Unmarshal(&receipts, v); err != nil {
+		var receipt *types.Receipt
+		if err := cbor.Unmarshal(receipts, v); err != nil {
 			return fmt.Errorf("receipt unmarshal failed: %w, blocl=%d", err, blockNum)
 		}
 
-		for _, receipt := range receipts {
-			for _, log := range receipt.Logs {
-				for _, topic := range log.Topics {
-					topicStr := string(topic.Bytes())
-					m, ok := topics[topicStr]
-					if !ok {
-						m = roaring.New()
-						topics[topicStr] = m
-					}
-					m.Add(uint32(blockNum))
-				}
-
-				accStr := string(log.Address.Bytes())
-				m, ok := addresses[accStr]
+		for _, l := range receipt.Logs {
+			for _, topic := range l.Topics {
+				topicStr := string(topic.Bytes())
+				m, ok := topics[topicStr]
 				if !ok {
 					m = roaring.New()
-					addresses[accStr] = m
+					topics[topicStr] = m
 				}
 				m.Add(uint32(blockNum))
 			}
+
+			accStr := string(l.Address.Bytes())
+			m, ok := addresses[accStr]
+			if !ok {
+				m = roaring.New()
+				addresses[accStr] = m
+			}
+			m.Add(uint32(blockNum))
 		}
 	}
 
@@ -222,7 +220,7 @@ func UnwindLogIndex(u *UnwindState, s *StageState, db ethdb.Database, quitCh <-c
 		useExternalTx = true
 	} else {
 		var err error
-		tx, err = db.Begin(context.Background())
+		tx, err = db.Begin(context.Background(), ethdb.RW)
 		if err != nil {
 			return err
 		}

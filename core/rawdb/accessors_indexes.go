@@ -17,6 +17,7 @@
 package rawdb
 
 import (
+	"github.com/ledgerwatch/turbo-geth/ethdb"
 	"math/big"
 
 	"github.com/ledgerwatch/turbo-geth/common"
@@ -91,7 +92,7 @@ func ReadTransaction(db DatabaseReader, hash common.Hash) (*types.Transaction, c
 
 // ReadReceipt retrieves a specific transaction receipt from the database, along with
 // its added positional metadata.
-func ReadReceipt(db DatabaseReader, hash common.Hash) (*types.Receipt, common.Hash, uint64, uint64) {
+func ReadReceipt(db ethdb.Database, hash common.Hash) (*types.Receipt, common.Hash, uint64, uint64) {
 	// Retrieve the context of the receipt based on the transaction hash
 	blockNumber := ReadTxLookupEntry(db, hash)
 	if blockNumber == nil {

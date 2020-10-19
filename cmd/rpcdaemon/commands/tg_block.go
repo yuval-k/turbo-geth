@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"github.com/ledgerwatch/turbo-geth/ethdb"
 
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/core/rawdb"
@@ -12,7 +13,7 @@ import (
 
 // GetHeaderByNumber returns a block's header by number
 func (api *TgImpl) GetHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error) {
-	tx, err := api.db.Begin(ctx, nil, false)
+	tx, err := api.db.Begin(ctx, nil, ethdb.RO)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +29,7 @@ func (api *TgImpl) GetHeaderByNumber(ctx context.Context, number rpc.BlockNumber
 
 // GetHeaderByHash returns a block's header by hash
 func (api *TgImpl) GetHeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {
-	tx, err := api.db.Begin(ctx, nil, false)
+	tx, err := api.db.Begin(ctx, nil, ethdb.RO)
 	if err != nil {
 		return nil, err
 	}

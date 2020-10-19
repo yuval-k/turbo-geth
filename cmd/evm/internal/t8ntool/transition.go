@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ledgerwatch/turbo-geth/ethdb"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -211,7 +212,7 @@ func Main(ctx *cli.Context) error {
 	//postAlloc := state.DumpGenesisFormat(false, false, false)
 	collector := make(Alloc)
 
-	tx, err1 := db.Begin(context.Background(), nil, false)
+	tx, err1 := db.Begin(context.Background(), nil, ethdb.RO)
 	if err1 != nil {
 		return fmt.Errorf("transition cannot open tx: %v", err1)
 	}

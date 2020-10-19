@@ -21,13 +21,13 @@ func getDataDir() string {
 func TestPromoteHashedStateClearState(t *testing.T) {
 	db1 := ethdb.NewMemDatabase()
 	defer db1.Close()
-	tx1, err := db1.Begin(context.Background())
+	tx1, err := db1.Begin(context.Background(), ethdb.RW)
 	require.NoError(t, err)
 	defer tx1.Rollback()
 
 	db2 := ethdb.NewMemDatabase()
 	defer db2.Close()
-	tx2, err := db2.Begin(context.Background())
+	tx2, err := db2.Begin(context.Background(), ethdb.RW)
 	require.NoError(t, err)
 	defer tx2.Rollback()
 
@@ -54,13 +54,13 @@ func TestPromoteHashedStateClearState(t *testing.T) {
 func TestPromoteHashedStateIncremental(t *testing.T) {
 	db1 := ethdb.NewMemDatabase()
 	defer db1.Close()
-	tx1, err := db1.Begin(context.Background())
+	tx1, err := db1.Begin(context.Background(), ethdb.RW)
 	require.NoError(t, err)
 	defer tx1.Rollback()
 
 	db2 := ethdb.NewMemDatabase()
 	defer db2.Close()
-	tx2, err := db2.Begin(context.Background())
+	tx2, err := db2.Begin(context.Background(), ethdb.RW)
 	require.NoError(t, err)
 	defer tx2.Rollback()
 
@@ -103,13 +103,13 @@ func TestPromoteHashedStateIncremental(t *testing.T) {
 func TestPromoteHashedStateIncrementalMixed(t *testing.T) {
 	db1 := ethdb.NewMemDatabase()
 	defer db1.Close()
-	tx1, err := db1.Begin(context.Background())
+	tx1, err := db1.Begin(context.Background(), ethdb.RW)
 	require.NoError(t, err)
 	defer tx1.Rollback()
 
 	db2 := ethdb.NewMemDatabase()
 	defer db2.Close()
-	tx2, err := db2.Begin(context.Background())
+	tx2, err := db2.Begin(context.Background(), ethdb.RW)
 	require.NoError(t, err)
 	defer tx2.Rollback()
 
@@ -136,13 +136,13 @@ func TestPromoteHashedStateIncrementalMixed(t *testing.T) {
 func TestUnwindHashed(t *testing.T) {
 	db1 := ethdb.NewMemDatabase()
 	defer db1.Close()
-	tx1, err := db1.Begin(context.Background())
+	tx1, err := db1.Begin(context.Background(), ethdb.RW)
 	require.NoError(t, err)
 	defer tx1.Rollback()
 
 	db2 := ethdb.NewMemDatabase()
 	defer db2.Close()
-	tx2, err := db2.Begin(context.Background())
+	tx2, err := db2.Begin(context.Background(), ethdb.RW)
 	require.NoError(t, err)
 	defer tx2.Rollback()
 

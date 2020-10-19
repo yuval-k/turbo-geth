@@ -218,12 +218,12 @@ func (db *RemoteKV) DiskSize(ctx context.Context) (uint64, error) {
 	return sizeReply.Size, nil
 }
 
-func (db *RemoteKV) Begin(ctx context.Context, parent Tx, writable bool) (Tx, error) {
+func (db *RemoteKV) Begin(ctx context.Context, parent Tx, flags TxFlags) (Tx, error) {
 	return &remoteTx{ctx: ctx, db: db}, nil
 }
 
 func (db *RemoteKV) View(ctx context.Context, f func(tx Tx) error) (err error) {
-	tx, err := db.Begin(ctx, nil, false)
+	tx, err := db.Begin(ctx, nil, RO)
 	if err != nil {
 		return err
 	}

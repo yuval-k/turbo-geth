@@ -102,7 +102,7 @@ func (s *KvServer) Seek(stream remote.KV_SeekServer) error {
 	if recvErr != nil {
 		return recvErr
 	}
-	tx, err := s.kv.Begin(stream.Context(), nil, false)
+	tx, err := s.kv.Begin(stream.Context(), nil, ethdb.RO)
 	if err != nil {
 		return fmt.Errorf("server-side error: %w", err)
 	}
@@ -195,7 +195,7 @@ func (s *KvServer) Seek(stream remote.KV_SeekServer) error {
 		default:
 		case <-txTicker.C:
 			tx.Rollback()
-			tx, err = s.kv.Begin(stream.Context(), nil, false)
+			tx, err = s.kv.Begin(stream.Context(), nil, ethdb.RO)
 			if err != nil {
 				return fmt.Errorf("server-side error: %w", err)
 
@@ -229,7 +229,7 @@ func NewKv2Server(kv ethdb.KV) *Kv2Server {
 }
 
 func (s *Kv2Server) Tx(stream remote.KV2_TxServer) error {
-	tx, errBegin := s.kv.Begin(stream.Context(), nil, false)
+	tx, errBegin := s.kv.Begin(stream.Context(), nil, ethdb.RO)
 	if errBegin != nil {
 		return fmt.Errorf("server-side error: %w", errBegin)
 	}
@@ -273,7 +273,7 @@ func (s *Kv2Server) Tx(stream remote.KV2_TxServer) error {
 			}
 
 			tx.Rollback()
-			tx, errBegin = s.kv.Begin(stream.Context(), nil, false)
+			tx, errBegin = s.kv.Begin(stream.Context(), nil, ethdb.RO)
 			if errBegin != nil {
 				return fmt.Errorf("server-side error: %w", errBegin)
 			}

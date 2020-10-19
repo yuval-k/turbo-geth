@@ -119,7 +119,7 @@ func (m *Migrator) Apply(db ethdb.Database, datadir string) error {
 		uniqueNameCheck[m.Migrations[i].Name] = true
 	}
 
-	tx, err := db.Begin(context.Background())
+	tx, err := db.Begin(context.Background(), ethdb.RW)
 	if err != nil {
 		return err
 	}

@@ -41,7 +41,7 @@ func SpawnCallTraces(s *StageState, db ethdb.Database, chainConfig *params.Chain
 		useExternalTx = true
 	} else {
 		var err error
-		tx, err = db.Begin(context.Background())
+		tx, err = db.Begin(context.Background(), ethdb.RW)
 		if err != nil {
 			return err
 		}
@@ -326,7 +326,7 @@ func UnwindCallTraces(u *UnwindState, s *StageState, db ethdb.Database, chainCon
 		useExternalTx = true
 	} else {
 		var err error
-		tx, err = db.Begin(context.Background())
+		tx, err = db.Begin(context.Background(), ethdb.RW)
 		if err != nil {
 			return err
 		}
