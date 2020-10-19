@@ -130,6 +130,10 @@ var receiptsOnePerTxEncode = Migration{
 					newK := make([]byte, 8+4)
 					copy(newK, k[:8])
 					binary.BigEndian.PutUint32(newK[8:], uint32(txId))
+					for _, l := range r.Logs {
+						fmt.Printf("%x\n", l.Data)
+					}
+
 					buf.Reset()
 					if err := cbor.Marshal(buf, r); err != nil {
 						return false, err
@@ -138,6 +142,7 @@ var receiptsOnePerTxEncode = Migration{
 						return false, fmt.Errorf("collecting key %x: %w", k, err)
 					}
 				}
+				panic(1)
 				return true, nil
 			}); err1 != nil {
 				return err1
