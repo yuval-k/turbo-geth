@@ -148,6 +148,7 @@ var receiptsOnePerTxEncode = Migration{
 				return err1
 			}
 		}
+		panic(2)
 		if err := db.(ethdb.BucketsMigrator).ClearBuckets(dbutils.BlockReceiptsPrefix); err != nil {
 			return fmt.Errorf("clearing the receipt bucket: %w", err)
 		}
