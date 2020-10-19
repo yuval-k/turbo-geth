@@ -1696,7 +1696,7 @@ func zstd(chaindata string) error {
 		}
 
 		storageReceipts := types.Receipts{}
-		err = cbor.Unmarshal(&storageReceipts, v)
+		err = cbor.Unmarshal(&storageReceipts, bytes.NewReader(v))
 		check(err)
 
 		samples1 = append(samples1, v)
@@ -1885,7 +1885,7 @@ func benchRlp(chaindata string) error {
 	var cbor_decode3 time.Duration
 	var cbor_compress time.Duration
 
-	bufSlice := make([]byte, 0, 100_000)
+	buf := bytes.NewBuffer(make([]byte, 0, 100_000))
 	compressBuf := make([]byte, 0, 100_000)
 
 	var samplesCbor [][]byte
@@ -1902,7 +1902,7 @@ func benchRlp(chaindata string) error {
 		}
 
 		receipts := types.Receipts{}
-		err = cbor.Unmarshal(&receipts, v)
+		err = cbor.Unmarshal(&receipts, bytes.NewReader(v))
 		check(err)
 
 		select {
@@ -1925,13 +1925,14 @@ func benchRlp(chaindata string) error {
 		blockNum := binary.BigEndian.Uint64(k)
 
 		storageReceipts := types.Receipts{}
-		err = cbor.Unmarshal(&storageReceipts, v)
+		err = cbor.Unmarshal(&storageReceipts, bytes.NewReader(v))
 		check(err)
 
 		t := time.Now()
-		err = cbor.Marshal(&bufSlice, storageReceipts)
+		buf.Reset()
+		err = cbor.Marshal(buf, storageReceipts)
 		cbor_encode += time.Since(t)
-		total_cbor += len(bufSlice)
+		total_cbor += buf.Len()
 		check(err)
 
 		t = time.Now()
@@ -1941,7 +1942,7 @@ func benchRlp(chaindata string) error {
 
 		storageReceipts2 := types.Receipts{}
 		t = time.Now()
-		err = cbor.Unmarshal(&storageReceipts2, bufSlice)
+		err = cbor.Unmarshal(&storageReceipts2, bytes.NewReader(buf.Bytes()))
 		cbor_decode += time.Since(t)
 		check(err)
 

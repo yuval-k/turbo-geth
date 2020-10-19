@@ -79,7 +79,7 @@ func promoteLogIndex(db ethdb.Database, start uint64, datadir string, quit <-cha
 	tx := db.(ethdb.HasTx).Tx()
 	topics := map[string]*roaring.Bitmap{}
 	addresses := map[string]*roaring.Bitmap{}
-	receipts := tx.Cursor(dbutils.LogBucket)
+	receipts := tx.Cursor(dbutils.BlockReceiptsPrefix)
 	defer receipts.Close()
 	checkFlushEvery := time.NewTicker(logIndicesCheckSizeEvery)
 	defer checkFlushEvery.Stop()
@@ -119,8 +119,8 @@ func promoteLogIndex(db ethdb.Database, start uint64, datadir string, quit <-cha
 			}
 		}
 
-		var receipt *types.Receipt
-		if err := cbor.Unmarshal(receipts, v); err != nil {
+		var receipt = &types.Receipt{}
+		if err := cbor.Unmarshal(receipt, bytes.NewReader(v)); err != nil {
 			return fmt.Errorf("receipt unmarshal failed: %w, blocl=%d", err, blockNum)
 		}
 
@@ -253,18 +253,16 @@ func unwindLogIndex(db ethdb.DbWithPendingMutations, from, to uint64, quitCh <-c
 		if err := common.Stopped(quitCh); err != nil {
 			return false, err
 		}
-		receipts := types.Receipts{}
-		if err := cbor.Unmarshal(&receipts, v); err != nil {
-			return false, fmt.Errorf("receipt unmarshal failed: %w, k=%x", err, k)
+		var receipt *types.Receipt
+		if err := cbor.Unmarshal(receipt, bytes.NewReader(v)); err != nil {
+			return false, fmt.Errorf("receipt unmarshal failed: %w, block=%d", err, binary.BigEndian.Uint64(k))
 		}
 
-		for _, receipt := range receipts {
-			for _, log := range receipt.Logs {
-				for _, topic := range log.Topics {
-					topics[string(topic.Bytes())] = struct{}{}
-				}
-				addrs[string(log.Address.Bytes())] = struct{}{}
+		for _, l := range receipt.Logs {
+			for _, topic := range l.Topics {
+				topics[string(topic.Bytes())] = struct{}{}
 			}
+			addrs[string(l.Address.Bytes())] = struct{}{}
 		}
 		return true, nil
 	}); err != nil {

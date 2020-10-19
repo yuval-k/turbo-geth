@@ -289,7 +289,7 @@ func (db *LmdbKV) Begin(_ context.Context, parent Tx, flags TxFlags) (Tx, error)
 	}
 
 	nativeFlags := uint(0)
-	if flags&RO == 0 {
+	if flags&RO != 0 {
 		nativeFlags |= lmdb.Readonly
 	}
 	var parentTx *lmdb.Txn

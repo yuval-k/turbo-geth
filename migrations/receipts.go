@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"runtime"
@@ -27,7 +28,7 @@ var receiptsCborEncode = Migration{
 		}
 		if collector == nil {
 			collector = etl.NewCriticalCollector(datadir, etl.NewSortableBuffer(etl.BufferOptimalSize))
-			buf := make([]byte, 0, 100_000)
+			buf := bytes.NewBuffer(make([]byte, 0, 100_000))
 			if err1 = db.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
 				blockNum := binary.BigEndian.Uint64(k[:8])
 				select {
@@ -44,11 +45,11 @@ var receiptsCborEncode = Migration{
 					return false, fmt.Errorf("invalid receipt array RLP: %w, k=%x", err, k)
 				}
 
-				buf = buf[:0]
-				if err := cbor.Marshal(&buf, storageReceipts); err != nil {
+				buf.Reset()
+				if err := cbor.Marshal(buf, storageReceipts); err != nil {
 					return false, err
 				}
-				if err := collector.Collect(k, buf); err != nil {
+				if err := collector.Collect(k, buf.Bytes()); err != nil {
 					return false, fmt.Errorf("collecting key %x: %w", k, err)
 				}
 				return true, nil
@@ -96,7 +97,7 @@ var receiptsOnePerTxEncode = Migration{
 
 		if collectorReceipts == nil {
 			collectorReceipts = etl.NewCriticalCollector(datadir, etl.NewSortableBuffer(etl.BufferOptimalSize))
-			buf := make([]byte, 0, 100_000)
+			buf := bytes.NewBuffer(make([]byte, 0, 100_000))
 			if err1 = db.Walk(dbutils.BlockReceiptsPrefix, nil, 0, func(k, v []byte) (bool, error) {
 				blockNum := binary.BigEndian.Uint64(k[:8])
 				select {
@@ -113,7 +114,7 @@ var receiptsOnePerTxEncode = Migration{
 					return false, fmt.Errorf("invalid receipt array RLP: %w, k=%x", err, k)
 				}
 
-				if err := cbor.Unmarshal(&legacyReceipts, v); err != nil {
+				if err := cbor.Unmarshal(&legacyReceipts, bytes.NewReader(v)); err != nil {
 					return false, err
 				}
 
@@ -130,11 +131,11 @@ var receiptsOnePerTxEncode = Migration{
 					copy(newK, k[:8])
 					binary.BigEndian.PutUint32(newK[8:], uint32(txId))
 
-					buf = buf[:0]
-					if err := cbor.Marshal(&buf, r); err != nil {
+					buf.Reset()
+					if err := cbor.Marshal(buf, r); err != nil {
 						return false, err
 					}
-					if err := collectorReceipts.Collect(newK, buf); err != nil {
+					if err := collectorReceipts.Collect(newK, buf.Bytes()); err != nil {
 						return false, fmt.Errorf("collecting key %x: %w", k, err)
 					}
 				}

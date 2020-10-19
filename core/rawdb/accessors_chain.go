@@ -425,9 +425,9 @@ func HasReceipts(db DatabaseReader, hash common.Hash, number uint64) bool {
 // should not be used. Use ReadReceipts instead if the metadata is needed.
 func ReadRawReceipts(db ethdb.Database, hash common.Hash, number uint64) types.Receipts {
 	receipts := types.Receipts{}
-	if err := db.Walk(dbutils.LogBucket, dbutils.ReceiptKey(number, 0), 8*8, func(k, v []byte) (bool, error) {
-		var r *types.Receipt
-		if err := cbor.Unmarshal(&r, v); err != nil {
+	if err := db.Walk(dbutils.BlockReceiptsPrefix, dbutils.ReceiptKey(number, 0), 8*8, func(k, v []byte) (bool, error) {
+		var r = &types.Receipt{}
+		if err := cbor.Unmarshal(&r, bytes.NewReader(v)); err != nil {
 			return false, fmt.Errorf("receipt unmarshal failed: %x, %w", hash, err)
 		}
 		receipts = append(receipts, r)
@@ -468,9 +468,9 @@ func ReadReceipts(db ethdb.Database, hash common.Hash, number uint64) types.Rece
 
 // WriteReceipts stores all the transaction receipts belonging to a block.
 func WriteReceipts(tx DatabaseWriter, number uint64, receipts types.Receipts) {
-	newV := make([]byte, 0, 1024)
+	buf := bytes.NewBuffer(make([]byte, 0, 1024))
 	for txId, r := range receipts {
-		err := cbor.Marshal(&newV, r)
+		err := cbor.Marshal(buf, r)
 		if err != nil {
 			err = fmt.Errorf("encode block receipts for block %d: %v", number, err)
 			log.Crit("Failed to store block receipts", "err", err)
@@ -478,7 +478,7 @@ func WriteReceipts(tx DatabaseWriter, number uint64, receipts types.Receipts) {
 		}
 
 		// Store the flattened receipt slice
-		if err = tx.Put(dbutils.BlockReceiptsPrefix, dbutils.ReceiptKey(number, uint32(txId)), newV); err != nil {
+		if err = tx.Put(dbutils.BlockReceiptsPrefix, dbutils.ReceiptKey(number, uint32(txId)), buf.Bytes()); err != nil {
 			err = fmt.Errorf("writing receipts for block %d: %v", number, err)
 			log.Crit("Failed to store block receipts", "err", err)
 			return
@@ -488,15 +488,15 @@ func WriteReceipts(tx DatabaseWriter, number uint64, receipts types.Receipts) {
 
 // WriteReceipts stores all the transaction receipts belonging to a block.
 func AppendReceipts(tx ethdb.DbWithPendingMutations, blockNumber uint64, receipts types.Receipts) error {
-	newV := make([]byte, 0, 1024)
+	buf := bytes.NewBuffer(make([]byte, 0, 1024))
 	for txId, r := range receipts {
-		err := cbor.Marshal(&newV, r)
+		err := cbor.Marshal(buf, r)
 		if err != nil {
 			return fmt.Errorf("encode block receipts for block %d: %v", blockNumber, err)
 		}
 
 		// Store the flattened receipt slice
-		if err = tx.Append(dbutils.BlockReceiptsPrefix, dbutils.ReceiptKey(blockNumber, uint32(txId)), newV); err != nil {
+		if err = tx.Append(dbutils.BlockReceiptsPrefix, dbutils.ReceiptKey(blockNumber, uint32(txId)), buf.Bytes()); err != nil {
 			return fmt.Errorf("writing receipts for block %d: %v", blockNumber, err)
 		}
 	}
@@ -505,7 +505,7 @@ func AppendReceipts(tx ethdb.DbWithPendingMutations, blockNumber uint64, receipt
 
 // DeleteReceipts removes all receipt data associated with a block hash.
 func DeleteReceipts(db ethdb.Database, hash common.Hash, number uint64) {
-	if err := db.Walk(dbutils.LogBucket, dbutils.ReceiptKey(number, 0), 8*8, func(k, v []byte) (bool, error) {
+	if err := db.Walk(dbutils.BlockReceiptsPrefix, dbutils.ReceiptKey(number, 0), 8*8, func(k, v []byte) (bool, error) {
 		if err := db.Delete(dbutils.BlockReceiptsPrefix, k); err != nil {
 			return false, err
 		}
