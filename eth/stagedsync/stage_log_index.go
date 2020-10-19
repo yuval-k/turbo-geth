@@ -253,7 +253,7 @@ func unwindLogIndex(db ethdb.DbWithPendingMutations, from, to uint64, quitCh <-c
 		if err := common.Stopped(quitCh); err != nil {
 			return false, err
 		}
-		var receipt *types.Receipt
+		var receipt = &types.Receipt{}
 		if err := cbor.Unmarshal(receipt, bytes.NewReader(v)); err != nil {
 			return false, fmt.Errorf("receipt unmarshal failed: %w, block=%d", err, binary.BigEndian.Uint64(k))
 		}
