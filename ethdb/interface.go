@@ -95,7 +95,7 @@ type Database interface {
 	Last(bucket string) ([]byte, []byte, error)
 
 	// IdealBatchSize defines the size of the data batches should ideally add in one write.
-	IdealBatchSize() int
+	IdealBatchSize() uint64
 
 	Keys() ([][]byte, error)
 

@@ -21,7 +21,7 @@ import (
 )
 
 func FixState(chaindata string, url string) {
-	stateDb := ethdb.MustOpen(chaindata)
+	stateDb := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer stateDb.Close()
 	engine := ethash.NewFullFaker()
 	chainConfig := params.MainnetChainConfig

@@ -36,7 +36,7 @@ func (e *Env) PostDB(c *gin.Context) {
 	e.KV.Close()
 
 	e.KV = kv
-	db := ethdb.NewObjectDatabase(kv)
+	db := ethdb.NewObjectDatabase(kv, ethdb.DefaultStateBatchSize)
 	e.DB = db
 	e.Back = back
 	c.Status(http.StatusOK)

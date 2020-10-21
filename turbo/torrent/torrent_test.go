@@ -1,10 +1,11 @@
 package torrent
 
 import (
-	"github.com/ledgerwatch/turbo-geth/ethdb"
-	"github.com/ledgerwatch/turbo-geth/log"
 	"os"
 	"testing"
+
+	"github.com/ledgerwatch/turbo-geth/ethdb"
+	"github.com/ledgerwatch/turbo-geth/log"
 )
 
 func TestTorrentAddTorrent(t *testing.T) {
@@ -14,7 +15,7 @@ func TestTorrentAddTorrent(t *testing.T) {
 	os.RemoveAll(path)
 
 	kv := ethdb.NewLMDB().Path(path + "/lmdb").MustOpen()
-	db := ethdb.NewObjectDatabase(kv)
+	db := ethdb.NewObjectDatabase(kv, ethdb.DefaultStateBatchSize)
 
 	cli := New(path, SnapshotMode{
 		Headers: true,

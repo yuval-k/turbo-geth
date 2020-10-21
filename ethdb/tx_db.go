@@ -222,7 +222,7 @@ func (m *TxDb) BatchSize() int {
 }
 
 // IdealBatchSize defines the size of the data batches should ideally add in one write.
-func (m *TxDb) IdealBatchSize() int {
+func (m *TxDb) IdealBatchSize() uint64 {
 	panic("only mutation hast preferred batch size, because it limited by RAM")
 }
 

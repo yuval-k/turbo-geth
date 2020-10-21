@@ -34,7 +34,7 @@ import (
 )
 
 func newTestLmdb() *ObjectDatabase {
-	return NewObjectDatabase(NewLMDB().InMem().MustOpen())
+	return NewObjectDatabase(NewLMDB().InMem().MustOpen(), DefaultStateBatchSize)
 }
 
 var testBucket = dbutils.CurrentStateBucket

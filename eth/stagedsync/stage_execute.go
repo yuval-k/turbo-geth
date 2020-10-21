@@ -161,8 +161,7 @@ func SpawnExecuteBlocksStage(s *StageState, stateDB ethdb.Database, chainConfig 
 				return err
 			}
 		}
-
-		if batch.BatchSize() >= batch.IdealBatchSize() {
+		if uint64(batch.BatchSize()) >= batch.IdealBatchSize() {
 			if err = s.Update(batch, blockNum); err != nil {
 				return err
 			}

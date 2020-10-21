@@ -540,8 +540,8 @@ func (n *Node) EventMux() *event.TypeMux {
 // OpenDatabase opens an existing database with the given name (or creates one if no
 // previous can be found) from within the node's instance directory. If the node is
 // ephemeral, a memory database is returned.
-func (n *Node) OpenDatabase(name string) (*ethdb.ObjectDatabase, error) {
-	return n.OpenDatabaseWithFreezer(name, 0, 0, "", "")
+func (n *Node) OpenDatabase(name string, idealBatchSize uint64) (*ethdb.ObjectDatabase, error) {
+	return n.OpenDatabaseWithFreezer(name, 0, 0, "", "", idealBatchSize)
 }
 
 // OpenDatabaseWithFreezer opens an existing database with the given name (or
@@ -550,7 +550,7 @@ func (n *Node) OpenDatabase(name string) (*ethdb.ObjectDatabase, error) {
 // database to immutable append-only files. If the node is an ephemeral one, a
 // memory database is returned.
 // NOTE: kept for compatibility and for easier rebases (turbo-geth)
-func (n *Node) OpenDatabaseWithFreezer(name string, _, _ int, _, _ string) (*ethdb.ObjectDatabase, error) {
+func (n *Node) OpenDatabaseWithFreezer(name string, _, _ int, _, _ string, idealBatchSize uint64) (*ethdb.ObjectDatabase, error) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
@@ -568,7 +568,7 @@ func (n *Node) OpenDatabaseWithFreezer(name string, _, _ int, _, _ string) (*eth
 		if err != nil {
 			return nil, err
 		}
-		db = ethdb.NewObjectDatabase(kv)
+		db = ethdb.NewObjectDatabase(kv, idealBatchSize)
 	}
 
 	n.databases = append(n.databases, db)

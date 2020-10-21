@@ -65,7 +65,7 @@ func benchmarkBloomBits(b *testing.B, sectionSize uint64) {
 	benchDataDir := node.DefaultDataDir() + "/geth/chaindata"
 	b.Log("Running bloombits benchmark   section size:", sectionSize)
 
-	db := ethdb.MustOpen(benchDataDir)
+	db := ethdb.MustOpen(benchDataDir, ethdb.DefaultStateBatchSize)
 	head := rawdb.ReadHeadBlockHash(db)
 	if head == (common.Hash{}) {
 		b.Fatalf("chain data not found at %v", benchDataDir)
@@ -129,7 +129,7 @@ func benchmarkBloomBits(b *testing.B, sectionSize uint64) {
 	for i := 0; i < benchFilterCnt; i++ {
 		if i%20 == 0 {
 			db.Close()
-			db = ethdb.MustOpen(benchDataDir)
+			db = ethdb.MustOpen(benchDataDir, ethdb.DefaultStateBatchSize)
 			backend = &testBackend{db: db, sections: cnt}
 		}
 		var addr common.Address
@@ -162,7 +162,7 @@ func clearBloomBits(db ethdb.Database) {
 func BenchmarkNoBloomBits(b *testing.B) {
 	benchDataDir := node.DefaultDataDir() + "/geth/chaindata"
 	fmt.Println("Running benchmark without bloombits")
-	db := ethdb.MustOpen(benchDataDir)
+	db := ethdb.MustOpen(benchDataDir, ethdb.DefaultStateBatchSize)
 	head := rawdb.ReadHeadBlockHash(db)
 	if head == (common.Hash{}) {
 		b.Fatalf("chain data not found at %v", benchDataDir)

@@ -13,7 +13,7 @@ import (
 )
 
 func RegenerateTxLookup(chaindata string) error {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	if err := db.ClearBuckets(dbutils.TxLookupPrefix); err != nil {
 		return err

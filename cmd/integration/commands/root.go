@@ -47,5 +47,5 @@ func openDatabase() *ethdb.ObjectDatabase {
 	if freelistReuse > 0 {
 		opts = opts.MaxFreelistReuse(uint(freelistReuse))
 	}
-	return ethdb.NewObjectDatabase(opts.MustOpen())
+	return ethdb.NewObjectDatabase(opts.MustOpen(), ethdb.DefaultStateBatchSize)
 }

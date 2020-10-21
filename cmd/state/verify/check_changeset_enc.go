@@ -22,7 +22,7 @@ type Walker interface {
 }
 
 func CheckEnc(chaindata string) error {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	var (
 		currentSize uint64

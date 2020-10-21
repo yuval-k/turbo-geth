@@ -135,9 +135,9 @@ func New(stack *node.Node, config *Config) (*Ethereum, error) {
 		if err = os.RemoveAll("simulator"); err != nil {
 			return nil, fmt.Errorf("removing simulator db: %w", err)
 		}
-		chainDb = ethdb.MustOpen("simulator")
+		chainDb = ethdb.MustOpen("simulator", config.IdealBatchSize)
 	} else {
-		chainDb, err = stack.OpenDatabaseWithFreezer("chaindata", 0, 0, "", "")
+		chainDb, err = stack.OpenDatabaseWithFreezer("chaindata", 0, 0, "", "", config.IdealBatchSize)
 		if err != nil {
 			return nil, err
 		}

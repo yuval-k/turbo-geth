@@ -11,7 +11,7 @@ import (
 )
 
 func CheckIndex(chaindata string, changeSetBucket string, indexBucket string) error {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	startTime := time.Now()
 
 	var walker func([]byte) changeset.Walker

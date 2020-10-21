@@ -162,7 +162,7 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 			b.Fatalf("cannot create temporary directory: %v", err)
 		}
 		defer os.RemoveAll(dir)
-		db = ethdb.MustOpen(dir)
+		db = ethdb.MustOpen(dir, ethdb.DefaultStateBatchSize)
 		defer db.Close()
 	}
 
@@ -264,7 +264,7 @@ func benchWriteChain(b *testing.B, full bool, count uint64) {
 		if err != nil {
 			b.Fatalf("cannot create temporary directory: %v", err)
 		}
-		db := ethdb.MustOpen(dir)
+		db := ethdb.MustOpen(dir, ethdb.DefaultStateBatchSize)
 		makeChainForBench(db, full, count)
 		db.Close()
 		os.RemoveAll(dir)
@@ -278,7 +278,7 @@ func benchReadChain(b *testing.B, full bool, count uint64) {
 	}
 	defer os.RemoveAll(dir)
 
-	db := ethdb.MustOpen(dir)
+	db := ethdb.MustOpen(dir, ethdb.DefaultStateBatchSize)
 	makeChainForBench(db, full, count)
 	db.Close()
 
@@ -286,7 +286,7 @@ func benchReadChain(b *testing.B, full bool, count uint64) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		db := ethdb.MustOpen(dir)
+		db := ethdb.MustOpen(dir, ethdb.DefaultStateBatchSize)
 		txCacher := NewTxSenderCacher(runtime.NumCPU())
 		chain, err := NewBlockChain(db, nil, params.TestChainConfig, ethash.NewFaker(), vm.Config{}, nil, txCacher)
 		if err != nil {

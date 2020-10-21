@@ -48,15 +48,15 @@ func TestHeadersGenerateIndex(t *testing.T) {
 
 	db := ethdb.NewLMDB().InMem().WithBucketsConfig(ethdb.DefaultBucketConfigs).MustOpen()
 	//we need genesis
-	rawdb.WriteCanonicalHash(ethdb.NewObjectDatabase(db), headers[0].Hash(), headers[0].Number.Uint64())
+	rawdb.WriteCanonicalHash(ethdb.NewObjectDatabase(db, ethdb.DefaultStateBatchSize), headers[0].Hash(), headers[0].Number.Uint64())
 	snKV := ethdb.NewLMDB().Path(snPath).ReadOnly().WithBucketsConfig(ethdb.DefaultBucketConfigs).MustOpen()
 
 	snKV = ethdb.NewSnapshotKV().For(dbutils.HeaderPrefix).For(dbutils.SnapshotInfoBucket).SnapshotDB(snKV).DB(db).MustOpen()
-	err = GenerateHeaderIndexes(context.Background(), ethdb.NewObjectDatabase(snKV))
+	err = GenerateHeaderIndexes(context.Background(), ethdb.NewObjectDatabase(snKV, ethdb.DefaultStateBatchSize))
 	if err != nil {
 		t.Fatal(err)
 	}
-	snDB := ethdb.NewObjectDatabase(snKV)
+	snDB := ethdb.NewObjectDatabase(snKV, ethdb.DefaultStateBatchSize)
 	td := big.NewInt(0)
 	for i, header := range headers {
 		td = td.Add(td, header.Difficulty)

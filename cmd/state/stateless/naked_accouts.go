@@ -85,7 +85,7 @@ func accountsReadWrites(blockNum uint64) {
 		interruptCh <- true
 	}()
 
-	ethDb := ethdb.MustOpen("/Volumes/tb41/turbo-geth-10/geth/chaindata")
+	ethDb := ethdb.MustOpen("/Volumes/tb41/turbo-geth-10/geth/chaindata", ethdb.DefaultStateBatchSize)
 	defer ethDb.Close()
 	ethTx, err1 := ethDb.KV().Begin(context.Background(), nil, false)
 	check(err1)

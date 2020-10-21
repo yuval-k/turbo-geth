@@ -358,6 +358,11 @@ var (
 		Usage: "Megabytes of memory allocated to internal caching (default = 4096 mainnet full node, 128 light mode)",
 		Value: 1024,
 	}
+	StateBatchSize = cli.StringFlag{
+		Name:  "stateBatchSize",
+		Usage: "Sets batch size.",
+		Value: "512M",
+	}
 	CacheDatabaseFlag = cli.IntFlag{
 		Name:  "cache.database",
 		Usage: "Percentage of cache memory allowance to use for database io",
@@ -1604,6 +1609,12 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	cfg.SnapshotMode = snMode
 	cfg.SnapshotSeeding = ctx.GlobalBool(SeedSnapshotsFlag.Name)
 
+	var stateBatchSize datasize.ByteSize
+	if err = stateBatchSize.UnmarshalText([]byte(ctx.GlobalString(StateBatchSize.Name))); err != nil {
+		Fatalf(fmt.Sprintf("error while parsing batch size: %v", err))
+	}
+	cfg.IdealBatchSize = stateBatchSize.Bytes()
+
 	cfg.Hdd = ctx.GlobalBool(HddFlag.Name)
 	cfg.ArchiveSyncInterval = ctx.GlobalInt(ArchiveSyncInterval.Name)
 
@@ -1829,7 +1840,11 @@ func SplitTagsFlag(tagsFlag string) map[string]string {
 // MakeChainDatabase open a database using the flags passed to the client and will hard crash if it fails.
 func MakeChainDatabase(ctx *cli.Context, stack *node.Node) *ethdb.ObjectDatabase {
 	name := "chaindata"
-	chainDb, err := stack.OpenDatabase(name)
+	var stateBatchSize datasize.ByteSize
+	if err := stateBatchSize.UnmarshalText([]byte(ctx.GlobalString(StateBatchSize.Name))); err != nil {
+		Fatalf(fmt.Sprintf("error while parsing batch size: %v", err))
+	}
+	chainDb, err := stack.OpenDatabase(name, stateBatchSize.Bytes())
 	if err != nil {
 		Fatalf("Could not open database: %v", err)
 	}

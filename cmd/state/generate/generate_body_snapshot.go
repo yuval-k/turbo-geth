@@ -2,10 +2,11 @@ package generate
 
 import (
 	"fmt"
-	"github.com/ledgerwatch/turbo-geth/turbo/torrent"
 	"math/big"
 	"os"
 	"time"
+
+	"github.com/ledgerwatch/turbo-geth/turbo/torrent"
 
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
@@ -35,8 +36,8 @@ func BodySnapshot(dbPath, snapshotPath string, toBlock uint64, snapshotDir strin
 			dbutils.SnapshotInfoBucket: dbutils.BucketConfigItem{},
 		}
 	}).Path(snapshotPath).MustOpen()
-	db := ethdb.NewObjectDatabase(kv)
-	sndb := ethdb.NewObjectDatabase(snkv)
+	db := ethdb.NewObjectDatabase(kv, ethdb.DefaultStateBatchSize)
+	sndb := ethdb.NewObjectDatabase(snkv, ethdb.DefaultStateBatchSize)
 
 	t := time.Now()
 	chunkFile := 30000

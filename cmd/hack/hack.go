@@ -334,7 +334,7 @@ func accountSavings(db ethdb.KV) (int, int) {
 }
 
 func bucketStats(chaindata string) error {
-	ethDb := ethdb.MustOpen(chaindata)
+	ethDb := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 
 	var bucketList []string
 	if err1 := ethDb.KV().View(context.Background(), func(txa ethdb.Tx) error {
@@ -593,7 +593,7 @@ func trieChart() {
 }
 
 func extractTrie(block int) {
-	stateDb := ethdb.MustOpen("statedb")
+	stateDb := ethdb.MustOpen("statedb", ethdb.DefaultStateBatchSize)
 	defer stateDb.Close()
 	txCacher := core.NewTxSenderCacher(runtime.NumCPU())
 	bc, err := core.NewBlockChain(stateDb, nil, params.RopstenChainConfig, ethash.NewFaker(), vm.Config{}, nil, txCacher)
@@ -613,7 +613,7 @@ func extractTrie(block int) {
 }
 
 func testRewind(chaindata string, block, rewind int) {
-	ethDb := ethdb.MustOpen(chaindata)
+	ethDb := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer ethDb.Close()
 	txCacher := core.NewTxSenderCacher(runtime.NumCPU())
 	bc, err := core.NewBlockChain(ethDb, nil, params.MainnetChainConfig, ethash.NewFaker(), vm.Config{}, nil, txCacher)
@@ -676,7 +676,7 @@ func testRewind(chaindata string, block, rewind int) {
 func testStartup() {
 	startTime := time.Now()
 	//ethDb := ethdb.MustOpen(node.DefaultDataDir() + "/geth/chaindata")
-	ethDb := ethdb.MustOpen("/home/akhounov/.ethereum/geth/chaindata")
+	ethDb := ethdb.MustOpen("/home/akhounov/.ethereum/geth/chaindata", ethdb.DefaultStateBatchSize)
 	defer ethDb.Close()
 	txCacher := core.NewTxSenderCacher(runtime.NumCPU())
 	bc, err := core.NewBlockChain(ethDb, nil, params.MainnetChainConfig, ethash.NewFaker(), vm.Config{}, nil, txCacher)
@@ -699,7 +699,7 @@ func testStartup() {
 }
 
 func dbSlice(chaindata string, bucket string, prefix []byte) {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	if err := db.KV().View(context.Background(), func(tx ethdb.Tx) error {
 		c := tx.Cursor(bucket)
@@ -717,7 +717,7 @@ func dbSlice(chaindata string, bucket string, prefix []byte) {
 
 func testResolve(chaindata string) {
 	startTime := time.Now()
-	ethDb := ethdb.MustOpen(chaindata)
+	ethDb := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer ethDb.Close()
 	//bc, err := core.NewBlockChain(ethDb, nil, params.MainnetChainConfig, ethash.NewFaker(), vm.Config{}, nil, nil)
 	//check(err)
@@ -824,7 +824,7 @@ func testDifficulty() {
 
 // Searches 1000 blocks from the given one to try to find the one with the given state root hash
 func testBlockHashes(chaindata string, block int, stateRoot common.Hash) {
-	ethDb := ethdb.MustOpen(chaindata)
+	ethDb := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer ethDb.Close()
 	blocksToSearch := 10000000
 	for i := uint64(block); i < uint64(block+blocksToSearch); i++ {
@@ -843,7 +843,7 @@ func testBlockHashes(chaindata string, block int, stateRoot common.Hash) {
 }
 
 func printCurrentBlockNumber(chaindata string) {
-	ethDb := ethdb.MustOpen(chaindata)
+	ethDb := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer ethDb.Close()
 	hash := rawdb.ReadHeadBlockHash(ethDb)
 	number := rawdb.ReadHeaderNumber(ethDb, hash)
@@ -851,7 +851,7 @@ func printCurrentBlockNumber(chaindata string) {
 }
 
 func printTxHashes() {
-	ethDb := ethdb.MustOpen(node.DefaultDataDir() + "/geth/chaindata")
+	ethDb := ethdb.MustOpen(node.DefaultDataDir()+"/geth/chaindata", ethdb.DefaultStateBatchSize)
 	defer ethDb.Close()
 	for b := uint64(0); b < uint64(100000); b++ {
 		hash, err := rawdb.ReadCanonicalHash(ethDb, b)
@@ -868,7 +868,7 @@ func printTxHashes() {
 
 func relayoutKeys() {
 	//db := ethdb.MustOpen("/home/akhounov/.ethereum/geth/chaindata")
-	db := ethdb.MustOpen(node.DefaultDataDir() + "/geth/chaindata")
+	db := ethdb.MustOpen(node.DefaultDataDir()+"/geth/chaindata", ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	var accountChangeSetCount, storageChangeSetCount int
 	err := db.KV().View(context.Background(), func(tx ethdb.Tx) error {
@@ -915,7 +915,7 @@ func invTree(wrong, right, diff string, name string) {
 }
 
 func preimage(chaindata string, image common.Hash) {
-	ethDb := ethdb.MustOpen(chaindata)
+	ethDb := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer ethDb.Close()
 	p, err := ethDb.Get(dbutils.PreimagePrefix, image[:])
 	check(err)
@@ -924,7 +924,7 @@ func preimage(chaindata string, image common.Hash) {
 
 func printBranches(block uint64) {
 	//ethDb := ethdb.MustOpen("/home/akhounov/.ethereum/geth/chaindata")
-	ethDb := ethdb.MustOpen(node.DefaultDataDir() + "/testnet/geth/chaindata")
+	ethDb := ethdb.MustOpen(node.DefaultDataDir()+"/testnet/geth/chaindata", ethdb.DefaultStateBatchSize)
 	defer ethDb.Close()
 	fmt.Printf("All headers at the same height %d\n", block)
 	{
@@ -947,7 +947,7 @@ func printBranches(block uint64) {
 }
 
 func readPlainAccount(chaindata string, address common.Address) {
-	ethDb := ethdb.MustOpen(chaindata)
+	ethDb := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer ethDb.Close()
 	var acc accounts.Account
 	enc, err := ethDb.Get(dbutils.PlainStateBucket, address[:])
@@ -963,7 +963,7 @@ func readPlainAccount(chaindata string, address common.Address) {
 }
 
 func readAccount(chaindata string, account common.Address, block uint64, rewind uint64) {
-	ethDb := ethdb.MustOpen(chaindata)
+	ethDb := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer ethDb.Close()
 	secKey := crypto.Keccak256(account[:])
 	var a accounts.Account
@@ -1004,7 +1004,7 @@ func readAccount(chaindata string, account common.Address, block uint64, rewind 
 }
 
 func fixAccount(chaindata string, addrHash common.Hash, storageRoot common.Hash) {
-	ethDb := ethdb.MustOpen(chaindata)
+	ethDb := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer ethDb.Close()
 	var a accounts.Account
 	if ok, err := rawdb.ReadAccount(ethDb, addrHash, &a); err != nil {
@@ -1019,7 +1019,7 @@ func fixAccount(chaindata string, addrHash common.Hash, storageRoot common.Hash)
 }
 
 func nextIncarnation(chaindata string, addrHash common.Hash) {
-	ethDb := ethdb.MustOpen(chaindata)
+	ethDb := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer ethDb.Close()
 	var found bool
 	var incarnationBytes [common.IncarnationLength]byte
@@ -1042,9 +1042,9 @@ func nextIncarnation(chaindata string, addrHash common.Hash) {
 }
 
 func repairCurrent() {
-	historyDb := ethdb.MustOpen("/Volumes/tb4/turbo-geth/ropsten/geth/chaindata")
+	historyDb := ethdb.MustOpen("/Volumes/tb4/turbo-geth/ropsten/geth/chaindata", ethdb.DefaultStateBatchSize)
 	defer historyDb.Close()
-	currentDb := ethdb.MustOpen("statedb")
+	currentDb := ethdb.MustOpen("statedb", ethdb.DefaultStateBatchSize)
 	defer currentDb.Close()
 	check(historyDb.ClearBuckets(dbutils.CurrentStateBucket))
 	check(historyDb.KV().Update(context.Background(), func(tx ethdb.Tx) error {
@@ -1074,7 +1074,7 @@ func repairCurrent() {
 }
 
 func dumpStorage() {
-	db := ethdb.MustOpen(node.DefaultDataDir() + "/geth/chaindata")
+	db := ethdb.MustOpen(node.DefaultDataDir()+"/geth/chaindata", ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	if err := db.KV().View(context.Background(), func(tx ethdb.Tx) error {
 		c := tx.Cursor(dbutils.StorageHistoryBucket)
@@ -1088,7 +1088,7 @@ func dumpStorage() {
 }
 
 func printBucket(chaindata string) {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	f, err := os.Create("bucket.txt")
 	check(err)
@@ -1111,7 +1111,7 @@ func printBucket(chaindata string) {
 
 func ValidateTxLookups2(chaindata string) {
 	startTime := time.Now()
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	//nolint: errcheck
 	startTime = time.Now()
@@ -1168,7 +1168,7 @@ func validateTxLookups2(db rawdb.DatabaseReader, startBlock uint64, interruptCh 
 func getModifiedAccounts(chaindata string) {
 	// TODO(tjayrush): The call to GetModifiedAccounts needs a database tx
 	fmt.Println("hack - getModiiedAccounts is temporarily disabled.")
-	// db := ethdb.MustOpen(chaindata)
+	// db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	// defer db.Close()
 	// addrs, err := ethdb.GetModifiedAccounts(db, 49300, 49400)
 	// check(err)
@@ -1238,7 +1238,7 @@ func (r *Receiver) Result() trie.SubTries {
 
 func regenerate(chaindata string) error {
 	var m runtime.MemStats
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	check(db.ClearBuckets(
 		dbutils.IntermediateTrieHashBucket,
@@ -1290,7 +1290,7 @@ func testGetProof(chaindata string, address common.Address, rewind int, regen bo
 	storageKeys := []string{}
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	headHash := rawdb.ReadHeadBlockHash(db)
 	headNumber := rawdb.ReadHeaderNumber(db, headHash)
@@ -1431,7 +1431,7 @@ func testGetProof(chaindata string, address common.Address, rewind int, regen bo
 }
 
 func changeSetStats(chaindata string, block1, block2 uint64) error {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	fmt.Printf("State stats\n")
 	stAccounts := 0
@@ -1513,7 +1513,7 @@ func changeSetStats(chaindata string, block1, block2 uint64) error {
 
 func searchChangeSet(chaindata string, key []byte, block uint64) error {
 	fmt.Printf("Searching changesets\n")
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	if err := db.KV().View(context.Background(), func(tx ethdb.Tx) error {
 		c := tx.Cursor(dbutils.PlainAccountChangeSetBucket)
@@ -1542,7 +1542,7 @@ func searchChangeSet(chaindata string, key []byte, block uint64) error {
 
 func searchStorageChangeSet(chaindata string, key []byte, block uint64) error {
 	fmt.Printf("Searching storage changesets\n")
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	if err := db.KV().View(context.Background(), func(tx ethdb.Tx) error {
 		c := tx.Cursor(dbutils.PlainStorageChangeSetBucket)
@@ -1570,7 +1570,7 @@ func searchStorageChangeSet(chaindata string, key []byte, block uint64) error {
 
 func supply(chaindata string) error {
 	startTime := time.Now()
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	count := 0
 	supply := uint256.NewInt()
@@ -1602,9 +1602,9 @@ func supply(chaindata string) error {
 }
 
 func extractCode(chaindata string) error {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
-	destDb := ethdb.MustOpen("codes")
+	destDb := ethdb.MustOpen("codes", ethdb.DefaultStateBatchSize)
 	defer destDb.Close()
 	return destDb.KV().Update(context.Background(), func(tx1 ethdb.Tx) error {
 		c1 := tx1.Cursor(dbutils.PlainContractCodeBucket)
@@ -1634,7 +1634,7 @@ func extractCode(chaindata string) error {
 }
 
 func iterateOverCode(chaindata string) error {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	var contractKeyTotalLength int
 	var contractValTotalLength int
@@ -1668,7 +1668,7 @@ func iterateOverCode(chaindata string) error {
 }
 
 func zstd(chaindata string) error {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	tx, errBegin := db.Begin(context.Background())
 	check(errBegin)
@@ -1860,7 +1860,7 @@ func zstd(chaindata string) error {
 }
 
 func benchRlp(chaindata string) error {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	tx, err := db.Begin(context.Background())
 	check(err)
@@ -1970,7 +1970,7 @@ func mint(chaindata string, block uint64) error {
 	defer f.Close()
 	w := bufio.NewWriter(f)
 	defer w.Flush()
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	//chiTokenAddr = common.HexToAddress("0x0000000000004946c0e9F43F4Dee607b0eF1fA1c")
 	//mintFuncPrefix = common.FromHex("0xa0712d68")
@@ -2054,7 +2054,7 @@ func mint(chaindata string, block uint64) error {
 }
 
 func extracHeaders(chaindata string, block uint64) error {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	b := uint64(0)
 	f, err := os.Create("hard-coded-headers.dat")
@@ -2087,7 +2087,7 @@ func extracHeaders(chaindata string, block uint64) error {
 }
 
 func receiptSizes(chaindata string) error {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	tx, err := db.KV().Begin(context.Background(), nil, false)
 	if err != nil {

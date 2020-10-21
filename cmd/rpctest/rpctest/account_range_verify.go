@@ -5,16 +5,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
-	"github.com/ledgerwatch/turbo-geth/common"
-	"github.com/ledgerwatch/turbo-geth/common/dbutils"
-	"github.com/ledgerwatch/turbo-geth/core/state"
-	"github.com/ledgerwatch/turbo-geth/ethdb"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/davecgh/go-spew/spew"
+	"github.com/ledgerwatch/turbo-geth/common"
+	"github.com/ledgerwatch/turbo-geth/common/dbutils"
+	"github.com/ledgerwatch/turbo-geth/core/state"
+	"github.com/ledgerwatch/turbo-geth/ethdb"
 )
 
 func CompareAccountRange(tgURL, gethURL, tmpDataDir, gethDataDir string, blockNum uint64, notRegenerateGethData bool) {
@@ -32,8 +33,8 @@ func CompareAccountRange(tgURL, gethURL, tmpDataDir, gethDataDir string, blockNu
 
 	resultsKV := ethdb.NewLMDB().Path(tmpDataDir).MustOpen()
 	gethKV := ethdb.NewLMDB().Path(gethDataDir).MustOpen()
-	resultsDB := ethdb.NewObjectDatabase(resultsKV)
-	gethResultsDB := ethdb.NewObjectDatabase(gethKV)
+	resultsDB := ethdb.NewObjectDatabase(resultsKV, ethdb.DefaultStateBatchSize)
+	gethResultsDB := ethdb.NewObjectDatabase(gethKV, ethdb.DefaultStateBatchSize)
 
 	var client = &http.Client{
 		Timeout: time.Minute * 60,

@@ -10,7 +10,7 @@ import (
 func APIList(db ethdb.KV, eth ethdb.Backend, cfg cli.Flags, customAPIList []rpc.API) []rpc.API {
 	var defaultAPIList []rpc.API
 
-	dbReader := ethdb.NewObjectDatabase(db)
+	dbReader := ethdb.NewObjectDatabase(db, ethdb.DefaultStateBatchSize)
 
 	ethImpl := NewEthAPI(db, dbReader, eth, cfg.Gascap)
 	tgImpl := NewTgAPI(db, dbReader)

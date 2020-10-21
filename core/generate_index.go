@@ -140,7 +140,7 @@ func (ig *IndexGenerator) Truncate(timestampTo uint64, changeSetBucket string) e
 				return err
 			}
 		}
-		if mutation.BatchSize() >= mutation.IdealBatchSize() {
+		if uint64(mutation.BatchSize()) >= mutation.IdealBatchSize() {
 			if err := mutation.CommitAndBegin(context.Background()); err != nil {
 				return err
 			}

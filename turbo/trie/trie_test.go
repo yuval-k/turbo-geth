@@ -474,7 +474,7 @@ func tempDB() (string, ethdb.Database) {
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary directory: %v", err))
 	}
-	return dir, ethdb.MustOpen(dir)
+	return dir, ethdb.MustOpen(dir, ethdb.DefaultStateBatchSize)
 }
 
 func getString(trie *Trie, k string) []byte {

@@ -3,11 +3,12 @@ package generate
 import (
 	"errors"
 	"fmt"
-	"github.com/ledgerwatch/turbo-geth/turbo/torrent"
 	"math/big"
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/ledgerwatch/turbo-geth/turbo/torrent"
 
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
@@ -46,8 +47,8 @@ func HeaderSnapshot(dbPath, snapshotPath string, toBlock uint64, snapshotDir str
 		}
 	}).Path(snapshotPath).MustOpen()
 
-	db := ethdb.NewObjectDatabase(kv)
-	sndb := ethdb.NewObjectDatabase(snkv)
+	db := ethdb.NewObjectDatabase(kv, ethdb.DefaultStateBatchSize)
+	sndb := ethdb.NewObjectDatabase(snkv, ethdb.DefaultStateBatchSize)
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt)

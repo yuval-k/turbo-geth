@@ -39,11 +39,11 @@ func CheckChangeSets(genesis *core.Genesis, blockNum uint64, chaindata string, h
 		interruptCh <- true
 	}()
 
-	chainDb := ethdb.MustOpen(chaindata)
+	chainDb := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer chainDb.Close()
 	historyDb := chainDb
 	if chaindata != historyfile {
-		historyDb = ethdb.MustOpen(historyfile)
+		historyDb = ethdb.MustOpen(historyfile, ethdb.DefaultStateBatchSize)
 	}
 	historyTx, err1 := historyDb.KV().Begin(context.Background(), nil, false)
 	if err1 != nil {
@@ -93,7 +93,7 @@ func CheckChangeSets(genesis *core.Genesis, blockNum uint64, chaindata string, h
 		}
 		if writeReceipts {
 			rawdb.WriteReceipts(batch, block.Hash(), block.NumberU64(), receipts)
-			if batch.BatchSize() >= batch.IdealBatchSize() {
+			if uint64(batch.BatchSize()) >= batch.IdealBatchSize() {
 				log.Info("Committing receipts", "up to block", block.NumberU64(), "batch size", common.StorageSize(batch.BatchSize()))
 				if err := batch.CommitAndBegin(context.Background()); err != nil {
 					return err

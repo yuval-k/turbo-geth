@@ -1024,7 +1024,7 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 			}
 
 			stats.processed++
-			if batch.BatchSize() >= batch.IdealBatchSize() {
+			if uint64(batch.BatchSize()) >= batch.IdealBatchSize() {
 				size += batch.BatchSize()
 				if err := batch.CommitAndBegin(context.Background()); err != nil {
 					return 0, err

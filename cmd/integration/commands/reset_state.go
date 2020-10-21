@@ -3,12 +3,13 @@ package commands
 import (
 	"context"
 	"fmt"
-	"github.com/c2h5oh/datasize"
 	"os"
 	"path"
 	"sync"
 	"text/tabwriter"
 	"time"
+
+	"github.com/c2h5oh/datasize"
 
 	"github.com/ledgerwatch/turbo-geth/cmd/utils"
 
@@ -70,7 +71,7 @@ func init() {
 }
 
 func clearUnwindStack(_ context.Context) error {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 
 	for _, stage := range stages.AllStages {
@@ -82,7 +83,7 @@ func clearUnwindStack(_ context.Context) error {
 }
 
 func resetState(_ context.Context) error {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	fmt.Printf("Before reset: \n")
 	if err := printStages(db); err != nil {

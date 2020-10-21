@@ -188,7 +188,7 @@ func (r *StateGrowth1Reporter) StateGrowth1(ctx context.Context) {
 	// Go through the history of account first
 	if r.StartedWhenBlockNumber == 0 {
 		var err error
-		r.StartedWhenBlockNumber, _, err = stages.GetStageProgress(ethdb.NewObjectDatabase(r.remoteDB), stages.Execution)
+		r.StartedWhenBlockNumber, _, err = stages.GetStageProgress(ethdb.NewObjectDatabase(r.remoteDB, ethdb.DefaultStateBatchSize), stages.Execution)
 		if err != nil {
 			panic(err)
 		}
@@ -1110,7 +1110,7 @@ func makeCreators(blockNum uint64) {
 	}()
 
 	//ethDb := ethdb.MustOpen("/home/akhounov/.ethereum/geth/chaindata")
-	ethDb := ethdb.MustOpen("/Volumes/tb41/turbo-geth/geth/chaindata")
+	ethDb := ethdb.MustOpen("/Volumes/tb41/turbo-geth/geth/chaindata", ethdb.DefaultStateBatchSize)
 	//ethDb := ethdb.MustOpen("/Users/alexeyakhunov/Library/Ethereum/geth/chaindata")
 	defer ethDb.Close()
 	ethTx, err1 := ethDb.KV().Begin(context.Background(), nil, false)
@@ -1164,7 +1164,7 @@ func makeCreators(blockNum uint64) {
 func storageUsage() {
 	startTime := time.Now()
 	//db := ethdb.MustOpen("/home/akhounov/.ethereum/geth/chaindata")
-	db := ethdb.MustOpen("/Volumes/tb4/turbo-geth-10/geth/chaindata")
+	db := ethdb.MustOpen("/Volumes/tb4/turbo-geth-10/geth/chaindata", ethdb.DefaultStateBatchSize)
 	//db := ethdb.MustOpen("/Users/alexeyakhunov/Library/Ethereum/geth/chaindata")
 	defer db.Close()
 	/*
@@ -1284,7 +1284,7 @@ func storageUsage() {
 func tokenUsage() {
 	startTime := time.Now()
 	//remoteDB := ethdb.MustOpen("/home/akhounov/.ethereum/geth/chaindata")
-	db := ethdb.MustOpen("/Volumes/tb4/turbo-geth/geth/chaindata")
+	db := ethdb.MustOpen("/Volumes/tb4/turbo-geth/geth/chaindata", ethdb.DefaultStateBatchSize)
 	//remoteDB := ethdb.MustOpen("/Users/alexeyakhunov/Library/Ethereum/geth/chaindata")
 	defer db.Close()
 	tokensFile, errOpen := os.Open("tokens.csv")
@@ -1362,7 +1362,7 @@ func tokenUsage() {
 func nonTokenUsage() {
 	startTime := time.Now()
 	//db := ethdb.MustOpen("/home/akhounov/.ethereum/geth/chaindata")
-	db := ethdb.MustOpen("/Volumes/tb4/turbo-geth/geth/chaindata")
+	db := ethdb.MustOpen("/Volumes/tb4/turbo-geth/geth/chaindata", ethdb.DefaultStateBatchSize)
 	//db := ethdb.MustOpen("/Users/alexeyakhunov/Library/Ethereum/geth/chaindata")
 	defer db.Close()
 	tokensFile, errOpen := os.Open("tokens.csv")
@@ -1439,7 +1439,7 @@ func nonTokenUsage() {
 
 func oldStorage() {
 	startTime := time.Now()
-	db := ethdb.MustOpen("/Volumes/tb4/turbo-geth/geth/chaindata").KV()
+	db := ethdb.MustOpen("/Volumes/tb4/turbo-geth/geth/chaindata", ethdb.DefaultStateBatchSize).KV()
 	defer db.Close()
 	histKey := make([]byte, common.HashLength+len(ethdb.EndSuffix))
 	copy(histKey[common.HashLength:], ethdb.EndSuffix)
@@ -1515,7 +1515,7 @@ func oldStorage() {
 func dustEOA() {
 	startTime := time.Now()
 	//db := ethdb.MustOpen("/home/akhounov/.ethereum/geth/chaindata")
-	db := ethdb.MustOpen("/Volumes/tb4/turbo-geth/geth/chaindata")
+	db := ethdb.MustOpen("/Volumes/tb4/turbo-geth/geth/chaindata", ethdb.DefaultStateBatchSize)
 	//db := ethdb.MustOpen("/Users/alexeyakhunov/Library/Ethereum/geth/chaindata")
 	defer db.Close()
 	count := 0

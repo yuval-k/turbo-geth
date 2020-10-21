@@ -129,7 +129,7 @@ func makeTokens(blockNum uint64) {
 	}()
 
 	//ethDb err := ethdb.MustOpen("/home/akhounov/.ethereum/geth/chaindata")
-	ethDb := ethdb.MustOpen("/Volumes/tb41/turbo-geth/geth/chaindata")
+	ethDb := ethdb.MustOpen("/Volumes/tb41/turbo-geth/geth/chaindata", ethdb.DefaultStateBatchSize)
 	//ethDb := ethdb.MustOpen("/Users/alexeyakhunov/Library/Ethereum/geth/chaindata")
 	defer ethDb.Close()
 	ethTx, err1 := ethDb.KV().Begin(context.Background(), nil, false)
@@ -195,7 +195,7 @@ func makeTokens(blockNum uint64) {
 
 func makeTokenBalances() {
 	//ethDb := ethdb.MustOpen("/home/akhounov/.ethereum/geth/chaindata")
-	ethDb := ethdb.MustOpen("/Volumes/tb41/turbo-geth/geth/chaindata")
+	ethDb := ethdb.MustOpen("/Volumes/tb41/turbo-geth/geth/chaindata", ethdb.DefaultStateBatchSize)
 	//ethDb := ethdb.MustOpen("/Users/alexeyakhunov/Library/Ethereum/geth/chaindata")
 	defer ethDb.Close()
 	ethTx, err1 := ethDb.KV().Begin(context.Background(), nil, false)
@@ -421,7 +421,7 @@ func tokenBalances() {
 
 func makeTokenAllowances() {
 	//ethDb := ethdb.MustOpen("/home/akhounov/.ethereum/geth/chaindata")
-	ethDb := ethdb.MustOpen("/Volumes/tb41/turbo-geth/geth/chaindata")
+	ethDb := ethdb.MustOpen("/Volumes/tb41/turbo-geth/geth/chaindata", ethdb.DefaultStateBatchSize)
 	//ethDb := ethdb.MustOpen("/Users/alexeyakhunov/Library/Ethereum/geth/chaindata")
 	defer ethDb.Close()
 	ethTx, err1 := ethDb.KV().Begin(context.Background(), nil, false)

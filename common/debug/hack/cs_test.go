@@ -14,7 +14,7 @@ import (
 func TestDecodeNewStorageDebug(t *testing.T) {
 	t.Skip("debug test")
 	pathToDB := ""
-	db := ethdb.MustOpen(pathToDB)
+	db := ethdb.MustOpen(pathToDB, ethdb.DefaultStateBatchSize)
 
 	data, err := db.Get(dbutils.StorageChangeSetBucket, dbutils.EncodeTimestamp(116526))
 	if err != nil {

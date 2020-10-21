@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+
 	"github.com/ledgerwatch/turbo-geth/cmd/utils"
 
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
@@ -78,10 +79,10 @@ func init() {
 }
 
 func compareStates(ctx context.Context, chaindata string, referenceChaindata string) error {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 
-	refDB := ethdb.MustOpen(referenceChaindata)
+	refDB := ethdb.MustOpen(referenceChaindata, ethdb.DefaultStateBatchSize)
 	defer refDB.Close()
 
 	if err := db.KV().View(context.Background(), func(tx ethdb.Tx) error {
@@ -104,10 +105,10 @@ func compareStates(ctx context.Context, chaindata string, referenceChaindata str
 	return nil
 }
 func compareBucketBetweenDatabases(ctx context.Context, chaindata string, referenceChaindata string, bucket string) error {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 
-	refDB := ethdb.MustOpen(referenceChaindata)
+	refDB := ethdb.MustOpen(referenceChaindata, ethdb.DefaultStateBatchSize)
 	defer refDB.Close()
 
 	if err := db.KV().View(context.Background(), func(tx ethdb.Tx) error {

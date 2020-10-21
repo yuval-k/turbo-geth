@@ -16,7 +16,7 @@ import (
 
 func Proofs(chaindata string, url string, block uint64) {
 	fileName := "trie.txt"
-	ethDb := ethdb.MustOpen(chaindata)
+	ethDb := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer ethDb.Close()
 	var t *trie.Trie
 	if _, err := os.Stat(fileName); err != nil {

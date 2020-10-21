@@ -581,7 +581,7 @@ func printAllStages(_ context.Context) error {
 }
 
 func printAppliedMigrations(_ context.Context) error {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 
 	applied, err := migrations.AppliedMigrations(db, false /* withPayload */)
@@ -600,7 +600,7 @@ func printAppliedMigrations(_ context.Context) error {
 }
 
 func removeMigration(_ context.Context) error {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	if err := db.Delete(dbutils.Migrations, []byte(migration)); err != nil {
 		return err

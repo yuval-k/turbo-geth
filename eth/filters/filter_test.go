@@ -52,7 +52,7 @@ func BenchmarkFilters(b *testing.B) {
 	}
 	defer os.RemoveAll(dir)
 
-	db := ethdb.MustOpen(dir)
+	db := ethdb.MustOpen(dir, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	var (
 		backend = &testBackend{db: db}

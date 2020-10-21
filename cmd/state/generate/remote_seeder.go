@@ -2,13 +2,14 @@ package generate
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"time"
+
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/ethdb"
 	"github.com/ledgerwatch/turbo-geth/log"
 	"github.com/ledgerwatch/turbo-geth/turbo/torrent"
-	"os"
-	"os/signal"
-	"time"
 )
 
 func SeedSnapshots(dir string) error {
@@ -29,7 +30,7 @@ func SeedSnapshots(dir string) error {
 	}()
 
 	db := ethdb.NewLMDB().Path(dir + "/tmpdb").MustOpen()
-	err := client.Run(ethdb.NewObjectDatabase(db))
+	err := client.Run(ethdb.NewObjectDatabase(db, ethdb.DefaultStateBatchSize))
 	if err != nil {
 		return err
 	}

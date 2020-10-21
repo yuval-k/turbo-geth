@@ -17,7 +17,7 @@ import (
 )
 
 func IndexStats(chaindata string, indexBucket string, statsFile string) error {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	startTime := time.Now()
 	lenOfKey := common.HashLength
 	if strings.HasPrefix(indexBucket, dbutils.StorageHistoryBucket) {

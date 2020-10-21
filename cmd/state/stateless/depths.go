@@ -14,7 +14,7 @@ import (
 
 func countDepths() {
 	startTime := time.Now()
-	db := ethdb.MustOpen("/Volumes/tb41/turbo-geth-10/geth/chaindata")
+	db := ethdb.MustOpen("/Volumes/tb41/turbo-geth-10/geth/chaindata", ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	var occups [64]int // Occupancy of the current level
 	var counts [64][17]int
@@ -109,7 +109,7 @@ func countDepths() {
 
 func countStorageDepths() {
 	startTime := time.Now()
-	db := ethdb.MustOpen("/Volumes/tb41/turbo-geth-10/geth/chaindata")
+	db := ethdb.MustOpen("/Volumes/tb41/turbo-geth-10/geth/chaindata", ethdb.DefaultStateBatchSize)
 	defer db.Close()
 	var occups [64]int // Occupancy of the current level
 	var counts [64][17]int

@@ -15,7 +15,7 @@ import (
 )
 
 func RegenerateIndex(chaindata string, csBucket string) error {
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	ch := make(chan os.Signal, 1)
 	quitCh := make(chan struct{})
 	signal.Notify(ch, os.Interrupt)

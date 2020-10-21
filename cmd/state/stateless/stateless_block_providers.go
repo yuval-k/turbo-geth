@@ -127,7 +127,7 @@ func NewBlockProviderFromExportFile(fn string) (BlockProvider, error) {
 	stream := rlp.NewStream(reader, 0)
 	engine := ethash.NewFullFaker()
 	// keeping all the past block headers in memory
-	headersDB := ethdb.MustOpen(getTempFileName())
+	headersDB := ethdb.MustOpen(getTempFileName(), ethdb.DefaultStateBatchSize)
 	return &ExportFileBlockProvider{stream, engine, headersDB, nil, fh, reader, -1}, nil
 }
 

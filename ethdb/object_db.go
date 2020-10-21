@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/c2h5oh/datasize"
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/common/debug"
@@ -38,25 +39,29 @@ var (
 	dbPutTimer = metrics.NewRegisteredTimer("db/put", nil)
 )
 
+const DefaultStateBatchSize = uint64(512 * datasize.MB)
+
 // ObjectDatabase - is an object-style interface of DB accessing
 type ObjectDatabase struct {
-	kv  KV
-	log log.Logger
-	id  uint64
+	kv             KV
+	log            log.Logger
+	id             uint64
+	idealBatchSize uint64
 }
 
 // NewObjectDatabase returns a AbstractDB wrapper.
-func NewObjectDatabase(kv KV) *ObjectDatabase {
+func NewObjectDatabase(kv KV, idealBatchSize uint64) *ObjectDatabase {
 	logger := log.New("database", "object")
 	return &ObjectDatabase{
-		kv:  kv,
-		log: logger,
-		id:  id(),
+		kv:             kv,
+		log:            logger,
+		id:             id(),
+		idealBatchSize: idealBatchSize,
 	}
 }
 
-func MustOpen(path string) *ObjectDatabase {
-	db, err := Open(path)
+func MustOpen(path string, idealBatchSize uint64) *ObjectDatabase {
+	db, err := Open(path, idealBatchSize)
 	if err != nil {
 		panic(err)
 	}
@@ -65,7 +70,7 @@ func MustOpen(path string) *ObjectDatabase {
 
 // Open - main method to open database. Choosing driver based on path suffix.
 // If env TEST_DB provided - choose driver based on it. Some test using this method to open non-in-memory db
-func Open(path string) (*ObjectDatabase, error) {
+func Open(path string, idealBatchSize uint64) (*ObjectDatabase, error) {
 	var kv KV
 	var err error
 	testDB := debug.TestDB()
@@ -79,7 +84,7 @@ func Open(path string) (*ObjectDatabase, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewObjectDatabase(kv), nil
+	return NewObjectDatabase(kv, idealBatchSize), nil
 }
 
 // Put inserts or updates a single entry.
@@ -414,7 +419,7 @@ func (db *ObjectDatabase) MemCopy() *ObjectDatabase {
 	switch db.kv.(type) {
 	case *LmdbKV:
 		opts := db.kv.(*LmdbKV).opts
-		mem = NewObjectDatabase(NewLMDB().Set(opts).MustOpen())
+		mem = NewObjectDatabase(NewLMDB().Set(opts).MustOpen(), DefaultStateBatchSize)
 	}
 
 	if err := db.kv.View(context.Background(), func(readTx Tx) error {
@@ -442,8 +447,9 @@ func (db *ObjectDatabase) MemCopy() *ObjectDatabase {
 
 func (db *ObjectDatabase) NewBatch() DbWithPendingMutations {
 	m := &mutation{
-		db:   db,
-		puts: newPuts(),
+		db:        db,
+		puts:      newPuts(),
+		idealSize: db.idealBatchSize,
 	}
 	return m
 }
@@ -457,7 +463,7 @@ func (db *ObjectDatabase) Begin(ctx context.Context) (DbWithPendingMutations, er
 }
 
 // IdealBatchSize defines the size of the data batches should ideally add in one write.
-func (db *ObjectDatabase) IdealBatchSize() int {
+func (db *ObjectDatabase) IdealBatchSize() uint64 {
 	panic("only mutation hast preferred batch size, because it limited by RAM")
 }
 

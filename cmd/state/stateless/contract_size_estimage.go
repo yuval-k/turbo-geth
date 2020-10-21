@@ -276,7 +276,7 @@ func estimateContract(
 
 func estimate() {
 	startTime := time.Now()
-	db := ethdb.MustOpen("/Volumes/tb4/turbo-geth-10/geth/chaindata")
+	db := ethdb.MustOpen("/Volumes/tb4/turbo-geth-10/geth/chaindata", ethdb.DefaultStateBatchSize)
 	//db := ethdb.MustOpen("/Users/alexeyakhunov/Library/Ethereum/geth/chaindata")
 	//db := ethdb.MustOpen("/home/akhounov/.ethereum/geth/chaindata")
 	defer db.Close()

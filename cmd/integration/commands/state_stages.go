@@ -59,7 +59,7 @@ func init() {
 
 func syncBySmallSteps(ctx context.Context, chaindata string) error {
 	core.UsePlainStateExecution = true
-	db := ethdb.MustOpen(chaindata)
+	db := ethdb.MustOpen(chaindata, ethdb.DefaultStateBatchSize)
 	defer db.Close()
 
 	sm, err := ethdb.GetStorageModeFromDB(db)

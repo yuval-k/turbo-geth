@@ -155,7 +155,7 @@ func loadCodes(db ethdb.KV, codeDb ethdb.Database) error {
 func compare_snapshot(stateDb ethdb.Database, db ethdb.KV, filename string) {
 	fmt.Printf("Loading snapshot from %s\n", filename)
 
-	diskDb := ethdb.MustOpen(filename)
+	diskDb := ethdb.MustOpen(filename, ethdb.DefaultStateBatchSize)
 	defer diskDb.Close()
 	if err := db.View(context.Background(), func(tx ethdb.Tx) error {
 		c := tx.Cursor(dbutils.CurrentStateBucket)
@@ -328,7 +328,7 @@ func checkRoots(stateDb ethdb.Database, rootHash common.Hash, blockNum uint64) {
 }
 
 func VerifySnapshot(path string) {
-	ethDb := ethdb.MustOpen(path)
+	ethDb := ethdb.MustOpen(path, ethdb.DefaultStateBatchSize)
 	defer ethDb.Close()
 	hash := rawdb.ReadHeadBlockHash(ethDb)
 	number := rawdb.ReadHeaderNumber(ethDb, hash)

@@ -3,12 +3,12 @@ package ethdb
 import (
 	"context"
 	"fmt"
-	"github.com/c2h5oh/datasize"
-	"github.com/ledgerwatch/turbo-geth/common"
-	"github.com/ledgerwatch/turbo-geth/metrics"
 	"sort"
 	"sync"
 	"sync/atomic"
+
+	"github.com/ledgerwatch/turbo-geth/common"
+	"github.com/ledgerwatch/turbo-geth/metrics"
 )
 
 var (
@@ -17,10 +17,11 @@ var (
 )
 
 type mutation struct {
-	puts   *puts // Map buckets to map[key]value
-	mu     sync.RWMutex
-	db     Database
-	tuples MultiPutTuples
+	puts      *puts // Map buckets to map[key]value
+	mu        sync.RWMutex
+	db        Database
+	tuples    MultiPutTuples
+	idealSize uint64
 }
 
 func (m *mutation) KV() KV {
@@ -126,8 +127,8 @@ func (m *mutation) BatchSize() int {
 }
 
 // IdealBatchSize defines the size of the data batches should ideally add in one write.
-func (m *mutation) IdealBatchSize() int {
-	return int(512 * datasize.MB)
+func (m *mutation) IdealBatchSize() uint64 {
+	return m.idealSize
 }
 
 // WARNING: Merged mem/DB walk is not implemented
@@ -218,8 +219,9 @@ func (m *mutation) Close() {
 
 func (m *mutation) NewBatch() DbWithPendingMutations {
 	mm := &mutation{
-		db:   m,
-		puts: newPuts(),
+		idealSize: m.idealSize,
+		db:        m,
+		puts:      newPuts(),
 	}
 	return mm
 }

@@ -19,7 +19,7 @@ func ExportFile(filePath, chaindataPath string) error {
 	}
 
 	createDb := func(path string) (*ethdb.ObjectDatabase, error) {
-		return ethdb.Open(path)
+		return ethdb.Open(path, ethdb.DefaultStateBatchSize)
 	}
 
 	chaindata, err := stateless.NewBlockProviderFromDB(chaindataPath, createDb)

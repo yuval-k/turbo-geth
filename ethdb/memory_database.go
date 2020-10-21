@@ -23,8 +23,8 @@ import (
 func NewMemDatabase() *ObjectDatabase {
 	switch debug.TestDB() {
 	case "lmdb":
-		return NewObjectDatabase(NewLMDB().InMem().MustOpen())
+		return NewObjectDatabase(NewLMDB().InMem().MustOpen(), DefaultStateBatchSize)
 	default:
-		return NewObjectDatabase(NewLMDB().InMem().MustOpen())
+		return NewObjectDatabase(NewLMDB().InMem().MustOpen(), DefaultStateBatchSize)
 	}
 }

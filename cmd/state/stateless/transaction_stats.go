@@ -169,7 +169,7 @@ func transactionStats(blockNum uint64) {
 		interruptCh <- true
 	}()
 
-	ethDb := ethdb.MustOpen("/home/akhounov/.ethereum/geth/chaindata")
+	ethDb := ethdb.MustOpen("/home/akhounov/.ethereum/geth/chaindata", ethdb.DefaultStateBatchSize)
 	//ethDb := ethdb.MustOpen("/Volumes/tb41/turbo-geth/geth/chaindata")
 	//ethDb := ethdb.MustOpen("/Users/alexeyakhunov/Library/Ethereum/geth/chaindata")
 	defer ethDb.Close()
