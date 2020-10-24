@@ -205,11 +205,11 @@ func (dbs *PlainDBState) ReadAccountData(address common.Address) (*accounts.Acco
 			return nil, err
 		}
 	}
-	if !ok && dbs.accountCache != nil {
-		dbs.accountCache.Set(address[:], enc)
-	}
 	if len(enc) == 0 {
 		return nil, nil
+	}
+	if !ok && dbs.accountCache != nil {
+		dbs.accountCache.Set(address[:], enc)
 	}
 	var acc accounts.Account
 	if err := acc.DecodeForStorage(enc); err != nil {
@@ -239,11 +239,11 @@ func (dbs *PlainDBState) ReadAccountStorage(address common.Address, incarnation 
 	if err != nil && !errors.Is(err, ethdb.ErrKeyNotFound) {
 		return nil, err
 	}
-	if dbs.storageCache != nil {
-		dbs.storageCache.Set(compositeKey, enc)
-	}
 	if len(enc) == 0 {
 		return nil, nil
+	}
+	if dbs.storageCache != nil {
+		dbs.storageCache.Set(compositeKey, enc)
 	}
 	return enc, nil
 }

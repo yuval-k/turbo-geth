@@ -84,6 +84,17 @@ func promoteCallTraces(logPrefix string, tx ethdb.Database, startBlock, endBlock
 	accountsBloomFilter := filters.NewCuckoo(cuckoo.NewFilter(150_000_000))  // 150M entries should be enoughbloom
 	storageBloomFilter := filters.NewCuckoo(cuckoo.NewFilter(1_500_000_000)) // 150M entries should be enoughbloom
 
+	if startBlock == 1 {
+		log.Info("Populating filters from genesis")
+		g := core.DefaultGenesisBlock()
+		for addr, account := range g.Alloc {
+			accountsBloomFilter.Add(addr[:])
+			for key, _ := range account.Storage {
+				storageBloomFilter.Add(dbutils.PlainGenerateCompositeStorageKey(addr, 1, key))
+			}
+		}
+	}
+
 	froms := map[string]*roaring.Bitmap{}
 	tos := map[string]*roaring.Bitmap{}
 	collectorFrom := etl.NewCollector(datadir, etl.NewSortableBuffer(etl.BufferOptimalSize))
