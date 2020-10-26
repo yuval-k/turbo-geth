@@ -65,7 +65,7 @@ func incrementalTxPoolUpdate(logPrefix string, from, to uint64, pool *core.TxPoo
 		}
 
 		// Skip non relevant records
-		if !dbutils.CheckCanonicalKey(k) {
+		if !dbutils.IsCanonicalHeaderKey(k) {
 			return true, nil
 		}
 
@@ -151,7 +151,7 @@ func unwindTxPoolUpdate(logPrefix string, from, to uint64, pool *core.TxPool, db
 		}
 
 		// Skip non relevant records
-		if !dbutils.CheckCanonicalKey(k) {
+		if !dbutils.IsCanonicalHeaderKey(k) {
 			return true, nil
 		}
 		blockNumber := binary.BigEndian.Uint64(k[:8])

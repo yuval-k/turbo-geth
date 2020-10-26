@@ -17,6 +17,8 @@
 package rawdb
 
 import (
+	"encoding/binary"
+	"fmt"
 	"math/big"
 
 	"github.com/ledgerwatch/turbo-geth/common"
@@ -63,11 +65,29 @@ func DeleteTxLookupEntry(db DatabaseDeleter, hash common.Hash) error {
 
 // ReadTransaction retrieves a specific transaction from the database, along with
 // its added positional metadata.
-func ReadTransaction(db DatabaseReader, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64) {
+func ReadTransaction(db ethdb.Database, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64) {
 	blockNumber := ReadTxLookupEntry(db, hash)
 	if blockNumber == nil {
 		return nil, common.Hash{}, 0, 0
 	}
+	txs, err := CanonicalTransactions(db, *blockNumber)
+	if err != nil {
+		log.Error("ReadCanonicalHash failed", "err", err)
+		return nil, common.Hash{}, 0, 0
+	}
+
+	for txIndex, tx := range txs {
+		if tx.Hash() == hash {
+			blockHash, err1 := ReadCanonicalHash(db, *blockNumber)
+			if err1 != nil {
+				log.Error("ReadCanonicalHash failed", "err", err1)
+				return nil, common.Hash{}, 0, 0
+			}
+			return tx, blockHash, *blockNumber, uint64(txIndex)
+		}
+	}
+
+	// TODO: fallback to chain tip
 	blockHash, err := ReadCanonicalHash(db, *blockNumber)
 	if err != nil {
 		log.Error("ReadCanonicalHash failed", "err", err)
@@ -88,6 +108,103 @@ func ReadTransaction(db DatabaseReader, hash common.Hash) (*types.Transaction, c
 	}
 	log.Error("Transaction not found", "number", blockNumber, "hash", blockHash, "txhash", hash)
 	return nil, common.Hash{}, 0, 0
+}
+
+func ReOrgTransactions2(db ethdb.Database, fromBlockN uint64, srcForkId, dstForkId uint8) error {
+	if srcForkId < dstForkId {
+		return fmt.Errorf("unexpected srcForkId: %d and dstForkId: %d", srcForkId, dstForkId)
+	}
+
+	blockN := fromBlockN
+
+	kk := make([]byte, 8+4+1)
+	binary.BigEndian.PutUint64(kk, blockN)
+	kk[12] = 255 // canonical forkID
+
+	_ = db.Walk(dbutils.EthTx, kk, 0, func(k, v []byte) (bool, error) {
+		copy(kk[8:12], k[8:12]) // copy txID
+		kk[12] = dstForkId
+
+		if err := db.Delete(dbutils.EthTx, k); err != nil {
+			return false, err
+		}
+		if err := db.Put(dbutils.EthTx, kk, v); err != nil {
+			return false, err
+		}
+		return true, nil
+	})
+
+	kk[12] = srcForkId
+	binary.BigEndian.PutUint32(kk[8:], 0)
+
+	return db.Walk(dbutils.EthTx, kk, 0, func(k, v []byte) (bool, error) {
+		if k[12] != srcForkId {
+			return false, nil
+		}
+
+		copy(kk[8:12], k[8:12]) // copy txID
+		kk[12] = 255            // canonical forkID
+
+		if err := db.Delete(dbutils.EthTx, k); err != nil {
+			return false, err
+		}
+		if err := db.Append(dbutils.EthTx, kk, v); err != nil {
+			return false, err
+		}
+		return true, nil
+	})
+}
+
+func ReOrgTransactions(tx ethdb.Tx, fromBlockN uint64, srcForkId, dstForkId uint8) error {
+	if srcForkId < dstForkId {
+		return fmt.Errorf("unexpected srcForkId: %d and dstForkId: %d", srcForkId, dstForkId)
+	}
+
+	c := tx.Cursor(dbutils.EthTx)
+	defer c.Close()
+	rwC := tx.Cursor(dbutils.EthTx)
+	defer rwC.Close()
+
+	blockN := fromBlockN
+
+	kk := make([]byte, 8+4+1)
+	binary.BigEndian.PutUint64(kk, blockN)
+	kk[12] = 255 // canonical forkID
+
+	//rename all last blocks to new forkId
+	for k, v, _ := c.Seek(kk); k != nil; k, v, _ = c.Next() {
+		copy(kk[8:12], k[8:12]) // copy txID
+		kk[12] = dstForkId
+
+		_, _ = rwC.SeekExact(k)
+		if err := rwC.DeleteCurrent(); err != nil {
+			return err
+		}
+		if err := rwC.Put(kk, v); err != nil {
+			return err
+		}
+	}
+
+	//Append new for as canonical
+	kk[12] = srcForkId
+	binary.BigEndian.PutUint32(kk[8:], 0)
+	for k, v, _ := c.Seek(kk); k != nil; k, v, _ = c.Next() {
+		if k[12] != srcForkId {
+			break
+		}
+
+		copy(kk[8:12], k[8:12]) // copy txID
+		kk[12] = 255            // canonical forkID
+
+		_, _ = rwC.SeekExact(k)
+		if err := rwC.DeleteCurrent(); err != nil {
+			return err
+		}
+		if err := rwC.Append(kk, v); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ReadReceipt retrieves a specific transaction receipt from the database, along with

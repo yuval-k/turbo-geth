@@ -267,7 +267,41 @@ func deleteHeaderWithoutNumber(db DatabaseDeleter, hash common.Hash, number uint
 	}
 }
 
+func CanonicalUncles(db ethdb.Database, number uint64) (types.Uncles, error) {
+	var result types.Uncles
+	data, err := db.Get(dbutils.Uncle, dbutils.EncodeBlockNumber(number))
+	if err != nil {
+		if errors.Is(err, ethdb.ErrKeyNotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read canonical uncles: %d, %w", number, err)
+	}
+	if err := rlp.Decode(bytes.NewReader(data), result); err != nil {
+		return nil, fmt.Errorf("invalid uncles RLP: %d %w", number, err)
+	}
+	return result, nil
+}
+
+func CanonicalTransactions(db ethdb.Database, number uint64) (types.Transactions, error) {
+	var result types.Transactions
+	reader := bytes.NewReader(nil)
+	if err := db.Walk(dbutils.EthTx, dbutils.EncodeBlockNumber(number), 8*8, func(k, v []byte) (bool, error) {
+		var tx *types.Transaction
+		reader.Reset(v)
+		if err := rlp.Decode(reader, tx); err != nil {
+			return false, fmt.Errorf("invalid transaction RLP: %d %w", number, err)
+		}
+
+		result = append(result, tx)
+		return true, nil
+	}); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 // ReadBodyRLP retrieves the block body (transactions and uncles) in RLP encoding.
+
 func ReadBodyRLP(db DatabaseReader, hash common.Hash, number uint64) rlp.RawValue {
 	data, err1 := db.Get(dbutils.BlockBodyPrefix, dbutils.BlockBodyKey(number, hash))
 	if err1 != nil && !errors.Is(err1, ethdb.ErrKeyNotFound) {
@@ -302,7 +336,22 @@ func HasBody(db DatabaseReader, hash common.Hash, number uint64) bool {
 }
 
 // ReadBody retrieves the block body corresponding to the hash.
-func ReadBody(db DatabaseReader, hash common.Hash, number uint64) *types.Body {
+func ReadBody(db ethdb.Database, hash common.Hash, number uint64) *types.Body {
+	txs, err := CanonicalTransactions(db, number)
+	if err != nil {
+		log.Error("Invalid block body RLP", "hash", hash, "err", err)
+		return nil
+	}
+	uncles, err := CanonicalUncles(db, number)
+	if err != nil {
+		log.Error("Invalid block body RLP", "hash", hash, "err", err)
+		return nil
+	}
+	if txs == nil {
+		return &types.Body{Transactions: txs, Uncles: uncles}
+	}
+
+	// TODO: fallback to chain tip
 	data := ReadBodyRLP(db, hash, number)
 	if len(data) == 0 {
 		return nil
@@ -590,7 +639,7 @@ func DeleteNewerReceipts(db ethdb.Database, number uint64) error {
 //
 // Note, due to concurrent download of header and block body the header and thus
 // canonical hash can be stored in the database but the body data not (yet).
-func ReadBlock(db DatabaseReader, hash common.Hash, number uint64) *types.Block {
+func ReadBlock(db ethdb.Database, hash common.Hash, number uint64) *types.Block {
 	header := ReadHeader(db, hash, number)
 	if header == nil {
 		return nil
@@ -696,7 +745,7 @@ func FindCommonAncestor(db DatabaseReader, a, b *types.Header) *types.Header {
 	return a
 }
 
-func ReadBlockByNumber(db DatabaseReader, number uint64) (*types.Block, error) {
+func ReadBlockByNumber(db ethdb.Database, number uint64) (*types.Block, error) {
 	hash, err := ReadCanonicalHash(db, number)
 	if err != nil {
 		return nil, fmt.Errorf("failed ReadCanonicalHash: %w", err)
@@ -708,7 +757,7 @@ func ReadBlockByNumber(db DatabaseReader, number uint64) (*types.Block, error) {
 	return ReadBlock(db, hash, number), nil
 }
 
-func ReadBlockByHash(db DatabaseReader, hash common.Hash) (*types.Block, error) {
+func ReadBlockByHash(db ethdb.Database, hash common.Hash) (*types.Block, error) {
 	number := ReadHeaderNumber(db, hash)
 	if number == nil {
 		return nil, nil

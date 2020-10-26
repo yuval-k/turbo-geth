@@ -58,7 +58,7 @@ func SpawnRecoverSendersStage(cfg Stage3Config, s *StageState, db ethdb.Database
 		}
 
 		// Skip non relevant records
-		if !dbutils.CheckCanonicalKey(k) {
+		if !dbutils.IsCanonicalHeaderKey(k) {
 			return true, nil
 		}
 

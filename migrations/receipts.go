@@ -263,7 +263,7 @@ var receiptsOnePerTx = Migration{
 }
 
 var blocksStoreTransactionsIndividually = Migration{
-	Name: "blocks_store_transactions_individually_1",
+	Name: "blocks_store_transactions_individually_2",
 	Up: func(db ethdb.Database, tmpdir string, progress []byte, CommitProgress etl.LoadCommitHandler) (err error) {
 		logEvery := time.NewTicker(30 * time.Second)
 		defer logEvery.Stop()
@@ -312,8 +312,8 @@ var blocksStoreTransactionsIndividually = Migration{
 			goto LoadStep
 		}
 
-		collectorR = etl.NewCriticalCollector(tmpdir+"1", etl.NewSortableBuffer(etl.BufferOptimalSize*2))
-		collectorL = etl.NewCriticalCollector(tmpdir+"2", etl.NewSortableBuffer(etl.BufferOptimalSize*2))
+		collectorR = etl.NewCriticalCollector(tmpdir+"1", etl.NewSortableBuffer(etl.BufferOptimalSize*4))
+		collectorL = etl.NewCriticalCollector(tmpdir+"2", etl.NewSortableBuffer(etl.BufferOptimalSize*4))
 		defer func() {
 			// don't clean if error or panic happened
 			if err != nil {
@@ -328,9 +328,9 @@ var blocksStoreTransactionsIndividually = Migration{
 		if err := db.Walk(dbutils.BlockBodyPrefix, nil, 0, func(k, v []byte) (bool, error) {
 			i += len(k) + len(v)
 			blockNum := binary.BigEndian.Uint64(k[:8])
-			if blockNum > 4_600_000 {
-				return false, nil
-			}
+			//if blockNum > 4_600_000 {
+			//	return false, nil
+			//}
 			select {
 			default:
 			case <-logEvery.C:
@@ -349,22 +349,24 @@ var blocksStoreTransactionsIndividually = Migration{
 
 			body := new(types.Body)
 			reader.Reset(v)
-			if err := rlp.Decode(reader, body); err != nil {
+			err = rlp.Decode(reader, body)
+			if err != nil {
 				return false, fmt.Errorf("invalid block body RLP: %d %w", blockNum, err)
 			}
 
-			newK := make([]byte, 8+4)
+			newK := make([]byte, 8+4+1)
 			copy(newK, k[:8])
 			for txID, tx := range body.Transactions {
 				binary.BigEndian.PutUint32(newK[8:], uint32(txID))
+				newK[12] = 255 // canonical forkID
 
-				data, err := rlp.EncodeToBytes(tx)
-				if err != nil {
-					return false, err
+				data, err1 := rlp.EncodeToBytes(tx)
+				if err1 != nil {
+					return false, err1
 				}
-				err = collectorL.Collect(newK, data)
-				if err != nil {
-					return false, err
+				err1 = collectorL.Collect(newK, data)
+				if err1 != nil {
+					return false, err1
 				}
 			}
 
@@ -372,7 +374,11 @@ var blocksStoreTransactionsIndividually = Migration{
 			if err != nil {
 				return false, err
 			}
-			err = collectorR.Collect(k[:8], data)
+
+			newK = make([]byte, 8+1)
+			copy(newK, k[:8])
+			newK[8] = 255 // canonical forkID
+			err = collectorR.Collect(newK, data)
 			if err != nil {
 				return false, err
 			}
@@ -384,7 +390,7 @@ var blocksStoreTransactionsIndividually = Migration{
 
 		fmt.Printf("original size: %s\n", common.StorageSize(i))
 
-		if err := db.(ethdb.BucketsMigrator).ClearBuckets(dbutils.EthTx, dbutils.BlockUncles); err != nil {
+		if err := db.(ethdb.BucketsMigrator).ClearBuckets(dbutils.Uncle, dbutils.EthTx); err != nil {
 			return fmt.Errorf("clearing the receipt bucket: %w", err)
 		}
 
@@ -399,7 +405,7 @@ var blocksStoreTransactionsIndividually = Migration{
 			return fmt.Errorf("committing the removal of receipt table")
 		}
 		//Now transaction would have been re-opened, and we should be re-using the space
-		if err := collectorR.Load(logPrefix, db, dbutils.BlockUncles, etl.IdentityLoadFunc, etl.TransformArgs{}); err != nil {
+		if err := collectorR.Load(logPrefix, db, dbutils.Uncle, etl.IdentityLoadFunc, etl.TransformArgs{}); err != nil {
 			return fmt.Errorf("loading the transformed data back into the receipts table: %w", err)
 		}
 		if err := collectorL.Load(logPrefix, db, dbutils.EthTx, etl.IdentityLoadFunc, etl.TransformArgs{OnLoadCommit: CommitProgress}); err != nil {

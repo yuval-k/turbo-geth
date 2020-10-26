@@ -9,7 +9,6 @@ import (
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 	"github.com/ledgerwatch/turbo-geth/common/etl"
-	"github.com/ledgerwatch/turbo-geth/core/rawdb"
 	"github.com/ledgerwatch/turbo-geth/core/types"
 	"github.com/ledgerwatch/turbo-geth/ethdb"
 	"github.com/ledgerwatch/turbo-geth/rlp"
@@ -38,22 +37,22 @@ func SpawnTxLookup(s *StageState, db ethdb.Database, tmpdir string, quitCh <-cha
 }
 
 func TxLookupTransform(logPrefix string, db ethdb.Database, startKey, endKey []byte, quitCh <-chan struct{}, tmpdir string) error {
-	return etl.Transform(logPrefix, db, dbutils.HeaderPrefix, dbutils.TxLookupPrefix, tmpdir, func(k []byte, v []byte, next etl.ExtractNextFunc) error {
-		if !dbutils.CheckCanonicalKey(k) {
+	reader := bytes.NewReader(nil)
+	return etl.Transform(logPrefix, db, dbutils.EthTx, dbutils.TxLookupPrefix, tmpdir, func(k []byte, v []byte, next etl.ExtractNextFunc) error {
+		if !dbutils.IsCanonicalTransactionKey(k) {
 			return nil
 		}
 		blocknum := binary.BigEndian.Uint64(k)
-		blockHash := common.BytesToHash(v)
-		body := rawdb.ReadBody(db, blockHash, blocknum)
-		if body == nil {
-			return fmt.Errorf("%s: tx lookup generation, empty block body %d, hash %x", logPrefix, blocknum, v)
+		blockNumBytes := new(big.Int).SetUint64(blocknum).Bytes()
+
+		var tx *types.Transaction
+		reader.Reset(v)
+		if err := rlp.Decode(reader, tx); err != nil {
+			return fmt.Errorf("invalid transaction RLP: %d %w", blocknum, err)
 		}
 
-		blockNumBytes := new(big.Int).SetUint64(blocknum).Bytes()
-		for _, tx := range body.Transactions {
-			if err := next(k, tx.Hash().Bytes(), blockNumBytes); err != nil {
-				return err
-			}
+		if err := next(k, tx.Hash().Bytes(), blockNumBytes); err != nil {
+			return err
 		}
 		return nil
 	}, etl.IdentityLoadFunc, etl.TransformArgs{
@@ -68,10 +67,11 @@ func TxLookupTransform(logPrefix string, db ethdb.Database, startKey, endKey []b
 
 func UnwindTxLookup(u *UnwindState, s *StageState, db ethdb.Database, tmpdir string, quitCh <-chan struct{}) error {
 	collector := etl.NewCollector(tmpdir, etl.NewSortableBuffer(etl.BufferOptimalSize))
+	reader := bytes.NewReader(nil)
 
 	logPrefix := s.state.LogPrefix()
 	// Remove lookup entries for blocks between unwindPoint+1 and stage.BlockNumber
-	if err := db.Walk(dbutils.BlockBodyPrefix, dbutils.EncodeBlockNumber(u.UnwindPoint+1), 0, func(k, v []byte) (b bool, e error) {
+	if err := db.Walk(dbutils.EthTx, dbutils.EncodeBlockNumber(u.UnwindPoint+1), 0, func(k, v []byte) (b bool, e error) {
 		if err := common.Stopped(quitCh); err != nil {
 			return false, err
 		}
@@ -85,19 +85,14 @@ func UnwindTxLookup(u *UnwindState, s *StageState, db ethdb.Database, tmpdir str
 			return false, err
 		}
 
-		bodyRlp, err := rawdb.DecompressBlockBody(v)
-		if err != nil {
-			return false, err
+		var tx *types.Transaction
+		reader.Reset(v)
+		if err := rlp.Decode(reader, tx); err != nil {
+			return false, fmt.Errorf("invalid transaction RLP: %d %w", blockNumber, err)
 		}
 
-		body := new(types.Body)
-		if err := rlp.Decode(bytes.NewReader(bodyRlp), body); err != nil {
-			return false, fmt.Errorf("%s, rlp decode err: %w", logPrefix, err)
-		}
-		for _, tx := range body.Transactions {
-			if err := collector.Collect(tx.Hash().Bytes(), nil); err != nil {
-				return false, err
-			}
+		if err := collector.Collect(tx.Hash().Bytes(), nil); err != nil {
+			return false, err
 		}
 
 		return true, nil

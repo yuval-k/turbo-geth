@@ -50,7 +50,7 @@ func (d *Downloader) SpawnBodyDownloadStage(
 		}
 
 		// Skip non relevant records
-		if dbutils.CheckCanonicalKey(k) {
+		if dbutils.IsCanonicalHeaderKey(k) {
 			// This is how we learn about canonical chain
 			blockNumber := binary.BigEndian.Uint64(k[:8])
 			if blockNumber != currentNumber {

@@ -639,20 +639,6 @@ func (bc *BlockChain) Genesis() *types.Block {
 	return bc.genesisBlock
 }
 
-// GetBody retrieves a block body (transactions and uncles) from the database by
-// hash, caching it if found.
-func (bc *BlockChain) GetBody(hash common.Hash) *types.Body {
-	number := bc.hc.GetBlockNumber(bc.db, hash)
-	if number == nil {
-		return nil
-	}
-	body := rawdb.ReadBody(bc.db, hash, *number)
-	if body == nil {
-		return nil
-	}
-	return body
-}
-
 // GetBodyRLP retrieves a block body in RLP encoding from the database by hash,
 // caching it if found.
 func (bc *BlockChain) GetBodyRLP(hash common.Hash) rlp.RawValue {

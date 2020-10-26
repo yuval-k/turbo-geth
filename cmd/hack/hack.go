@@ -1144,7 +1144,7 @@ func ValidateTxLookups2(chaindata string) {
 	log.Info("All done", "duration", time.Since(startTime))
 }
 
-func validateTxLookups2(db rawdb.DatabaseReader, startBlock uint64, interruptCh chan bool) {
+func validateTxLookups2(db ethdb.Database, startBlock uint64, interruptCh chan bool) {
 	blockNum := startBlock
 	iterations := 0
 	var interrupt bool
@@ -2005,7 +2005,7 @@ func mint(chaindata string, block uint64) error {
 				return err
 			}
 			// Skip non relevant records
-			if !dbutils.CheckCanonicalKey(k) {
+			if !dbutils.IsCanonicalHeaderKey(k) {
 				continue
 			}
 			canonical[common.BytesToHash(v)] = struct{}{}
@@ -2117,8 +2117,11 @@ func receiptSizes(chaindata string) error {
 	}
 	defer tx.Rollback()
 
-	c := tx.Cursor(dbutils.Log)
+	rawdb.ReOrgTransactions2(tx, 11_000_000, 1, 2)
+
+	c := tx.Cursor(dbutils.EthTx)
 	defer c.Close()
+
 	sizes := make(map[int]int)
 	for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
 		if err != nil {

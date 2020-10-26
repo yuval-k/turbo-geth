@@ -166,6 +166,8 @@ type Body struct {
 	Uncles       []*Header
 }
 
+type Uncles []*Header
+
 // Block represents an entire block in the Ethereum blockchain.
 type Block struct {
 	header       *Header
