@@ -66,6 +66,7 @@ var migrations = []Migration{
 	resetIHBucketToRecoverDB,
 	receiptsCborEncode,
 	receiptsOnePerTx,
+	blocksStoreTransactionsIndividually,
 }
 
 type Migration struct {
@@ -92,7 +93,7 @@ type Migrator struct {
 func AppliedMigrations(db ethdb.Database, withPayload bool) (map[string][]byte, error) {
 	applied := map[string][]byte{}
 	err := db.Walk(dbutils.Migrations, nil, 0, func(k []byte, v []byte) (bool, error) {
-		if bytes.HasPrefix(k, []byte("_progress_")) {
+		if bytes.HasPrefix(k, []byte(dbutils.MigrationProgressPrefix)) {
 			return true, nil
 		}
 		if withPayload {
@@ -174,7 +175,7 @@ func (m *Migrator) Apply(db ethdb.Database, tmpdir string) error {
 		commitFuncCalled := false // commit function must be called if no error, protection against people's mistake
 
 		log.Info("Apply migration", "name", v.Name)
-		progress, err := tx.Get(dbutils.Migrations, []byte("_progress_"+v.Name))
+		progress, err := tx.Get(dbutils.Migrations, []byte(dbutils.MigrationProgressPrefix+v.Name))
 		if err != nil && !errors.Is(err, ethdb.ErrKeyNotFound) {
 			return err
 		}
@@ -182,7 +183,7 @@ func (m *Migrator) Apply(db ethdb.Database, tmpdir string) error {
 		if err = v.Up(tx, path.Join(tmpdir, "migrations", v.Name), progress, func(_ ethdb.Putter, key []byte, isDone bool) error {
 			if !isDone {
 				if key != nil {
-					err = tx.Put(dbutils.Migrations, []byte("_progress_"+v.Name), key)
+					err = tx.Put(dbutils.Migrations, []byte(dbutils.MigrationProgressPrefix+v.Name), key)
 					if err != nil {
 						return err
 					}
@@ -204,7 +205,7 @@ func (m *Migrator) Apply(db ethdb.Database, tmpdir string) error {
 				return err
 			}
 
-			err = tx.Delete(dbutils.Migrations, []byte("_progress_"+v.Name), nil)
+			err = tx.Delete(dbutils.Migrations, []byte(dbutils.MigrationProgressPrefix+v.Name), nil)
 			if err != nil {
 				return err
 			}

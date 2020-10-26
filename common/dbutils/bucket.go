@@ -112,9 +112,12 @@ var (
 	HeaderHashSuffix   = []byte("n") // headerPrefix + num (uint64 big endian) + headerHashSuffix -> hash
 	HeaderNumberPrefix = "H"         // headerNumberPrefix + hash -> num (uint64 big endian)
 
-	BlockBodyPrefix     = "b"   // blockBodyPrefix + num (uint64 big endian) + hash -> block body
-	BlockReceiptsPrefix = "r"   // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
-	Log                 = "log" // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
+	BlockBodyPrefix     = "b"       // blockBodyPrefix + num (uint64 big endian) + hash -> block body
+	BlockUncles         = "uncles"  // num (uint64 big endian) -> rlp(Uncles)
+	EthTx               = "eth_tx"  // num (uint64 big endian) + txID (uint32 big endian) -> rlp(types.txdata)
+	EthTx2              = "eth_tx2" // num (uint64 big endian) + txID (uint32 big endian) -> cbor(types.txdata)
+	BlockReceiptsPrefix = "r"       // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
+	Log                 = "log"     //
 
 	// Stores bitmap indices - in which block numbers saw logs of given 'address' or 'topic'
 	// [addr or topic] + [2 bytes inverted shard number] -> bitmap(blockN)
@@ -167,6 +170,11 @@ var (
 	// it stores stages progress to understand in which context was executed migration
 	// in case of bug-report developer can ask content of this bucket
 	Migrations = "migrations"
+)
+
+// Prefixes
+const (
+	MigrationProgressPrefix = "_progress_"
 )
 
 // Keys
@@ -240,6 +248,9 @@ var Buckets = []string{
 	CallFromIndex,
 	CallToIndex,
 	Log,
+	EthTx,
+	EthTx2,
+	BlockUncles,
 }
 
 // DeprecatedBuckets - list of buckets which can be programmatically deleted - for example after migration

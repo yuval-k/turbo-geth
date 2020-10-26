@@ -261,3 +261,150 @@ var receiptsOnePerTx = Migration{
 		return nil
 	},
 }
+
+var blocksStoreTransactionsIndividually = Migration{
+	Name: "blocks_store_transactions_individually_1",
+	Up: func(db ethdb.Database, tmpdir string, progress []byte, CommitProgress etl.LoadCommitHandler) (err error) {
+		logEvery := time.NewTicker(30 * time.Second)
+		defer logEvery.Stop()
+		logPrefix := "blocks_store_transactions_individually"
+		//buf := bytes.NewBuffer(make([]byte, 0, 100_000))
+		reader := bytes.NewReader(nil)
+		i := 0
+
+		const loadStep = "load"
+
+		collectorR, err1 := etl.NewCollectorFromFiles(tmpdir + "1")
+		if err1 != nil {
+			return err1
+		}
+		collectorL, err1 := etl.NewCollectorFromFiles(tmpdir + "2")
+		if err1 != nil {
+			return err1
+		}
+		switch string(progress) {
+		case "":
+			// can't use files if progress field not set, clear them
+			if collectorR != nil {
+				collectorR.Close(logPrefix)
+				collectorR = nil
+			}
+
+			if collectorL != nil {
+				collectorL.Close(logPrefix)
+				collectorL = nil
+			}
+		case loadStep:
+			if collectorR == nil || collectorL == nil {
+				return ErrMigrationETLFilesDeleted
+			}
+			defer func() {
+				// don't clean if error or panic happened
+				if err != nil {
+					return
+				}
+				if rec := recover(); rec != nil {
+					panic(rec)
+				}
+				collectorR.Close(logPrefix)
+				collectorL.Close(logPrefix)
+			}()
+			goto LoadStep
+		}
+
+		collectorR = etl.NewCriticalCollector(tmpdir+"1", etl.NewSortableBuffer(etl.BufferOptimalSize*2))
+		collectorL = etl.NewCriticalCollector(tmpdir+"2", etl.NewSortableBuffer(etl.BufferOptimalSize*2))
+		defer func() {
+			// don't clean if error or panic happened
+			if err != nil {
+				return
+			}
+			if rec := recover(); rec != nil {
+				panic(rec)
+			}
+			collectorR.Close(logPrefix)
+			collectorL.Close(logPrefix)
+		}()
+		if err := db.Walk(dbutils.BlockBodyPrefix, nil, 0, func(k, v []byte) (bool, error) {
+			i += len(k) + len(v)
+			blockNum := binary.BigEndian.Uint64(k[:8])
+			if blockNum > 4_600_000 {
+				return false, nil
+			}
+			select {
+			default:
+			case <-logEvery.C:
+				var m runtime.MemStats
+				runtime.ReadMemStats(&m)
+				log.Info(fmt.Sprintf("[%s] Progress", logPrefix), "blockNum", blockNum, "alloc", common.StorageSize(m.Alloc), "sys", common.StorageSize(m.Sys))
+			}
+
+			blockHash, err := rawdb.ReadCanonicalHash(db, blockNum)
+			if err != nil {
+				return false, err
+			}
+			if !bytes.Equal(blockHash[:], k[8:]) {
+				return true, nil
+			}
+
+			body := new(types.Body)
+			reader.Reset(v)
+			if err := rlp.Decode(reader, body); err != nil {
+				return false, fmt.Errorf("invalid block body RLP: %d %w", blockNum, err)
+			}
+
+			newK := make([]byte, 8+4)
+			copy(newK, k[:8])
+			for txID, tx := range body.Transactions {
+				binary.BigEndian.PutUint32(newK[8:], uint32(txID))
+
+				data, err := rlp.EncodeToBytes(tx)
+				if err != nil {
+					return false, err
+				}
+				err = collectorL.Collect(newK, data)
+				if err != nil {
+					return false, err
+				}
+			}
+
+			data, err := rlp.EncodeToBytes(body.Uncles)
+			if err != nil {
+				return false, err
+			}
+			err = collectorR.Collect(k[:8], data)
+			if err != nil {
+				return false, err
+			}
+
+			return true, nil
+		}); err != nil {
+			return err
+		}
+
+		fmt.Printf("original size: %s\n", common.StorageSize(i))
+
+		if err := db.(ethdb.BucketsMigrator).ClearBuckets(dbutils.EthTx, dbutils.BlockUncles); err != nil {
+			return fmt.Errorf("clearing the receipt bucket: %w", err)
+		}
+
+		// Commit clearing of the bucket - freelist should now be written to the database
+		if err := CommitProgress(db, []byte(loadStep), false); err != nil {
+			return fmt.Errorf("committing the removal of receipt table")
+		}
+
+	LoadStep:
+		// Commit again
+		if err := CommitProgress(db, []byte(loadStep), false); err != nil {
+			return fmt.Errorf("committing the removal of receipt table")
+		}
+		//Now transaction would have been re-opened, and we should be re-using the space
+		if err := collectorR.Load(logPrefix, db, dbutils.BlockUncles, etl.IdentityLoadFunc, etl.TransformArgs{}); err != nil {
+			return fmt.Errorf("loading the transformed data back into the receipts table: %w", err)
+		}
+		if err := collectorL.Load(logPrefix, db, dbutils.EthTx, etl.IdentityLoadFunc, etl.TransformArgs{OnLoadCommit: CommitProgress}); err != nil {
+			return fmt.Errorf("loading the transformed data back into the receipts table: %w", err)
+		}
+		return nil
+	},
+}

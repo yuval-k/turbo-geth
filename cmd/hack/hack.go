@@ -1888,14 +1888,15 @@ func benchRlp(chaindata string) error {
 
 	// train
 	total := 0
-	bucket := dbutils.BlockReceiptsPrefix
+	bucket := dbutils.BlockBodyPrefix
 	fmt.Printf("bucket: %s\n", bucket)
 	c := tx.(ethdb.HasTx).Tx().Cursor(bucket)
 
-	total_cbor := 0
+	total_cbor, total_rlp := 0, 0
 	total_compress_cbor := 0
 
 	total = 0
+	var rlp_encode time.Duration
 	var cbor_encode time.Duration
 	var cbor_decode time.Duration
 	var cbor_decode2 time.Duration
@@ -1903,35 +1904,37 @@ func benchRlp(chaindata string) error {
 	var cbor_compress time.Duration
 
 	buf := bytes.NewBuffer(make([]byte, 0, 100_000))
-	compressBuf := make([]byte, 0, 100_000)
+	//compressBuf := make([]byte, 0, 100_000)
 
-	var samplesCbor [][]byte
+	//var samplesCbor [][]byte
 
 	count, _ := c.Count()
 	blockNBytes := make([]byte, 8)
 	trainFrom := count - 2_000_000
-	for blockN := trainFrom; blockN < count; blockN += 2_000_000 / 4_000 {
-		binary.BigEndian.PutUint64(blockNBytes, blockN)
-		var v []byte
-		_, v, err = c.Seek(blockNBytes)
-		if err != nil {
-			return err
-		}
+	//for blockN := trainFrom; blockN < count; blockN += 2_000_000 / 4_000 {
+	//	binary.BigEndian.PutUint64(blockNBytes, blockN)
+	//	var v []byte
+	//	_, v, err = c.Seek(blockNBytes)
+	//	if err != nil {
+	//		return err
+	//	}
+	//
+	//	receipts := types.Receipts{}
+	//	err = cbor.Unmarshal(&receipts, bytes.NewReader(v))
+	//	check(err)
+	//
+	//	select {
+	//	default:
+	//	case <-logEvery.C:
+	//		log.Info("Progress sampling", "blockNum", blockN)
+	//	}
+	//}
 
-		receipts := types.Receipts{}
-		err = cbor.Unmarshal(&receipts, bytes.NewReader(v))
-		check(err)
+	//compressorCbor, err := gozstd.NewCDictLevel(gozstd.BuildDict(samplesCbor, 32*1024), -2)
+	//check(err)
+	//defer compressorCbor.Release()
 
-		select {
-		default:
-		case <-logEvery.C:
-			log.Info("Progress sampling", "blockNum", blockN)
-		}
-	}
-
-	compressorCbor, err := gozstd.NewCDictLevel(gozstd.BuildDict(samplesCbor, 32*1024), -2)
-	check(err)
-	defer compressorCbor.Release()
+	reader := bytes.NewReader(nil)
 
 	binary.BigEndian.PutUint64(blockNBytes, trainFrom)
 	for k, v, err := c.Seek(blockNBytes); k != nil; k, v, err = c.Next() {
@@ -1941,27 +1944,24 @@ func benchRlp(chaindata string) error {
 		total += len(v)
 		blockNum := binary.BigEndian.Uint64(k)
 
-		storageReceipts := types.Receipts{}
-		err = cbor.Unmarshal(&storageReceipts, bytes.NewReader(v))
+		body := new(types.Body)
+		reader.Reset(v)
+		err = rlp.Decode(reader, body)
 		check(err)
 
-		t := time.Now()
-		buf.Reset()
-		err = cbor.Marshal(buf, storageReceipts)
-		cbor_encode += time.Since(t)
-		total_cbor += buf.Len()
-		check(err)
+		for _, tx := range body.Transactions {
+			t := time.Now()
+			data, err := rlp.EncodeToBytes(tx)
+			rlp_encode += time.Since(t)
+			total_rlp += len(data)
+			check(err)
 
-		t = time.Now()
-		//compressBuf = gozstd.CompressDict(compressBuf[:0], buf.Bytes(), compressorCbor)
-		cbor_compress += time.Since(t)
-		total_compress_cbor += len(compressBuf)
-
-		storageReceipts2 := types.Receipts{}
-		t = time.Now()
-		err = cbor.Unmarshal(&storageReceipts2, bytes.NewReader(buf.Bytes()))
-		cbor_decode += time.Since(t)
-		check(err)
+			buf.Reset()
+			err = cbor.Marshal(buf, tx)
+			cbor_encode += time.Since(t)
+			total_cbor += buf.Len()
+			check(err)
+		}
 
 		select {
 		default:
@@ -1969,6 +1969,7 @@ func benchRlp(chaindata string) error {
 			totalf := float64(total)
 			log.Info("Progress 8", "blockNum", blockNum, "before", common.StorageSize(total),
 				//"rlp_decode", rlp_decode,
+				"total_rlp", fmt.Sprintf("%.2f", float64(total_rlp)/totalf), "rlp_encode", rlp_encode,
 				"total_cbor", fmt.Sprintf("%.2f", float64(total_cbor)/totalf), "cbor_encode", cbor_encode, "cbor_decode", cbor_decode,
 				"cbor_decode2", cbor_decode2, "cbor_decode3", cbor_decode3,
 				//"compress_rlp_ratio", fmt.Sprintf("%.2f", totalf/float64(total_compress_rlp)), "rlp_compress", rlp_compress,
