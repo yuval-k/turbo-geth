@@ -11,7 +11,7 @@
  * top-level directory of the distribution or, alternatively, at
  * <http://www.OpenLDAP.org/license.html>. */
 
-#define MDBX_ALLOY 1n#define MDBX_BUILD_SOURCERY 708c5f128d0bda49231e97502e25698fb58ae9cab41fe1b2ad6b36bdcac9b70e_v0_9_1_57_gefe7cf2
+#define MDBX_ALLOY 1n#define MDBX_BUILD_SOURCERY e8f64e7044619a2779041d630218bf4240b377bbabadb2a5af7b364d0f9b25d0_v0_9_1_61_gfaddc71
 #ifdef MDBX_CONFIG_H
 #include MDBX_CONFIG_H
 #endif
@@ -10534,9 +10534,12 @@ retry_noaccount:
                      env->me_maxgc_ov1page) {
 
         /* LY: need just a txn-id for save page list. */
-        couple.outer.mc_flags &= ~C_RECLAIMING;
         bool need_cleanup = false;
+        txnid_t snap_oldest;
+      retry_rid:
+        couple.outer.mc_flags &= ~C_RECLAIMING;
         do {
+          snap_oldest = mdbx_find_oldest(txn);
           rc = mdbx_page_alloc(&couple.outer, 0, NULL, MDBX_ALLOC_GC);
           if (likely(rc == MDBX_SUCCESS)) {
             mdbx_trace("%s: took @%" PRIaTXN " from GC", dbg_prefix_mode,
@@ -10564,9 +10567,13 @@ retry_noaccount:
           gc_rid = MDBX_PNL_LAST(txn->tw.lifo_reclaimed);
         } else {
           mdbx_tassert(txn, txn->tw.last_reclaimed == 0);
+          if (unlikely(mdbx_find_oldest(txn) != snap_oldest))
+            /* should retry mdbx_page_alloc(MDBX_ALLOC_GC)
+             * if the oldest reader changes since the last attempt */
+            goto retry_rid;
           /* no reclaimable GC entries,
            * therefore no entries with ID < mdbx_find_oldest(txn) */
-          txn->tw.last_reclaimed = gc_rid = mdbx_find_oldest(txn) - 1;
+          txn->tw.last_reclaimed = gc_rid = snap_oldest - 1;
           mdbx_trace("%s: none recycled yet, set rid to @%" PRIaTXN,
                      dbg_prefix_mode, gc_rid);
         }
@@ -25238,9 +25245,9 @@ __dll_export
         0,
         9,
         1,
-        57,
-        {"2020-10-26T03:52:07+03:00", "91a26cef0b5ef6f53174487128cfb1a708acb631", "efe7cf2a95d9d18896bc7939573e2383d0d3bbcd",
-         "v0.9.1-57-gefe7cf2"},
+        61,
+        {"2020-10-27T01:08:01+03:00", "6b86c8362be917e1d8dbc63ba2a346f7618090e3", "faddc71eace1088f077a022a235cd097ef0c21c2",
+         "v0.9.1-61-gfaddc71"},
         sourcery};
 
 __dll_export
