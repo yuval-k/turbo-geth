@@ -8,18 +8,21 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/log"
 )
 
 type dataProvider interface {
-	Next(decoder Decoder) ([]byte, []byte, error)
+	Next(decoder Decoder) (Operation, []byte, []byte, error)
 	Dispose() (uint64, error)
 }
 
 type fileDataProvider struct {
-	file   *os.File
-	reader io.Reader
+	file    *os.File
+	reader  io.Reader
+	deletes *roaring.Bitmap
+	i       uint32
 }
 
 type Encoder interface {
@@ -59,26 +62,52 @@ func FlushToDisk(encoder Encoder, currentKey []byte, b Buffer, tmpdir string) (d
 	}()
 
 	encoder.Reset(w)
-	for _, entry := range b.GetEntries() {
+	deletes, entries := b.GetEntries()
+	serializedDeletes, err := deletes.ToBytes()
+	if err != nil {
+		return nil, err
+	}
+	err = encoder.Encode(serializedDeletes)
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range entries {
 		err = writeToDisk(encoder, entry.key, entry.value)
 		if err != nil {
 			return nil, fmt.Errorf("error writing entries to disk: %v", err)
 		}
 	}
 
-	return &fileDataProvider{bufferFile, nil}, nil
+	return &fileDataProvider{bufferFile, nil, nil, 0}, nil
 }
 
-func (p *fileDataProvider) Next(decoder Decoder) ([]byte, []byte, error) {
+func (p *fileDataProvider) Next(decoder Decoder) (Operation, []byte, []byte, error) {
 	if p.reader == nil {
 		_, err := p.file.Seek(0, 0)
 		if err != nil {
-			return nil, nil, err
+			return 0, nil, nil, err
 		}
 		p.reader = bufio.NewReaderSize(p.file, BufIOSize)
+		decoder.Reset(p.reader)
+
+		var serializedBitmap []byte
+		err = decoder.Decode(&serializedBitmap)
+		if err != nil {
+			return 0, nil, nil, err
+		}
+		p.deletes = roaring.New()
+		_, err = p.deletes.FromBuffer(serializedBitmap)
+		if err != nil {
+			return 0, nil, nil, err
+		}
 	}
 	decoder.Reset(p.reader)
-	return readElementFromDisk(decoder)
+	p.i++
+	k, v, err := readElementFromDisk(decoder)
+	if p.deletes.Contains(p.i) {
+		return OpDelete, k, v, err
+	}
+	return OpUpsert, k, v, err
 }
 
 func (p *fileDataProvider) Dispose() (uint64, error) {
@@ -121,13 +150,13 @@ func KeepInRAM(buffer Buffer) dataProvider {
 	return &memoryDataProvider{buffer, 0}
 }
 
-func (p *memoryDataProvider) Next(decoder Decoder) ([]byte, []byte, error) {
+func (p *memoryDataProvider) Next(decoder Decoder) (Operation, []byte, []byte, error) {
 	if p.currentIndex >= p.buffer.Len() {
-		return nil, nil, io.EOF
+		return 0, nil, nil, io.EOF
 	}
-	entry := p.buffer.Get(p.currentIndex)
+	op, k, v := p.buffer.Get(p.currentIndex)
 	p.currentIndex++
-	return entry.key, entry.value, nil
+	return op, k, v, nil
 }
 
 func (p *memoryDataProvider) Dispose() (uint64, error) {

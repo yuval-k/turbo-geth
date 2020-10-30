@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/c2h5oh/datasize"
 	"github.com/ledgerwatch/turbo-geth/common"
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
@@ -25,11 +26,12 @@ const (
 var BufferOptimalSize = 256 * datasize.MB /*  var because we want to sometimes change it from tests or command-line flags */
 
 type Buffer interface {
+	Delete(k, v []byte)
 	Put(k, v []byte)
-	Get(i int) sortableBufferEntry
+	Get(i int) (op Operation, k, v []byte)
 	Len() int
 	Reset()
-	GetEntries() []sortableBufferEntry
+	GetEntries() (*roaring.Bitmap, []sortableBufferEntry)
 	Sort()
 	CheckFlushSize() bool
 	SetComparator(cmp dbutils.CmpFunc)
@@ -51,14 +53,23 @@ func NewSortableBuffer(bufferOptimalSize datasize.ByteSize) *sortableBuffer {
 		entries:     make([]sortableBufferEntry, 0),
 		size:        0,
 		optimalSize: int(bufferOptimalSize.Bytes()),
+		deletes:     roaring.New(),
 	}
 }
 
 type sortableBuffer struct {
 	entries     []sortableBufferEntry
+	deletes     *roaring.Bitmap
 	size        int
 	optimalSize int
 	comparator  dbutils.CmpFunc
+}
+
+func (b *sortableBuffer) Delete(k, v []byte) {
+	b.size += len(k)
+	b.size += len(v)
+	b.deletes.Add(uint32(len(b.entries)))
+	b.entries = append(b.entries, sortableBufferEntry{k, v})
 }
 
 func (b *sortableBuffer) Put(k, v []byte) {
@@ -87,11 +98,27 @@ func (b *sortableBuffer) Less(i, j int) bool {
 }
 
 func (b *sortableBuffer) Swap(i, j int) {
+	id := b.deletes.ContainsInt(i)
+	jd := b.deletes.ContainsInt(j)
+	if id {
+		b.deletes.AddInt(i)
+	} else {
+		b.deletes.Remove(uint32(i))
+	}
+	if jd {
+		b.deletes.AddInt(j)
+	} else {
+		b.deletes.Remove(uint32(j))
+	}
 	b.entries[i], b.entries[j] = b.entries[j], b.entries[i]
 }
 
-func (b *sortableBuffer) Get(i int) sortableBufferEntry {
-	return b.entries[i]
+func (b *sortableBuffer) Get(i int) (op Operation, k, v []byte) {
+	e := b.entries[i]
+	if b.deletes.ContainsInt(i) {
+		return OpDelete, e.key, e.value
+	}
+	return OpUpsert, e.key, e.value
 }
 
 func (b *sortableBuffer) Reset() {
@@ -102,8 +129,8 @@ func (b *sortableBuffer) Sort() {
 	sort.Stable(b)
 }
 
-func (b *sortableBuffer) GetEntries() []sortableBufferEntry {
-	return b.entries
+func (b *sortableBuffer) GetEntries() (*roaring.Bitmap, []sortableBufferEntry) {
+	return b.deletes, b.entries
 }
 
 func (b *sortableBuffer) CheckFlushSize() bool {
@@ -124,6 +151,10 @@ type appendSortableBuffer struct {
 	optimalSize int
 	sortedBuf   []sortableBufferEntry
 	comparator  dbutils.CmpFunc
+}
+
+func (b *appendSortableBuffer) Delete(k, v []byte) {
+	panic("appendSortableBuffer doesn't support delete")
 }
 
 func (b *appendSortableBuffer) Put(k, v []byte) {
@@ -166,8 +197,9 @@ func (b *appendSortableBuffer) Swap(i, j int) {
 	b.sortedBuf[i], b.sortedBuf[j] = b.sortedBuf[j], b.sortedBuf[i]
 }
 
-func (b *appendSortableBuffer) Get(i int) sortableBufferEntry {
-	return b.sortedBuf[i]
+func (b *appendSortableBuffer) Get(i int) (op Operation, k, v []byte) {
+	e := b.sortedBuf[i]
+	return OpUpsert, e.key, e.value
 }
 func (b *appendSortableBuffer) Reset() {
 	b.sortedBuf = nil
@@ -175,8 +207,8 @@ func (b *appendSortableBuffer) Reset() {
 	b.size = 0
 }
 
-func (b *appendSortableBuffer) GetEntries() []sortableBufferEntry {
-	return b.sortedBuf
+func (b *appendSortableBuffer) GetEntries() (*roaring.Bitmap, []sortableBufferEntry) {
+	return nil, b.sortedBuf
 }
 
 func (b *appendSortableBuffer) CheckFlushSize() bool {
@@ -201,6 +233,10 @@ type oldestEntrySortableBuffer struct {
 
 func (b *oldestEntrySortableBuffer) SetComparator(cmp dbutils.CmpFunc) {
 	b.comparator = cmp
+}
+
+func (b *oldestEntrySortableBuffer) Delete(k, v []byte) {
+	panic("oldestEntrySortableBuffer doesn't support deletes")
 }
 
 func (b *oldestEntrySortableBuffer) Put(k, v []byte) {
@@ -245,17 +281,18 @@ func (b *oldestEntrySortableBuffer) Swap(i, j int) {
 	b.sortedBuf[i], b.sortedBuf[j] = b.sortedBuf[j], b.sortedBuf[i]
 }
 
-func (b *oldestEntrySortableBuffer) Get(i int) sortableBufferEntry {
-	return b.sortedBuf[i]
-}
 func (b *oldestEntrySortableBuffer) Reset() {
 	b.sortedBuf = nil
 	b.entries = make(map[string][]byte)
 	b.size = 0
 }
+func (b *oldestEntrySortableBuffer) Get(i int) (op Operation, k, v []byte) {
+	e := b.sortedBuf[i]
+	return OpUpsert, e.key, e.value
+}
 
-func (b *oldestEntrySortableBuffer) GetEntries() []sortableBufferEntry {
-	return b.sortedBuf
+func (b *oldestEntrySortableBuffer) GetEntries() (*roaring.Bitmap, []sortableBufferEntry) {
+	return nil, b.sortedBuf
 }
 
 func (b *oldestEntrySortableBuffer) CheckFlushSize() bool {

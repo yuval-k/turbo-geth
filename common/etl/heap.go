@@ -2,14 +2,23 @@ package etl
 
 import (
 	"bytes"
+
 	"github.com/ledgerwatch/turbo-geth/common/dbutils"
 )
 
 type HeapElem struct {
+	Op      Operation
 	Key     []byte
 	TimeIdx int
 	Value   []byte
 }
+
+type Operation uint8
+
+const (
+	OpDelete Operation = 0
+	OpUpsert Operation = 1
+)
 
 type Heap struct {
 	comparator dbutils.CmpFunc

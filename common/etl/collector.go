@@ -21,7 +21,7 @@ import (
 const TmpDirName = "etl-temp"
 
 type LoadNextFunc func(originalK, k, v []byte) error
-type LoadFunc func(k []byte, value []byte, table CurrentTableReader, next LoadNextFunc) error
+type LoadFunc func(op Operation, k, v []byte, table CurrentTableReader, next LoadNextFunc) error
 
 // Collector performs the job of ETL Transform, but can also be used without "E" (Extract) part
 // as a Collect Transform Load
@@ -135,8 +135,8 @@ func loadFilesIntoBucket(logPrefix string, db ethdb.Database, bucket string, pro
 	h := &Heap{comparator: args.Comparator}
 	heap.Init(h)
 	for i, provider := range providers {
-		if key, value, err := provider.Next(decoder); err == nil {
-			he := HeapElem{key, i, value}
+		if op, key, value, err := provider.Next(decoder); err == nil {
+			he := HeapElem{op, key, i, value}
 			heap.Push(h, he)
 		} else /* we must have at least one entry per file */ {
 			eee := fmt.Errorf("%s: error reading first readers: n=%d current=%d provider=%s err=%v",
@@ -225,11 +225,11 @@ func loadFilesIntoBucket(logPrefix string, db ethdb.Database, bucket string, pro
 
 		element := (heap.Pop(h)).(HeapElem)
 		provider := providers[element.TimeIdx]
-		err := loadFunc(element.Key, element.Value, currentTable, loadNextFunc)
+		err := loadFunc(element.Op, element.Key, element.Value, currentTable, loadNextFunc)
 		if err != nil {
 			return err
 		}
-		if element.Key, element.Value, err = provider.Next(decoder); err == nil {
+		if element.Op, element.Key, element.Value, err = provider.Next(decoder); err == nil {
 			heap.Push(h, element)
 		} else if err != io.EOF {
 			return fmt.Errorf("%s: error while reading next element from disk: %v", logPrefix, err)
