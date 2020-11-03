@@ -125,7 +125,7 @@ func ReOrgTransactions2(db ethdb.Database, fromBlockN uint64, srcForkId, dstFork
 		copy(kk[8:12], k[8:12]) // copy txID
 		kk[12] = dstForkId
 
-		if err := db.Delete(dbutils.EthTx, k); err != nil {
+		if err := db.Delete(dbutils.EthTx, k, nil); err != nil {
 			return false, err
 		}
 		if err := db.Put(dbutils.EthTx, kk, v); err != nil {
@@ -145,7 +145,7 @@ func ReOrgTransactions2(db ethdb.Database, fromBlockN uint64, srcForkId, dstFork
 		copy(kk[8:12], k[8:12]) // copy txID
 		kk[12] = 255            // canonical forkID
 
-		if err := db.Delete(dbutils.EthTx, k); err != nil {
+		if err := db.Delete(dbutils.EthTx, k, nil); err != nil {
 			return false, err
 		}
 		if err := db.Append(dbutils.EthTx, kk, v); err != nil {
