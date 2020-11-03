@@ -263,7 +263,7 @@ var receiptsOnePerTx = Migration{
 }
 
 var blocksStoreTransactionsIndividually = Migration{
-	Name: "blocks_store_transactions_individually_2",
+	Name: "blocks_store_transactions_individually_3",
 	Up: func(db ethdb.Database, tmpdir string, progress []byte, CommitProgress etl.LoadCommitHandler) (err error) {
 		logEvery := time.NewTicker(30 * time.Second)
 		defer logEvery.Stop()
