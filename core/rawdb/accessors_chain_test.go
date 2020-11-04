@@ -79,19 +79,27 @@ func TestBodyStorage(t *testing.T) {
 	rlp.Encode(hasher, body)
 	hash := common.BytesToHash(hasher.Sum(nil))
 
-	if entry := ReadCanonicalBody(db, 0); entry != nil {
+	entry, err := ReadCanonicalBody(db, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry != nil {
 		t.Fatalf("Non existent body returned: %v", entry)
 	}
 	// Write and verify the body in the database
 	if err := AppendCanonicalBody(context.Background(), db, 0, body); err != nil {
 		t.Fatal(err)
 	}
-	if entry := ReadCanonicalBody(db, 0); entry == nil {
+	entry, err = ReadCanonicalBody(db, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry == nil {
 		t.Fatalf("Stored body not found")
 	} else if types.DeriveSha(types.Transactions(entry.Transactions)) != types.DeriveSha(types.Transactions(body.Transactions)) || types.CalcUncleHash(entry.Uncles) != types.CalcUncleHash(body.Uncles) {
 		t.Fatalf("Retrieved body mismatch: have %v, want %v", entry, body)
 	}
-	if entry := ReadBodyRLP(db, hash, 0); entry == nil {
+	if entry := ReadCanonicalBodyRLP(db, 0); entry == nil {
 		t.Fatalf("Stored body RLP not found")
 	} else {
 		hasher := sha3.NewLegacyKeccak256()
@@ -105,7 +113,11 @@ func TestBodyStorage(t *testing.T) {
 	if err := DeleteCanonicalBody(db, 0); err != nil {
 		t.Fatal(err)
 	}
-	if entry := ReadCanonicalBody(db, 0); entry != nil {
+	entry, err = ReadCanonicalBody(db, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry != nil {
 		t.Fatalf("Deleted body returned: %v", entry)
 	}
 }
@@ -130,35 +142,43 @@ func TestBlockStorage(t *testing.T) {
 	if entry := ReadHeader(db, block.Hash(), block.NumberU64()); entry != nil {
 		t.Fatalf("Non existent header returned: %v", entry)
 	}
-	if entry := ReadCanonicalBody(db, block.NumberU64()); entry != nil {
-		t.Fatalf("Non existent body returned: %v", entry)
-	}
-	// Write and verify the block in the database
-	err := AppendCanonicalBlock(context.Background(), db, block)
-	if err != nil {
-		t.Fatalf("Could not write block: %v", err)
-	}
-	entry, err := CanonicalBlock(db, block.NumberU64())
+	entry, err := ReadCanonicalBody(db, block.NumberU64())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if entry == nil {
+	if entry != nil {
+		t.Fatalf("Non existent body returned: %v", entry)
+	}
+	// Write and verify the block in the database
+	err = AppendCanonicalBlock(context.Background(), db, block)
+	if err != nil {
+		t.Fatalf("Could not write block: %v", err)
+	}
+	blk, err := CanonicalBlock(db, block.NumberU64())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if blk == nil {
 		t.Fatalf("Stored block not found")
-	} else if entry.Hash() != block.Hash() {
-		t.Fatalf("Retrieved block mismatch: have %v, want %v", entry, block)
+	} else if blk.Hash() != block.Hash() {
+		t.Fatalf("Retrieved block mismatch: have %v, want %v", blk, block)
 	}
 	if entry := ReadHeader(db, block.Hash(), block.NumberU64()); entry == nil {
 		t.Fatalf("Stored header not found")
 	} else if entry.Hash() != block.Header().Hash() {
 		t.Fatalf("Retrieved header mismatch: have %v, want %v", entry, block.Header())
 	}
-	if entry := ReadCanonicalBody(db, block.NumberU64()); entry == nil {
+	entry, err = ReadCanonicalBody(db, block.NumberU64())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry == nil {
 		t.Fatalf("Stored body not found")
 	} else if types.DeriveSha(types.Transactions(entry.Transactions)) != types.DeriveSha(block.Transactions()) || types.CalcUncleHash(entry.Uncles) != types.CalcUncleHash(block.Uncles()) {
 		t.Fatalf("Retrieved body mismatch: have %v, want %v", entry, block.Body())
 	}
 	// Delete the block and verify the execution
-	if err := DeleteBlock(db, block.Hash(), block.NumberU64()); err != nil {
+	if err := DeleteCanonicalBlock(db, block.Hash(), block.NumberU64()); err != nil {
 		t.Fatalf("Could not delete block: %v", err)
 	}
 	if entry := ReadBlock(db, block.Hash(), block.NumberU64()); entry != nil {
@@ -376,7 +396,7 @@ func TestBlockReceiptStorage(t *testing.T) {
 		t.Fatalf("non existent receipts returned: %v", rs)
 	}
 	// Insert the body that corresponds to the receipts
-	WriteBody(ctx, db, hash, 0, body)
+	AppendCanonicalBody(ctx, db, 0, body)
 
 	// Insert the receipt slice into the database and check presence
 	if err := WriteReceipts(db, 0, receipts); err != nil {
@@ -390,7 +410,7 @@ func TestBlockReceiptStorage(t *testing.T) {
 		}
 	}
 	// Delete the body and ensure that the receipts are no longer returned (metadata can't be recomputed)
-	DeleteBody(db, hash, 0)
+	DeleteCanonicalBody(db, 0)
 	if rs := ReadReceipts(db, hash, 0); rs != nil {
 		t.Fatalf("receipts returned when body was deleted: %v", rs)
 	}

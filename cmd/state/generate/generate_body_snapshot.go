@@ -48,7 +48,7 @@ func BodySnapshot(dbPath, snapshotPath string, toBlock uint64, snapshotDir strin
 		if err != nil {
 			return fmt.Errorf("getting canonical hash for block %d: %v", i, err)
 		}
-		body := rawdb.ReadBodyRLP(db, hash, i)
+		body := rawdb.ReadCanonicalBodyRLP(db, i)
 		tuples = append(tuples, []byte(dbutils.BlockBodyPrefix), dbutils.BlockBodyKey(i, hash), body)
 		if len(tuples) >= chunkFile {
 			log.Info("Committed", "block", i)

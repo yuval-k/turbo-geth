@@ -282,7 +282,7 @@ func CanonicalUncles(db ethdb.Database, number uint64) (types.Uncles, error) {
 		}
 		return nil, fmt.Errorf("failed to read canonical uncles: %d, %w", number, err)
 	}
-	if err := rlp.Decode(bytes.NewReader(data), result); err != nil {
+	if err := rlp.Decode(bytes.NewReader(data), &result); err != nil {
 		return nil, fmt.Errorf("invalid uncles RLP: %d %w", number, err)
 	}
 	return result, nil
@@ -291,7 +291,6 @@ func CanonicalUncles(db ethdb.Database, number uint64) (types.Uncles, error) {
 func CanonicalTransactions(db ethdb.Database, number uint64) (types.Transactions, error) {
 	var result types.Transactions
 	reader := bytes.NewReader(nil)
-
 	if err := db.Walk(dbutils.EthTx, dbutils.EncodeBlockNumber(number), 8*8, func(k, v []byte) (bool, error) {
 		if k[12] != CanonicalForkID {
 			return true, nil
@@ -299,7 +298,6 @@ func CanonicalTransactions(db ethdb.Database, number uint64) (types.Transactions
 		tx := new(types.Transaction)
 		reader.Reset(v)
 		if err := rlp.Decode(reader, tx); err != nil {
-			panic(err)
 			return false, fmt.Errorf("invalid transaction RLP: %d %w", number, err)
 		}
 
@@ -331,7 +329,6 @@ func AppendCanonicalTransactions(db ethdb.Database, number uint64, txs types.Tra
 	key := make([]byte, 13)
 	binary.BigEndian.PutUint64(key, number)
 	key[12] = CanonicalForkID
-
 	for txID, tx := range txs {
 		binary.BigEndian.PutUint32(key[8:12], uint32(txID))
 		data, err := rlp.EncodeToBytes(tx)
@@ -350,14 +347,16 @@ func AppendCanonicalTransactions(db ethdb.Database, number uint64, txs types.Tra
 
 // ReadBodyRLP retrieves the block body (transactions and uncles) in RLP encoding.
 
-func ReadBodyRLP(db DatabaseReader, hash common.Hash, number uint64) rlp.RawValue {
-	data, err1 := db.Get(dbutils.BlockBodyPrefix, dbutils.BlockBodyKey(number, hash))
-	if err1 != nil && !errors.Is(err1, ethdb.ErrKeyNotFound) {
-		log.Error("ReadBodyRLP failed", "err", err1)
-	}
-	bodyRlp, err := DecompressBlockBody(data)
+func ReadCanonicalBodyRLP(db ethdb.Database, number uint64) rlp.RawValue {
+	body, err := ReadCanonicalBody(db, number)
 	if err != nil {
-		log.Warn("err on decode block", "err", err)
+		log.Error("ReadBodyRLP failed", "err", err)
+		return nil
+	}
+	bodyRlp, err := rlp.EncodeToBytes(body)
+	if err != nil {
+		log.Error("ReadBodyRLP failed", "err", err)
+		return nil
 	}
 	return bodyRlp
 }
@@ -395,7 +394,7 @@ func ReadBody(db ethdb.Database, hash common.Hash, number uint64) *types.Body {
 		log.Error("Invalid block body RLP", "hash", hash, "err", err)
 		return nil
 	}
-	if txs == nil {
+	if txs != nil || uncles != nil {
 		return &types.Body{Transactions: txs, Uncles: uncles}
 	}
 
@@ -403,22 +402,21 @@ func ReadBody(db ethdb.Database, hash common.Hash, number uint64) *types.Body {
 }
 
 // ReadBody retrieves the block body corresponding to the hash.
-func ReadCanonicalBody(db ethdb.Database, number uint64) *types.Body {
+func ReadCanonicalBody(db ethdb.Database, number uint64) (*types.Body, error) {
 	txs, err := CanonicalTransactions(db, number)
 	if err != nil {
-		log.Error("Invalid block body RLP", "number", number, "err", err)
-		return nil
-	}
-	uncles, err := CanonicalUncles(db, number)
-	if err != nil {
-		log.Error("Invalid block body RLP", "number", number, "err", err)
-		return nil
-	}
-	if txs != nil {
-		return &types.Body{Transactions: txs, Uncles: uncles}
+		return nil, fmt.Errorf("read canonical transactions: number=%d, %w", number, err)
 	}
 
-	return nil
+	uncles, err := CanonicalUncles(db, number)
+	if err != nil {
+		return nil, fmt.Errorf("read canonical uncles: number=%d, %w", number, err)
+	}
+	if txs != nil || uncles != nil {
+		return &types.Body{Transactions: txs, Uncles: uncles}, nil
+	}
+
+	return nil, nil
 }
 
 func ReadSenders(db DatabaseReader, hash common.Hash, number uint64) []common.Address {
@@ -441,6 +439,7 @@ func AppendCanonicalBody(ctx context.Context, db ethdb.Database, number uint64, 
 	if err := AppendCanonicalTransactions(db, number, body.Transactions); err != nil {
 		return err
 	}
+
 	if err := AppendCanonicalUncles(db, number, body.Uncles); err != nil {
 		return err
 	}
@@ -618,7 +617,11 @@ func ReadReceipts(db ethdb.Database, hash common.Hash, number uint64) types.Rece
 	if receipts == nil {
 		return nil
 	}
-	body := ReadBody(db, hash, number)
+	body, err := ReadCanonicalBody(db, number)
+	if err != nil {
+		log.Error("read receipts feiled", "hash", hash, "number", number, "err", err)
+		return nil
+	}
 	if body == nil {
 		log.Error("Missing body but have receipt", "hash", hash, "number", number)
 		return nil
@@ -755,17 +758,17 @@ func CanonicalBlock(db ethdb.Database, number uint64) (*types.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("1: %x, %d\n", hash, number)
 	header := ReadHeader(db, hash, number)
 	if header == nil {
 		return nil, nil
 	}
-	fmt.Printf("2\n")
-	body := ReadCanonicalBody(db, number)
+	body, err := ReadCanonicalBody(db, number)
+	if err != nil {
+		return nil, err
+	}
 	if body == nil {
 		return nil, nil
 	}
-	fmt.Printf("3\n")
 	return types.NewBlockWithHeader(header).WithBody(body.Transactions, body.Uncles), nil
 }
 
@@ -782,7 +785,7 @@ func AppendCanonicalBlock(ctx context.Context, db ethdb.Database, block *types.B
 		return err
 	}
 	WriteHeader(ctx, db, block.Header())
-	return nil
+	return WriteCanonicalHash(db, block.Header().Hash(), block.NumberU64())
 }
 
 // WriteAncientBlock writes entire block data into ancient store and returns the total written size.
@@ -819,26 +822,12 @@ func WriteAncientBlock(db ethdb.AncientWriter, block *types.Block, receipts type
 */
 
 // DeleteBlock removes all block data associated with a hash.
-func DeleteBlock(db ethdb.Database, hash common.Hash, number uint64) error {
+func DeleteCanonicalBlock(db ethdb.Database, hash common.Hash, number uint64) error {
 	if err := DeleteReceipts(db, number); err != nil {
 		return err
 	}
 	DeleteHeader(db, hash, number)
-	DeleteBody(db, hash, number)
-	if err := DeleteTd(db, hash, number); err != nil {
-		return err
-	}
-	return nil
-}
-
-// DeleteBlockWithoutNumber removes all block data associated with a hash, except
-// the hash to number mapping.
-func DeleteBlockWithoutNumber(db ethdb.Database, hash common.Hash, number uint64) error {
-	if err := DeleteReceipts(db, number); err != nil {
-		return err
-	}
-	deleteHeaderWithoutNumber(db, hash, number)
-	DeleteBody(db, hash, number)
+	DeleteCanonicalBody(db, number)
 	if err := DeleteTd(db, hash, number); err != nil {
 		return err
 	}

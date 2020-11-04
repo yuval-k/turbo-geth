@@ -646,7 +646,8 @@ func (bc *BlockChain) GetBodyRLP(hash common.Hash) rlp.RawValue {
 	if number == nil {
 		return nil
 	}
-	body := rawdb.ReadBodyRLP(bc.db, hash, *number)
+	// TODO: here need to fetch bodies of all forks
+	body := rawdb.ReadCanonicalBodyRLP(bc.db, *number)
 	if len(body) == 0 {
 		return nil
 	}
