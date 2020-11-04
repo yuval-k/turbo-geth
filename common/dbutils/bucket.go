@@ -247,8 +247,6 @@ var Buckets = []string{
 	CallFromIndex,
 	CallToIndex,
 	Log,
-	Uncle,
-	EthTx,
 }
 
 // DeprecatedBuckets - list of buckets which can be programmatically deleted - for example after migration
@@ -258,6 +256,10 @@ var DeprecatedBuckets = []string{
 	CurrentStateBucketOld1,
 	PlainStateBucketOld1,
 	IntermediateTrieHashBucketOld1,
+	"eth_tx",
+	"eth_tx2",
+	"uncles",
+	"uncle",
 }
 
 type CustomComparator string

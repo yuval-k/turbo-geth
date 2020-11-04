@@ -2122,7 +2122,7 @@ func receiptSizes(chaindata string) error {
 	defer c.Close()
 
 	sizes := make(map[int]int)
-	for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
+	for k, v, err := c.Seek(dbutils.EncodeBlockNumber(10_700_000)); k != nil; k, v, err = c.Next() {
 		if err != nil {
 			return err
 		}
@@ -2136,7 +2136,7 @@ func receiptSizes(chaindata string) error {
 	}
 	sort.Ints(lens)
 	for _, l := range lens {
-		if sizes[l] < 100000 {
+		if sizes[l] < 200 {
 			continue
 		}
 		fmt.Printf("%6d - %d\n", l, sizes[l])

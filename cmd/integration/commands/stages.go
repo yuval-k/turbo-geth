@@ -664,7 +664,7 @@ func removeMigration(db rawdb.DatabaseDeleter, _ context.Context) error {
 	if err := db.Delete(dbutils.Migrations, []byte(migration), nil); err != nil {
 		return err
 	}
-	if err := db.Delete(dbutils.Migrations, []byte(dbutils.MigrationProgressPrefix+migration)); err != nil {
+	if err := db.Delete(dbutils.Migrations, []byte(dbutils.MigrationProgressPrefix+migration), nil); err != nil {
 		return err
 	}
 	return nil
