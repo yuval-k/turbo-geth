@@ -2117,8 +2117,6 @@ func receiptSizes(chaindata string) error {
 	}
 	defer tx.Rollback()
 
-	rawdb.ReOrgTransactions2(tx, 11_000_000, 1, 2)
-
 	c := tx.Cursor(dbutils.EthTx)
 	defer c.Close()
 
