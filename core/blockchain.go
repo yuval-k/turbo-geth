@@ -545,7 +545,7 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 	if err := rawdb.WriteTd(bc.db, genesis.Hash(), genesis.NumberU64(), genesis.Difficulty()); err != nil {
 		return err
 	}
-	if err := rawdb.WriteBlock(context.Background(), bc.db, genesis); err != nil {
+	if err := rawdb.AppendCanonicalBlock(context.Background(), bc.db, genesis); err != nil {
 		return err
 	}
 	if err := bc.writeHeadBlock(genesis); err != nil {
@@ -1013,7 +1013,9 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 				}
 			}
 			// Write all the data out into the database
-			rawdb.WriteBody(context.Background(), batch, block.Hash(), block.NumberU64(), block.Body())
+			if err := rawdb.AppendCanonicalBody(context.Background(), batch, block.NumberU64(), block.Body()); err != nil {
+				return 0, err
+			}
 			if err := rawdb.WriteReceipts(batch, block.NumberU64(), receiptChain[i]); err != nil {
 				return 0, err
 			}
@@ -1132,7 +1134,9 @@ func (bc *BlockChain) writeBlockWithState(ctx context.Context, block *types.Bloc
 	if err := rawdb.WriteTd(bc.db, block.Hash(), block.NumberU64(), externTd); err != nil {
 		return NonStatTy, err
 	}
-	rawdb.WriteBody(ctx, bc.db, block.Hash(), block.NumberU64(), block.Body())
+	if err := rawdb.AppendCanonicalBody(ctx, bc.db, block.NumberU64(), block.Body()); err != nil {
+		return NonStatTy, err
+	}
 	sendersData := make([]byte, len(block.Transactions())*common.AddressLength)
 	senders := block.Body().SendersFromTxs()
 	for i, sender := range senders {
@@ -2271,7 +2275,9 @@ func InsertBodies(
 			return true, ctx.Err()
 		}
 
-		rawdb.WriteBody(ctx, batch, block.Hash(), block.NumberU64(), block.Body())
+		if err := rawdb.AppendCanonicalBody(ctx, batch, block.NumberU64(), block.Body()); err != nil {
+			return true, err
+		}
 
 		ctx = config.WithEIPsFlags(ctx, block.Number())
 		ctx = params.WithNoHistory(ctx, noHistory, isNoHistory)

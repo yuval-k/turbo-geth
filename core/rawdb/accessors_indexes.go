@@ -70,6 +70,7 @@ func ReadTransaction(db ethdb.Database, hash common.Hash) (*types.Transaction, c
 	if blockNumber == nil {
 		return nil, common.Hash{}, 0, 0
 	}
+
 	txs, err := CanonicalTransactions(db, *blockNumber)
 	if err != nil {
 		log.Error("ReadCanonicalHash failed", "err", err)
@@ -86,27 +87,7 @@ func ReadTransaction(db ethdb.Database, hash common.Hash) (*types.Transaction, c
 			return tx, blockHash, *blockNumber, uint64(txIndex)
 		}
 	}
-
-	// TODO: fallback to chain tip
-	blockHash, err := ReadCanonicalHash(db, *blockNumber)
-	if err != nil {
-		log.Error("ReadCanonicalHash failed", "err", err)
-		return nil, common.Hash{}, 0, 0
-	}
-	if blockHash == (common.Hash{}) {
-		return nil, common.Hash{}, 0, 0
-	}
-	body := ReadBody(db, blockHash, *blockNumber)
-	if body == nil {
-		log.Error("Transaction referenced missing", "number", blockNumber, "hash", blockHash)
-		return nil, common.Hash{}, 0, 0
-	}
-	for txIndex, tx := range body.Transactions {
-		if tx.Hash() == hash {
-			return tx, blockHash, *blockNumber, uint64(txIndex)
-		}
-	}
-	log.Error("Transaction not found", "number", blockNumber, "hash", blockHash, "txhash", hash)
+	log.Error("Transaction not found", "number", blockNumber, "txhash", hash)
 	return nil, common.Hash{}, 0, 0
 }
 

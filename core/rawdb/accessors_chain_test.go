@@ -79,12 +79,14 @@ func TestBodyStorage(t *testing.T) {
 	rlp.Encode(hasher, body)
 	hash := common.BytesToHash(hasher.Sum(nil))
 
-	if entry := ReadBody(db, hash, 0); entry != nil {
+	if entry := ReadCanonicalBody(db, 0); entry != nil {
 		t.Fatalf("Non existent body returned: %v", entry)
 	}
 	// Write and verify the body in the database
-	WriteBody(context.Background(), db, hash, 0, body)
-	if entry := ReadBody(db, hash, 0); entry == nil {
+	if err := AppendCanonicalBody(context.Background(), db, 0, body); err != nil {
+		t.Fatal(err)
+	}
+	if entry := ReadCanonicalBody(db, 0); entry == nil {
 		t.Fatalf("Stored body not found")
 	} else if types.DeriveSha(types.Transactions(entry.Transactions)) != types.DeriveSha(types.Transactions(body.Transactions)) || types.CalcUncleHash(entry.Uncles) != types.CalcUncleHash(body.Uncles) {
 		t.Fatalf("Retrieved body mismatch: have %v, want %v", entry, body)
@@ -100,8 +102,10 @@ func TestBodyStorage(t *testing.T) {
 		}
 	}
 	// Delete the body and verify the execution
-	DeleteBody(db, hash, 0)
-	if entry := ReadBody(db, hash, 0); entry != nil {
+	if err := DeleteCanonicalBody(db, 0); err != nil {
+		t.Fatal(err)
+	}
+	if entry := ReadCanonicalBody(db, 0); entry != nil {
 		t.Fatalf("Deleted body returned: %v", entry)
 	}
 }
@@ -118,21 +122,27 @@ func TestBlockStorage(t *testing.T) {
 		TxHash:      types.EmptyRootHash,
 		ReceiptHash: types.EmptyRootHash,
 	})
-	if entry := ReadBlock(db, block.Hash(), block.NumberU64()); entry != nil {
+	if entry, err := CanonicalBlock(db, block.NumberU64()); entry != nil {
 		t.Fatalf("Non existent block returned: %v", entry)
+	} else if err != nil {
+		t.Fatal(err)
 	}
 	if entry := ReadHeader(db, block.Hash(), block.NumberU64()); entry != nil {
 		t.Fatalf("Non existent header returned: %v", entry)
 	}
-	if entry := ReadBody(db, block.Hash(), block.NumberU64()); entry != nil {
+	if entry := ReadCanonicalBody(db, block.NumberU64()); entry != nil {
 		t.Fatalf("Non existent body returned: %v", entry)
 	}
 	// Write and verify the block in the database
-	err := WriteBlock(context.Background(), db, block)
+	err := AppendCanonicalBlock(context.Background(), db, block)
 	if err != nil {
 		t.Fatalf("Could not write block: %v", err)
 	}
-	if entry := ReadBlock(db, block.Hash(), block.NumberU64()); entry == nil {
+	entry, err := CanonicalBlock(db, block.NumberU64())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry == nil {
 		t.Fatalf("Stored block not found")
 	} else if entry.Hash() != block.Hash() {
 		t.Fatalf("Retrieved block mismatch: have %v, want %v", entry, block)
@@ -142,7 +152,7 @@ func TestBlockStorage(t *testing.T) {
 	} else if entry.Hash() != block.Header().Hash() {
 		t.Fatalf("Retrieved header mismatch: have %v, want %v", entry, block.Header())
 	}
-	if entry := ReadBody(db, block.Hash(), block.NumberU64()); entry == nil {
+	if entry := ReadCanonicalBody(db, block.NumberU64()); entry == nil {
 		t.Fatalf("Stored body not found")
 	} else if types.DeriveSha(types.Transactions(entry.Transactions)) != types.DeriveSha(block.Transactions()) || types.CalcUncleHash(entry.Uncles) != types.CalcUncleHash(block.Uncles()) {
 		t.Fatalf("Retrieved body mismatch: have %v, want %v", entry, block.Body())
@@ -182,7 +192,7 @@ func TestPartialBlockStorage(t *testing.T) {
 	DeleteHeader(db, block.Hash(), block.NumberU64())
 
 	// Store a body and check that it's not recognized as a block
-	WriteBody(ctx, db, block.Hash(), block.NumberU64(), block.Body())
+	AppendCanonicalBody(ctx, db, block.NumberU64(), block.Body())
 	if entry := ReadBlock(db, block.Hash(), block.NumberU64()); entry != nil {
 		t.Fatalf("Non existent block returned: %v", entry)
 	}

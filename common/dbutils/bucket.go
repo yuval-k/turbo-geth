@@ -113,7 +113,7 @@ var (
 	HeaderNumberPrefix = "H"         // headerNumberPrefix + hash -> num (uint64 big endian)
 
 	BlockBodyPrefix     = "b"      // blockBodyPrefix + num (uint64 big endian) + hash -> block body
-	Uncle               = "uncle"  // num (uint64 big endian) + forkId (uint8 big endian) -> rlp(Uncles)
+	Uncle               = "uncle"  // num (uint64 big endian) + forkId (uint8 big endian) -> rlp(types.Uncles)
 	EthTx               = "eth_tx" // num (uint64 big endian) + txID (uint32 big endian) + forkId (uint8 big endian) -> rlp(types.txdata)
 	BlockReceiptsPrefix = "r"      // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
 	Log                 = "log"    //
