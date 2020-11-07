@@ -2116,17 +2116,17 @@ func receiptSizes(chaindata string) error {
 	values := 0
 	overhead := 0
 	walkerAdapter := changeset.Mapper[dbutils.PlainAccountChangeSetBucket2].WalkerAdapter
-	for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
-		check(err)
-		blockN += len(k)
-		overhead += 8
-		err = walkerAdapter(v).Walk(func(k, v []byte) error {
-			accs += len(k)
-			values += len(v)
-			return nil
-		})
-		check(err)
-	}
+	//for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
+	//	check(err)
+	//	blockN += len(k)
+	//	overhead += 8
+	//	err = walkerAdapter(v).Walk(func(k, v []byte) error {
+	//		accs += len(k)
+	//		values += len(v)
+	//		return nil
+	//	})
+	//	check(err)
+	//}
 	fmt.Printf("blockN sz: %s, blockN overhead sz: %s, accs sz: %s, values sz: %s\n", common.StorageSize(blockN), common.StorageSize(overhead), common.StorageSize(accs), common.StorageSize(values))
 
 	bkt = dbutils.PlainStorageChangeSetBucket
