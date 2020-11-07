@@ -2105,7 +2105,7 @@ func receiptSizes(chaindata string) error {
 
 	//sizes := make(map[string]int)
 
-	c := tx.CursorDupSort(dbutils.PlainAccountChangeSetBucket2)
+	c := tx.CursorDupSort(dbutils.PlainAccountChangeSetBucket3)
 	defer c.Close()
 	total := 0
 	for k, v, err := c.First(); k != nil; k, v, err = c.NextNoDup() {
