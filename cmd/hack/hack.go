@@ -2105,18 +2105,18 @@ func receiptSizes(chaindata string) error {
 
 	//sizes := make(map[string]int)
 
-	c := tx.CursorDupSort(dbutils.PlainAccountChangeSetBucket3)
+	c := tx.CursorDupSort(dbutils.PlainAccountChangeSetBucket2)
 	defer c.Close()
 	total := 0
 	for k, v, err := c.First(); k != nil; k, v, err = c.NextNoDup() {
 		check(err)
-		//fmt.Printf("%x\n", k)
-		//fmt.Printf("\t%x\n", v)
+		fmt.Printf("%x\n", k)
+		fmt.Printf("\t%x\n", v)
 		total += len(k) + len(v) + 8
 		for k, v, err := c.NextDup(); k != nil; k, v, err = c.NextDup() {
 			check(err)
 			total += len(v)
-			//fmt.Printf("\t%x\n", v)
+			fmt.Printf("\t%x\n", v)
 		}
 	}
 	fmt.Printf("total sz: %s\n", common.StorageSize(total))
