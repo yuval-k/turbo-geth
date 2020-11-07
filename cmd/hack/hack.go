@@ -2114,10 +2114,12 @@ func receiptSizes(chaindata string) error {
 	blockN := 0
 	accs := 0
 	values := 0
+	overhead := 0
 	walkerAdapter := changeset.Mapper[dbutils.PlainAccountChangeSetBucket2].WalkerAdapter
 	for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
 		check(err)
-		blockN += len(k) + 8
+		blockN += len(k)
+		overhead += 8
 		err = walkerAdapter(v).Walk(func(k, v []byte) error {
 			accs += len(k)
 			values += len(v)
@@ -2125,7 +2127,7 @@ func receiptSizes(chaindata string) error {
 		})
 		check(err)
 	}
-	fmt.Printf("blockN sz: %s, accs sz: %s, values sz: %s\n", common.StorageSize(blockN), common.StorageSize(accs), common.StorageSize(values))
+	fmt.Printf("blockN sz: %s, blockN overhead sz: %s, accs sz: %s, values sz: %s\n", common.StorageSize(blockN), common.StorageSize(overhead), common.StorageSize(accs), common.StorageSize(values))
 
 	bkt = dbutils.PlainStorageChangeSetBucket
 	fmt.Printf("bucket: %s\n", bkt)
@@ -2134,12 +2136,14 @@ func receiptSizes(chaindata string) error {
 
 	blockN = 0
 	values = 0
+	overhead = 0
 	incs := 0
 	hashes := 0
 	walkerAdapter = changeset.Mapper[dbutils.PlainStorageChangeSetBucket2].WalkerAdapter
 	for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
 		check(err)
 		blockN += len(k) + 8
+		overhead += 8
 		err = walkerAdapter(v).Walk(func(k, v []byte) error {
 			accs += 32
 			incs += 8
@@ -2149,7 +2153,7 @@ func receiptSizes(chaindata string) error {
 		})
 		check(err)
 	}
-	fmt.Printf("blockN sz: %s, accs sz: %s, incs: %s, hashes: %s, values sz: %s\n", common.StorageSize(blockN), common.StorageSize(accs), common.StorageSize(incs), common.StorageSize(hashes), common.StorageSize(values))
+	fmt.Printf("blockN sz: %s, blockN overhead sz: %s, accs sz: %s, incs: %s, hashes: %s, values sz: %s\n", common.StorageSize(blockN), common.StorageSize(overhead), common.StorageSize(accs), common.StorageSize(incs), common.StorageSize(hashes), common.StorageSize(values))
 
 	//for k, v, err := c.First(); k != nil; k, v, err = c.NextNoDup() {
 	//	check(err)
