@@ -2135,6 +2135,7 @@ func receiptSizes(chaindata string) error {
 	defer c.Close()
 
 	blockN = 0
+	accs = 0
 	values = 0
 	overhead = 0
 	incs := 0

@@ -545,10 +545,20 @@ var accChangeSetDupSort2 = Migration{
 
 		const loadStep = "load"
 
+		if err = db.(ethdb.BucketsMigrator).ClearBuckets(dbutils.PlainAccountChangeSetBucket3); err != nil {
+			return fmt.Errorf("clearing the receipt bucket: %w", err)
+		}
+
+		// Commit clearing of the bucket - freelist should now be written to the database
+		if err = CommitProgress(db, []byte(loadStep), false); err != nil {
+			return fmt.Errorf("committing the removal of receipt table: %w", err)
+		}
+
 		changeSetBucket := dbutils.PlainAccountChangeSetBucket
 		walkerAdapter := changeset.Mapper[dbutils.PlainAccountChangeSetBucket2].WalkerAdapter
 		i := 0
 		cmp := db.(ethdb.HasTx).Tx().Comparator(dbutils.PlainAccountChangeSetBucket3)
+		c := db.(ethdb.HasTx).Tx().Cursor(dbutils.PlainAccountChangeSetBucket3)
 		buf := etl.NewSortableBuffer(etl.BufferOptimalSize * 4 * 2)
 		buf.SetComparator(cmp)
 		//newK := make([]byte, 8)
@@ -604,8 +614,8 @@ var accChangeSetDupSort2 = Migration{
 				log.Info(fmt.Sprintf("[%s] Progress", logPrefix), "blockNum", blockNum)
 			}
 
-			//binary.BigEndian.PutUint64(newK, blockNum)
 			if err = walkerAdapter(changesetBytes).Walk(func(k, v []byte) error {
+				return c.Put(kk, k)
 				return collectorR.Collect(kk, k)
 			}); err != nil {
 				return false, err
@@ -616,6 +626,30 @@ var accChangeSetDupSort2 = Migration{
 			return err
 		}
 
+		changeSetBucket := dbutils.PlainStorageChangeSetBucket
+		walkerAdapter := changeset.Mapper[dbutils.PlainStorageChangeSetBucket2].WalkerAdapter
+
+		if err = db.Walk(changeSetBucket, nil, 0, func(kk, changesetBytes []byte) (bool, error) {
+			i += len(kk) + len(changesetBytes) + 8 + 8
+			blockNum, _ := dbutils.DecodeTimestamp(kk)
+
+			select {
+			default:
+			case <-logEvery.C:
+				log.Info(fmt.Sprintf("[%s] Progress", logPrefix), "blockNum", blockNum)
+			}
+
+			if err = walkerAdapter(changesetBytes).Walk(func(k, v []byte) error {
+				return c.Put(kk, k)
+				return collectorR.Collect(kk, k)
+			}); err != nil {
+				return false, err
+			}
+
+			return true, nil
+		}); err != nil {
+			return err
+		}
 		fmt.Printf("sz: %s\n", common.StorageSize(i))
 
 		if err = db.(ethdb.BucketsMigrator).ClearBuckets(dbutils.PlainAccountChangeSetBucket3); err != nil {
