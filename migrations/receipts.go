@@ -545,7 +545,7 @@ var accChangeSetDupSort2 = Migration{
 
 		const loadStep = "load"
 
-		if err = db.(ethdb.BucketsMigrator).ClearBuckets(dbutils.PlainAccountChangeSetBucket3); err != nil {
+		if err = db.(ethdb.BucketsMigrator).ClearBuckets(dbutils.PlainAccountChangeSetBucket3, dbutils.PlainAccountChangeSetBucket2, dbutils.PlainStorageChangeSetBucket2); err != nil {
 			return fmt.Errorf("clearing the receipt bucket: %w", err)
 		}
 
