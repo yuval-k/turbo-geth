@@ -534,7 +534,7 @@ var storageChangeSetDupSort = Migration{
 }
 
 var accChangeSetDupSort2 = Migration{
-	Name: "acc_change_set_dup_fixed_13",
+	Name: "acc_change_set_dup_fixed_17",
 	Up: func(db ethdb.Database, tmpdir string, progress []byte, CommitProgress etl.LoadCommitHandler) (err error) {
 		logEvery := time.NewTicker(30 * time.Second)
 		defer logEvery.Stop()
@@ -562,6 +562,7 @@ var accChangeSetDupSort2 = Migration{
 		buf := etl.NewSortableBuffer(etl.BufferOptimalSize * 4 * 2)
 		buf.SetComparator(cmp)
 		newK := make([]byte, 8+20)
+
 		a := common.FromHex("00000000000000000000000000000000000000000000000000000000000000000000000000000000")
 
 		collectorR, err1 := etl.NewCollectorFromFiles(tmpdir + "1")
