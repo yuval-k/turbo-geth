@@ -561,7 +561,8 @@ var accChangeSetDupSort2 = Migration{
 		c := db.(ethdb.HasTx).Tx().Cursor(dbutils.PlainAccountChangeSetBucket3)
 		buf := etl.NewSortableBuffer(etl.BufferOptimalSize * 4 * 2)
 		buf.SetComparator(cmp)
-		//newK := make([]byte, 8)
+		newK := make([]byte, 8+20)
+		a := common.FromHex("00000000000000000000000000000000000000000000000000000000000000000000000000000000")
 
 		collectorR, err1 := etl.NewCollectorFromFiles(tmpdir + "1")
 		if err1 != nil {
@@ -614,9 +615,11 @@ var accChangeSetDupSort2 = Migration{
 				log.Info(fmt.Sprintf("[%s] Progress", logPrefix), "blockNum", blockNum)
 			}
 
+			binary.BigEndian.PutUint64(newK, blockNum)
 			if err = walkerAdapter(changesetBytes).Walk(func(k, v []byte) error {
-				return c.Put(kk, k)
-				return collectorR.Collect(kk, k)
+				copy(newK[8:], k[:20])
+				return c.Put(common.CopyBytes(newK), common.CopyBytes(a))
+				//return collectorR.Collect(kk, k)
 			}); err != nil {
 				return false, err
 			}
@@ -626,11 +629,10 @@ var accChangeSetDupSort2 = Migration{
 			return err
 		}
 
-		changeSetBucket := dbutils.PlainStorageChangeSetBucket
-		walkerAdapter := changeset.Mapper[dbutils.PlainStorageChangeSetBucket2].WalkerAdapter
+		changeSetBucket = dbutils.PlainStorageChangeSetBucket
+		walkerAdapter = changeset.Mapper[dbutils.PlainStorageChangeSetBucket2].WalkerAdapter
 
 		if err = db.Walk(changeSetBucket, nil, 0, func(kk, changesetBytes []byte) (bool, error) {
-			i += len(kk) + len(changesetBytes) + 8 + 8
 			blockNum, _ := dbutils.DecodeTimestamp(kk)
 
 			select {
@@ -639,9 +641,11 @@ var accChangeSetDupSort2 = Migration{
 				log.Info(fmt.Sprintf("[%s] Progress", logPrefix), "blockNum", blockNum)
 			}
 
+			binary.BigEndian.PutUint64(newK, blockNum)
 			if err = walkerAdapter(changesetBytes).Walk(func(k, v []byte) error {
-				return c.Put(kk, k)
-				return collectorR.Collect(kk, k)
+				copy(newK[8:], k[:20])
+				return c.Put(common.CopyBytes(newK), common.CopyBytes(k[20:]))
+				//return collectorR.Collect(kk, k)
 			}); err != nil {
 				return false, err
 			}
