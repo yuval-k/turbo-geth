@@ -2104,11 +2104,28 @@ func receiptSizes(chaindata string) error {
 	defer tx.Rollback()
 
 	//sizes := make(map[string]int)
-	//bkt := dbutils.PlainAccountChangeSetBucket3
+
+	c := tx.CursorDupSort(dbutils.PlainAccountChangeSetBucket3)
+	defer c.Close()
+	total := 0
+	for k, v, err := c.First(); k != nil; k, v, err = c.NextNoDup() {
+		check(err)
+		//fmt.Printf("%x\n", k)
+		//fmt.Printf("\t%x\n", v)
+		total += len(k) + len(v) + 8
+		for k, v, err := c.NextDup(); k != nil; k, v, err = c.NextDup() {
+			check(err)
+			total += len(v)
+			//fmt.Printf("\t%x\n", v)
+		}
+	}
+	fmt.Printf("total sz: %s\n", common.StorageSize(total))
+
+	return nil
 
 	bkt := dbutils.PlainAccountChangeSetBucket
 	fmt.Printf("bucket: %s\n", bkt)
-	c := tx.CursorDupSort(bkt)
+	c = tx.CursorDupSort(bkt)
 	defer c.Close()
 
 	blockN := 0
@@ -2159,18 +2176,6 @@ func receiptSizes(chaindata string) error {
 		check(err)
 	}
 	fmt.Printf("blockN sz: %s, blockN overhead sz: %s, accs sz: %s, incs: %s, hashes: %s, values sz: %s\n", common.StorageSize(blockN), common.StorageSize(overhead), common.StorageSize(accs), common.StorageSize(incs), common.StorageSize(hashes), common.StorageSize(values))
-
-	//for k, v, err := c.First(); k != nil; k, v, err = c.NextNoDup() {
-	//	check(err)
-	//	//fmt.Printf("%x\n", k)
-	//	//fmt.Printf("\t%x\n", v)
-	//	total += len(k) + len(v) + 8
-	//	for k, v, err := c.NextDup(); k != nil; k, v, err = c.NextDup() {
-	//		check(err)
-	//		total += len(v)
-	//		//fmt.Printf("\t%x\n", v)
-	//	}
-	//}
 
 	//var lens = make([]string, len(sizes))
 	//i := 0

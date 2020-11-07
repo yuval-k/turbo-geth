@@ -534,7 +534,7 @@ var storageChangeSetDupSort = Migration{
 }
 
 var accChangeSetDupSort2 = Migration{
-	Name: "acc_change_set_dup_fixed_10",
+	Name: "acc_change_set_dup_fixed_13",
 	Up: func(db ethdb.Database, tmpdir string, progress []byte, CommitProgress etl.LoadCommitHandler) (err error) {
 		logEvery := time.NewTicker(30 * time.Second)
 		defer logEvery.Stop()
@@ -656,9 +656,9 @@ var accChangeSetDupSort2 = Migration{
 		}
 		fmt.Printf("sz: %s\n", common.StorageSize(i))
 
-		if err = db.(ethdb.BucketsMigrator).ClearBuckets(dbutils.PlainAccountChangeSetBucket3); err != nil {
-			return fmt.Errorf("clearing the receipt bucket: %w", err)
-		}
+		//if err = db.(ethdb.BucketsMigrator).ClearBuckets(dbutils.PlainAccountChangeSetBucket3); err != nil {
+		//	return fmt.Errorf("clearing the receipt bucket: %w", err)
+		//}
 
 		// Commit clearing of the bucket - freelist should now be written to the database
 		if err = CommitProgress(db, []byte(loadStep), false); err != nil {
