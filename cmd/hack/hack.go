@@ -2140,6 +2140,7 @@ func receiptSizes(chaindata string) error {
 	incs := 0
 	hashes := 0
 	walkerAdapter = changeset.Mapper[dbutils.PlainStorageChangeSetBucket2].WalkerAdapter
+	a := common.FromHex("0000000000000000000000000000000000000000000000000000000000000000")
 	for k, v, err := c.First(); k != nil; k, v, err = c.Next() {
 		check(err)
 		blockN += len(k) + 8
@@ -2148,6 +2149,9 @@ func receiptSizes(chaindata string) error {
 			accs += 32
 			incs += 8
 			hashes += 32
+			if bytes.Equal(a, v) {
+				panic("found!")
+			}
 			values += len(v)
 			return nil
 		})
