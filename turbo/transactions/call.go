@@ -41,7 +41,7 @@ func DoCall(ctx context.Context, args ethapi.CallArgs, tx ethdb.Tx, dbReader eth
 	} else {
 		stateReader = state.NewPlainDBState(tx, blockNumber)
 	}
-	state := state.New(stateReader)
+	ibs := state.New(stateReader)
 
 	header := rawdb.ReadHeader(dbReader, hash, blockNumber)
 	if header == nil {
@@ -53,29 +53,29 @@ func DoCall(ctx context.Context, args ethapi.CallArgs, tx ethdb.Tx, dbReader eth
 		for addr, account := range *overrides {
 			// Override account nonce.
 			if account.Nonce != nil {
-				state.SetNonce(addr, uint64(*account.Nonce))
+				ibs.SetNonce(addr, uint64(*account.Nonce))
 			}
 			// Override account(contract) code.
 			if account.Code != nil {
-				state.SetCode(addr, *account.Code)
+				ibs.SetCode(addr, *account.Code)
 			}
 			// Override account balance.
 			if account.Balance != nil {
 				balance, _ := uint256.FromBig((*big.Int)(*account.Balance))
-				state.SetBalance(addr, balance)
+				ibs.SetBalance(addr, balance)
 			}
 			if account.State != nil && account.StateDiff != nil {
 				return nil, fmt.Errorf("account %s has both 'state' and 'stateDiff'", addr.Hex())
 			}
 			// Replace entire state if caller requires.
 			if account.State != nil {
-				state.SetStorage(addr, *account.State)
+				ibs.SetStorage(addr, *account.State)
 			}
 			// Apply state diff into specified accounts.
 			if account.StateDiff != nil {
 				for key, value := range *account.StateDiff {
 					key := key
-					state.SetState(addr, &key, value)
+					ibs.SetState(addr, &key, value)
 				}
 			}
 		}
@@ -99,7 +99,7 @@ func DoCall(ctx context.Context, args ethapi.CallArgs, tx ethdb.Tx, dbReader eth
 
 	evmCtx := GetEvmContext(msg, header, blockNrOrHash.RequireCanonical, dbReader)
 
-	evm := vm.NewEVM(evmCtx, state, params.MainnetChainConfig, vm.Config{})
+	evm := vm.NewEVM(evmCtx, ibs, params.MainnetChainConfig, vm.Config{})
 
 	// Wait for the context to be done and cancel the evm. Even if the
 	// EVM has finished, cancelling may be done (repeatedly)
@@ -112,6 +112,11 @@ func DoCall(ctx context.Context, args ethapi.CallArgs, tx ethdb.Tx, dbReader eth
 	result, err := core.ApplyMessage(evm, msg, gp)
 	if err != nil {
 		return nil, err
+	}
+	if args.WithRefund != nil && (*args.WithRefund) {
+		if err = ibs.FinalizeTx(ctx, state.NewNoopWriter()); err != nil {
+			return nil, fmt.Errorf("finalising tx (for refunds) failed: %w", err)
+		}
 	}
 
 	// If the timer caused an abort, return an appropriate error message

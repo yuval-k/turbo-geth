@@ -697,8 +697,9 @@ type CallArgs struct {
 	Value    *hexutil.Big    `json:"value"`
 	// We accept "data" and "input" for backwards-compatibility reasons. "input" is the
 	// newer name and should be preferred by clients.
-	Data  *hexutil.Bytes `json:"data"`
-	Input *hexutil.Bytes `json:"input"`
+	Data       *hexutil.Bytes `json:"data"`
+	Input      *hexutil.Bytes `json:"input"`
+	WithRefund *bool          `json:"withRefund"`
 }
 
 // ToMessage converts CallArgs to the Message type used by the core evm
